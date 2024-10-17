@@ -9,7 +9,7 @@ A Quick start tool kit for typescript projects. Copy-paste only what you need.
 - Vector: Upstash Redis
 - Job Queue: Inngest
 - Logging: Axiom, Pino
-- Alerting: Axiom, PagerDuty
+- Alerting: Axiom, Slack, PagerDuty
 
 ## Utils
 
