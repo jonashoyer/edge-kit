@@ -41,16 +41,3 @@ export const truncate = (str: string, maxLength: number): string => {
 
 const base64Digit = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 const toB64 = (x: number) => x.toString(2).split(/(?=(?:.{6})+(?!.))/g).map(v => base64Digit[parseInt(v, 2)]).join("")
-
-
-/**
- * Truncates a string to a maximum length with an optional center index that is used to center the truncation.
- * Ellipsis are added at the end and/or beginning of the string if it's truncated.
- *
- * @param str The string to truncate
- * @param maxLength The maximum length of the resulting string
- * @param centerIndex Optional index to center the truncation around
- * @param ellipsis Optional ellipsis to use, default to '...'
- * @returns The truncated string
- */
-// export const truncateString = 
