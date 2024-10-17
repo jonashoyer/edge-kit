@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 export const tryParseDate = (date: string | null | undefined) => {
   if (!date) return null;
   const parsed = new Date(date);
@@ -26,3 +28,23 @@ export const addDays = (date: Date, days: number): Date => {
   result.setDate(result.getDate() + days);
   return result;
 }
+
+
+
+export const humanizeTime = (date: string | Date | dayjs.Dayjs) => {
+  const d = dayjs(date);
+
+  if (d.isSame(dayjs(), 'day')) {
+    return 'Today, ' + d.format('HH:mm');
+  }
+
+  if (d.isSame(dayjs().subtract(1, 'day'), 'day')) {
+    return 'Yesterday, ' + d.format('HH:mm');
+  }
+
+  if (d.isSame(dayjs(), 'year')) {
+    return d.format('D MMMM');
+  }
+
+  return d.format('D MMM YY');
+};

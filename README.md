@@ -10,6 +10,7 @@ A Quick start tool kit for typescript projects. Copy-paste only what you need.
 - Job Queue: Inngest
 - Logging: Axiom, Pino
 - Alerting: Axiom, Slack, PagerDuty
+- Analytics: PostHog
 
 ## Utils
 
