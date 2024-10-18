@@ -24,7 +24,8 @@ export class NamespaceComposer<T extends Record<string, string | TemplateLiteral
 
 
 /*
-const manager = new NamespaceComposer({
+// KV namespace composer example
+const kvNamespace = new NamespaceComposer({
   user: 'users',
   userSession: (userId: string) => `session:user:${userId}`,
   documentChunk: (documentId: string, chunkNumber: number) => `chunk:${documentId}:${chunkNumber}`,
@@ -34,13 +35,25 @@ const manager = new NamespaceComposer({
 });
 
 // Type-safe usage examples
-const userKey = manager.key('user');
-const userSessionKey = manager.key('userSession', 'user123');
-const documentChunkKey = manager.key('documentChunk', 'doc456', 1);
-const profileKey = manager.key('profile', 'user789');
-const imageKey = manager.key('image', 'user101', 'img202');
-const objectKey = manager.key('object', { type: 'user', id: 'user123' });
+const userKey = kvNamespace.key('user');
+const userSessionKey = kvNamespace.key('userSession', 'user123');
+const documentChunkKey = kvNamespace.key('documentChunk', 'doc456', 1);
+const profileKey = kvNamespace.key('profile', 'user789');
+const imageKey = kvNamespace.key('image', 'user101', 'img202');
+const objectKey = kvNamespace.key('object', { type: 'user', id: 'user123' });
 
 // This will cause a TypeScript error due to incorrect parameters
-// manager.key('userSession', 123);
+// kvNamespace.key('userSession', 123);
+*/
+
+/*
+// Web Router namespace composer example
+
+const pathNamespace = new NamespaceComposer({
+  home: '/',
+  user: (userId: string) => `/users/${userId}`,
+  article: (articleId: string) => `/articles/${articleId}`,
+  login: '/login',
+  logout: '/logout',
+});
 */
