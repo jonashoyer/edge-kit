@@ -1,83 +1,48 @@
-import { ml } from "./stringUtils";
+import { ml } from "../utils/stringUtils";
+
+
+export type PromptTemplateParams<T extends string> = Record<ExtractVariables<T>, string>;
+
+export type PromptComposerComponent = {
+  data: any;
+  converter: (data: any) => string;
+};
 
 type ExtractVariables<T extends string> = T extends `${string}{{${infer Var}}}${infer Rest}`
   ? Var | ExtractVariables<Rest>
   : never;
 
-type TemplateParams<T extends string> = {
-  [K in ExtractVariables<T>]: string;
-};
-
-type PromptComponentTemplate<T extends string = string> = {
-  template: T;
-  params?: Partial<TemplateParams<T>>;
-};
-
-type PromptComponentData = {
-  data: any;
-  converter: (data: any) => string;
-};
-
-type PromptComponent<T extends string = string> = PromptComponentTemplate<T> | PromptComponentData;
-
-type MetaPromptComponents = Record<string, PromptComponent>;
-
-type ExtractAllVariables<T extends MetaPromptComponents> = {
-  [K in keyof T]: T[K] extends PromptComponentTemplate<infer U> ? ExtractVariables<U> : never;
-}[keyof T];
-
-type ExtractComponentVariables<T extends MetaPromptComponents> = {
-  [K in keyof T]: T[K] extends PromptComponentTemplate<infer U> ? ExtractVariables<U> : never;
-}[keyof T];
-
-type ComponentProvidedParams<T extends MetaPromptComponents> = {
-  [K in keyof T]: T[K] extends PromptComponentTemplate ? keyof T[K]['params'] : never;
-}[keyof T];
-
-type MissingParams<T extends string, U extends MetaPromptComponents> =
-  Omit<
-    TemplateParams<T> & { [K in ExtractComponentVariables<U>]: string },
-    keyof U | ComponentProvidedParams<U>
-  >;
-
-export class PromptBuilder {
+export class PromptComposer {
   private static replace<T extends string>(
     template: T,
-    params: TemplateParams<T>
+    params: Record<ExtractVariables<T>, string>
   ): string {
     return ml([template]).replace(
       /{{(\w+)}}/g,
-      (_, key) => params[key as keyof TemplateParams<T>] ?? '',
+      (_, key) => params[key as keyof PromptTemplateParams<T>] ?? '',
     );
   }
 
   static build<T extends string>(
     template: T,
-    params: TemplateParams<T>
+    params: PromptTemplateParams<T>
   ): string {
     return this.replace(template, params);
   }
 
-  static composer<T extends string, U extends MetaPromptComponents>(
+  static composer<T extends string, U extends Record<string, PromptComposerComponent>>(
     template: T,
     components: U,
-    params: MissingParams<T, U>
-  ) {
+    params: Record<Exclude<ExtractVariables<T>, keyof U>, string>
+  ): string {
     const processedComponents: Record<string, string> = {};
 
     for (const [key, component] of Object.entries(components)) {
-      if ('template' in component) {
-        const { template: subTemplate, params: componentParams = {} } = component;
-        const mergedParams = { ...componentParams, ...params };
-        processedComponents[key] = this.build(subTemplate, mergedParams as any);
-      } else {
-        const { data, converter } = component;
-        processedComponents[key] = converter(data);
-      }
+      const { data, converter } = component;
+      processedComponents[key] = converter(data);
     }
-
-    const mergedParams = { ...processedComponents, ...params };
-    return this.build(ml([template]), mergedParams as any);
+    const mergedParams = { ...processedComponents, ...params } as unknown as Record<ExtractVariables<T>, string>;
+    return this.replace(template, mergedParams as any);
   }
 
   /**
@@ -134,7 +99,7 @@ export class PromptBuilder {
       }
 
       if (typeof obj !== 'object') {
-        return `<${name}>${PromptBuilder.escapeXml(obj.toString())}</${name}>`;
+        return `<${name}>${PromptComposer.escapeXml(obj.toString())}</${name}>`;
       }
 
       if (Array.isArray(obj)) {
@@ -145,7 +110,7 @@ export class PromptBuilder {
         .map(([key, value]) => convert(value, key))
         .join('\n');
 
-      return `<${name}>\n${PromptBuilder.indent(children)}\n</${name}>`;
+      return `<${name}>\n${PromptComposer.indent(children)}\n</${name}>`;
     };
 
     return convert(json, rootName);
@@ -166,7 +131,7 @@ export class PromptBuilder {
 }
 
 
-// const finalPrompt = PromptBuilder.composer(
+// const finalPrompt = PromptComposer.composer(
 //   `
 //   Hello {{name}}!
 
@@ -189,17 +154,13 @@ export class PromptBuilder {
 //       data: new Date(),
 //       converter: (date) => date.toLocaleDateString()
 //     },
-//     name: {
-//       template: "{{firstName}} {{lastName}}",
-//       params: { firstName: "Alice" }
-//     },
 //     tasks: {
 //       data: ["Buy groceries", "Walk the dog", "Finish report"],
-//       converter: PromptBuilder.arrayToList,
+//       converter: PromptComposer.arrayToList,
 //     },
 //     status: {
 //       data: { ok: true, progress: "50%" },
-//       converter: PromptBuilder.objectToKeyValue
+//       converter: PromptComposer.objectToKeyValue
 //     },
 //     xml: {
 //       data: {
@@ -207,12 +168,12 @@ export class PromptBuilder {
 //         age: 30,
 //         isStudent: false
 //       },
-//       converter: (data) => PromptBuilder.jsonToXml(data, 'user')
-//     }
-//   } as const,
+//       converter: (data) => PromptComposer.jsonToXml(data, 'user')
+//     },
+//   },
 //   {
-//     lastName: 'Smith',
-//     dueDate: '01-01-2024',
+//     name: PromptComposer.build("{{firstName}} {{lastName}}", { firstName: "Alice", lastName: "Smith" }),
+//     dueDate: PromptComposer.build("{{dayjs today}}", { today: new Date() }),
 //   }
 // );
 
