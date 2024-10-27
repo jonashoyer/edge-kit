@@ -22,7 +22,7 @@ Q Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate
 
 ### Vector Database
 
-- Upstash Vector
+- _Upstash Vector_
 
 ### Logging
 
@@ -42,6 +42,11 @@ Q Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate
 ### Feature Flag
 
 - [Client-side Feature Flag](./src/services/featureFlag/clientFeatureFlag.ts)
+
+### Waitlist
+
+- [Key-Value Waitlist](./src/services/waitlist/keyValueWaitlist.ts): Efficient waitlist management using Redis sorted sets
+- _Drizzle Waitlist_
 
 ## 🎼 Composers
 
