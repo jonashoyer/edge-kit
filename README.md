@@ -1,6 +1,6 @@
-# Q Kit
+# Edge Kit
 
-Q Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate development with high-quality, copy-paste-ready components. Ideal for NextJS and other serverless platforms, Q Kit prioritizes type safety and ease of use.
+Edge Kit is a carefully designed TypeScript toolkit for modern serverless applications, with a special emphasis on NextJS and similar platforms. It includes a set of high-quality, type-safe components that can be copied and reused as desired.
 
 ## 🚀 Features
 
