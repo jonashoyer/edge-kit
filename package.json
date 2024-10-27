@@ -13,6 +13,7 @@
     "@upstash/redis": "^1.34.3",
     "dayjs": "^1.11.13",
     "ioredis": "^5.4.1",
+    "nanoid": "^5.0.7",
     "pino": "^9.5.0",
     "pino-abstract-transport": "^2.0.0",
     "posthog-js": "^1.174.2",
