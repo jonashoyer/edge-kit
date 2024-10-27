@@ -25,8 +25,8 @@ export class ClientFeatureFlagService<T extends string> {
     if (!flag.isEnabled) return false;
     if (flag.rolloutPercentage >= 1) return true;
 
-    const rand = seedRandomNumberGenerator(`${name}:${userId}`);
-    return rand() < flag.rolloutPercentage;
+    const generator = seedRandomNumberGenerator(`${name}:${userId}`);
+    return generator() < flag.rolloutPercentage;
   }
 
 

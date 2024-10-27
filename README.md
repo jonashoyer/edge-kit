@@ -17,16 +17,12 @@ Q Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate
 
 ### Key-Value Store
 
-- [Upstash Redis](./src/services/keyValue/upstashRedisKeyValueService.ts)
-- [Ioredis](./src/services/keyValue/ioredisKeyValueService.ts)
+- [Upstash Redis](./src/services/keyValue/upstashRedisKeyValue.ts)
+- [Ioredis](./src/services/keyValue/ioredisKeyValue.ts)
 
 ### Vector Database
 
 - Upstash Vector
-
-### Job Queue
-
-- Inngest
 
 ### Logging
 
@@ -35,13 +31,17 @@ Q Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate
 
 ### Alerting
 
-- [Axiom](./src/services/alerting/axiomAlertingService.ts)
-- [Slack](./src/services/alerting/slackAlertingService.ts)
-- [PagerDuty](./src/services/alerting/pagerDutyAlertingService.ts)
+- [Axiom](./src/services/alerting/axiomAlerting.ts)
+- [Slack](./src/services/alerting/slackAlerting.ts)
+- [PagerDuty](./src/services/alerting/pagerDutyAlerting.ts)
 
 ### Analytics
 
-- PostHog
+- [PostHog](./src/services/analytics/posthogAnalytics.ts)
+
+### Feature Flag
+
+- [Client-side Feature Flag](./src/services/featureFlag/clientFeatureFlag.ts)
 
 ## 🎼 Composers
 
@@ -71,10 +71,6 @@ Q Kit includes a rich set of utility functions to streamline common tasks:
 2. Copy the desired files into your project
 3. Import and use the components as needed
 
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
 ## 📣 Looking for a full-stack starter kit?
 
 Check out these popular options:
@@ -82,7 +78,3 @@ Check out these popular options:
 - [Create T3 App](https://github.com/t3-oss/create-t3-app)
 - [Next.js SaaS Starter](https://github.com/leerob/next-saas-starter)
 - [Create T3 Turbo](https://github.com/t3-oss/create-t3-turbo)
-
-## 📄 License
-
-[MIT](LICENSE)

@@ -1,5 +1,5 @@
 import IORedis, { RedisOptions } from 'ioredis';
-import { AbstractKeyValueService } from './abstractKeyValueService';
+import { AbstractKeyValueService } from './abstractKeyValue';
 import { Nullable } from '../../utils/typeUtils';
 
 export class IoredisKeyValueService extends AbstractKeyValueService {
