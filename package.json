@@ -11,6 +11,7 @@
     "@axiomhq/js": "^1.2.0",
     "@axiomhq/pino": "^1.2.0",
     "@upstash/redis": "^1.34.3",
+    "@vercel/functions": "^1.4.2",
     "dayjs": "^1.11.13",
     "ioredis": "^5.4.1",
     "nanoid": "^5.0.7",

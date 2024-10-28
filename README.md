@@ -5,6 +5,7 @@ Edge Kit is a carefully designed TypeScript toolkit for modern serverless applic
 ## 🚀 Features
 
 - **Modular Design**: Copy and use only what you need
+- **AI-Editor-First**: Designed to work seamlessly with AI editors
 - **Type Safety**: Strongly typed components for robust development
 - **Serverless-Ready**: Optimized for NextJS and similar platforms
 
@@ -57,18 +58,16 @@ Edge Kit is a carefully designed TypeScript toolkit for modern serverless applic
 
 Q Kit includes a rich set of utility functions to streamline common tasks:
 
-| Utility                                      | Description                       |
-| -------------------------------------------- | --------------------------------- |
-| [arrayUtils.ts](./src/utils/arrayUtils.ts)   | Array manipulation functions      |
-| [cryptoUtils.ts](./src/utils/cryptoUtils.ts) | Cryptography-related utilities    |
-| [dateUtils.ts](./src/utils/dateUtils.ts)     | Date manipulation functions       |
-| [formUtils.ts](./src/utils/formUtils.ts)     | Form-related helpers              |
-| [miscUtils.ts](./src/utils/miscUtils.ts)     | Miscellaneous utility functions   |
-| [numberUtils.ts](./src/utils/numberUtils.ts) | Number manipulation functions     |
-| [randomUtils.ts](./src/utils/randomUtils.ts) | Random value generation utilities |
-| [stringUtils.ts](./src/utils/stringUtils.ts) | String manipulation functions     |
-| [urlUtils.ts](./src/utils/urlUtils.ts)       | URL-related utilities             |
-| [typeUtils.ts](./src/utils/typeUtils.ts)     | Common TypeScript type helpers    |
+- [Array](./src/utils/arrayUtils.ts) - Array manipulation functions
+- [Crypto](./src/utils/cryptoUtils.ts) - Cryptography-related utilities
+- [Date](./src/utils/dateUtils.ts) - Date manipulation functions
+- [Form](./src/utils/formUtils.ts) - Form-related helpers
+- [Misc](./src/utils/miscUtils.ts) - Miscellaneous utility functions
+- [Number](./src/utils/numberUtils.ts) - Number manipulation functions
+- [Random](./src/utils/randomUtils.ts) - Random value generation utilities
+- [String](./src/utils/stringUtils.ts) - String manipulation functions
+- [URL](./src/utils/urlUtils.ts) - URL-related utilities
+- [Type](./src/utils/typeUtils.ts) - Common TypeScript type helpers
 
 ## 📚 Usage
 
