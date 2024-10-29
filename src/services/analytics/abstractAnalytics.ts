@@ -1,12 +1,12 @@
-type AnalyticsProperty = any;
-type AnalyticsProperties = Record<string, AnalyticsProperty>;
+export type AnalyticsProperty = any;
+export type AnalyticsProperties = Record<string, AnalyticsProperty>;
 
-export abstract class AbstractAnalytics<T extends Record<string, AnalyticsProperties>> {
-  abstract capture<TEvent extends keyof T>(event: TEvent, properties: T[TEvent]): void;
+export interface AbstractAnalytics<T extends Record<K, AnalyticsProperties>, K extends keyof T = keyof T> {
+  capture<TEvent extends K>(event: TEvent, properties: T[TEvent]): void;
 
-  abstract identify(
+  identify(
     distinctId?: string,
   ): void;
 
-  abstract reset(): void;
+  reset(): void;
 }

@@ -2,10 +2,9 @@ import posthog from 'posthog-js';
 import type { PostHogConfig, Properties } from 'posthog-js';
 import { AbstractAnalytics } from './abstractAnalytics';
 
-export class PosthogAnalytics<T extends Record<string, Record<string, any>>> extends AbstractAnalytics<T> {
+export class PosthogAnalytics<T extends Record<string, Record<string, any>>> implements AbstractAnalytics<T> {
 
   constructor(token: string, config?: Partial<PostHogConfig>, name?: string) {
-    super();
     posthog.init(token, { api_host: config?.api_host ?? 'https://eu.i.posthog.com', ...config }, name);
   }
 
