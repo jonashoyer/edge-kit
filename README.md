@@ -23,7 +23,8 @@ Edge Kit is a carefully designed TypeScript toolkit for modern serverless applic
 
 ### Vector Database
 
-- _Upstash Vector_
+- [Upstash Vector](./src/services/vectorDatabase/upstashVectorDatabase.ts)
+
 
 ### Logging
 
