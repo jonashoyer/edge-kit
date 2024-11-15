@@ -1,5 +1,5 @@
-import { AbstractAlertingService, AlertOptions } from './abstractAlerting';
-import { AbstractLogger } from '../logging/abstractLogger';
+import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
+import { AbstractLogger } from '../logging/abstract-logger';
 import { Axiom } from '@axiomhq/js';
 
 export class AxiomAlertingService extends AbstractAlertingService {

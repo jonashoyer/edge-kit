@@ -1,4 +1,4 @@
-import { AbstractLogger } from "./abstractLogger";
+import { AbstractLogger } from "./abstract-logger";
 import pino from 'pino';
 
 export class AxiomPinoLogger extends AbstractLogger {

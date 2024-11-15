@@ -1,4 +1,4 @@
-import { Nullable } from '../../utils/typeUtils';
+import { Nullable } from '../../utils/type-utils';
 
 export abstract class AbstractKeyValueService {
   abstract get<T>(key: string): Promise<Nullable<T>>;

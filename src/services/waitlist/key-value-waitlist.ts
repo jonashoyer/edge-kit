@@ -1,6 +1,6 @@
-import { AbstractWaitlistService, WaitlistEntry } from './abstractWaitlist';
-import { AbstractKeyValueService } from '../keyValue/abstractKeyValue';
-import { NamespaceComposer } from '../../composers/namespaceComposer';
+import { AbstractWaitlistService, WaitlistEntry } from './abstract-waitlist';
+import { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import { NamespaceComposer } from '../../composers/namespace-composer';
 
 export class KeyValueWaitlistService extends AbstractWaitlistService {
   namespace = new NamespaceComposer({

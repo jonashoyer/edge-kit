@@ -1,4 +1,4 @@
-import { AbstractLogger } from './abstractLogger';
+import { AbstractLogger } from './abstract-logger';
 
 export class ConsoleLogger extends AbstractLogger {
   log(message: string, level: 'info' | 'warn' | 'error', metadata?: Record<string, any>): void {

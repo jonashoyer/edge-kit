@@ -1,4 +1,4 @@
-import { AbstractLogger } from './abstractLogger';
+import { AbstractLogger } from './abstract-logger';
 import { Axiom } from '@axiomhq/js';
 
 export class AxiomLogger implements AbstractLogger {

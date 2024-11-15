@@ -1,4 +1,4 @@
-import { seedRandomNumberGenerator } from "../../utils/randomUtils";
+import { seedRandomNumberGenerator } from "../../utils/random-utils";
 
 export interface BaseFeatureFlag {
   disabled?: boolean;

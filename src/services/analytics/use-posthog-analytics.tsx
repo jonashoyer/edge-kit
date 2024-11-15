@@ -1,6 +1,6 @@
 import { Properties } from "posthog-js";
 import { usePostHog } from "posthog-js/react";
-import { AbstractAnalytics } from "./abstractAnalytics";
+import { AbstractAnalytics } from "./abstract-analytics";
 
 export interface AnalyticsEvents {
   example_action: {

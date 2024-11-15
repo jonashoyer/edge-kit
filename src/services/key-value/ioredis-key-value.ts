@@ -1,6 +1,6 @@
 import IORedis, { RedisOptions } from 'ioredis';
-import { AbstractKeyValueService } from './abstractKeyValue';
-import { Nullable } from '../../utils/typeUtils';
+import { AbstractKeyValueService } from './abstract-key-value';
+import { Nullable } from '../../utils/type-utils';
 
 export class IoredisKeyValueService extends AbstractKeyValueService {
   private client: IORedis;

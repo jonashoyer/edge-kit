@@ -1,4 +1,4 @@
-import { AbstractLogger } from '../logging/abstractLogger';
+import { AbstractLogger } from '../logging/abstract-logger';
 
 export interface AlertOptions {
   severity: 'info' | 'warning' | 'error' | 'critical';

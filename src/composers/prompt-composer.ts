@@ -1,4 +1,4 @@
-import { ml } from "../utils/stringUtils";
+import { ml } from "../utils/string-utils";
 
 
 export type PromptTemplateParams<T extends string> = Record<ExtractVariables<T>, string>;

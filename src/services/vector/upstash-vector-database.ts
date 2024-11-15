@@ -1,5 +1,5 @@
 import { Index } from "@upstash/vector";
-import { AbstractVectorDatabase, VectorDatabaseOptions, VectorEntry, VectorQueryOptions } from './abstractVectorDatabase';
+import { AbstractVectorDatabase, VectorDatabaseOptions, VectorEntry, VectorQueryOptions } from './abstract-vector-database';
 
 interface UpstashVectorOptions extends VectorDatabaseOptions {
   url: string;

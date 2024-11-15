@@ -1,6 +1,6 @@
 import posthog from 'posthog-js';
 import type { PostHogConfig, Properties } from 'posthog-js';
-import { AbstractAnalytics } from './abstractAnalytics';
+import { AbstractAnalytics } from './abstract-analytics';
 
 export class PosthogAnalytics<T extends Record<string, Record<string, any>>> implements AbstractAnalytics<T> {
 

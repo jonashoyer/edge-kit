@@ -1,6 +1,6 @@
-import { AbstractAlertingService, AlertOptions } from './abstractAlerting';
-import { AbstractLogger } from '../logging/abstractLogger';
-import { fetchExt } from '../../utils/miscUtils';
+import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
+import { AbstractLogger } from '../logging/abstract-logger';
+import { fetchExt } from '../../utils/misc-utils';
 
 export class SlackAlertingService extends AbstractAlertingService {
   constructor(
