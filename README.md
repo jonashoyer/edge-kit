@@ -25,7 +25,6 @@ Edge Kit is a carefully designed TypeScript toolkit for modern serverless applic
 
 - [Upstash Vector](./src/services/vectorDatabase/upstashVectorDatabase.ts)
 
-
 ### Logging
 
 - [Axiom](./src/services/logging/axiomLogger.ts)

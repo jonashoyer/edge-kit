@@ -3,7 +3,7 @@ import { usePostHog } from "posthog-js/react";
 import { AbstractAnalytics } from "./abstractAnalytics";
 
 export interface AnalyticsEvents {
-  action: {
+  example_action: {
     userId: string;
     timestamp: number;
   };
