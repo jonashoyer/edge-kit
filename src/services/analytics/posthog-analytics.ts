@@ -18,8 +18,12 @@ export class PosthogAnalytics<T extends Record<string, Record<string, any>>> imp
   public identify(
     newDistinctId?: string,
     userPropertiesToSet?: Properties,
-    userPropertiesToSetOnce?: Properties
+    userPropertiesToSetOnce?: Properties,
+    sessionProperties?: Properties
   ): void {
+    if (sessionProperties) {
+      posthog.register_for_session(sessionProperties);
+    }
     posthog.identify(newDistinctId, userPropertiesToSet, userPropertiesToSetOnce);
   }
 

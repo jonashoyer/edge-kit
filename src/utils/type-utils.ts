@@ -4,13 +4,15 @@ export type Optional<T> = T | undefined;
 
 export type ReadonlyArray<T> = readonly T[];
 
-export type StringRecord = Record<string, any>;
-
 export type AsyncFunction<T = void> = () => Promise<T>;
 
 export type VoidFunction = () => void;
 
+export type StringRecord = Record<string, any>;
+
 export type UnknownObject = Record<string, unknown>;
+
+export type ArrayOrSingle<T> = T | T[];
 
 export type DeepPartial<T> = T extends object ? {
   [P in keyof T]?: DeepPartial<T[P]>;

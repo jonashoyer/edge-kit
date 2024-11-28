@@ -4,7 +4,7 @@ Edge Kit is a carefully designed TypeScript toolkit for modern serverless applic
 
 ## Core Philosophy
 
-- **Copy-Paste Architecture**: Each component is self-contained and can be copied directly into your project
+- **Copy-Paste Architecture**: Each component is self-contained and can be copied directly or AI implemented into your project
 - **Type-First Design**: Built with TypeScript's advanced type system for maximum safety and developer experience
 - **Edge Computing Ready**: Optimized for serverless and edge computing environments
 - **Modular & Flexible**: Use only what you need, no unnecessary dependencies

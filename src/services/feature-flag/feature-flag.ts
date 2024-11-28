@@ -13,9 +13,9 @@ export interface RolloutPercentageFeatureFlag extends BaseFeatureFlag {
 }
 
 /**
- * Gradual rollout feature flag in steps by `rolloutInterval`
+ * Phased rollout feature flag in steps by `rolloutInterval`
  */
-export interface GradualRolloutFeatureFla extends BaseFeatureFlag {
+export interface PhasedRolloutFeatureFla extends BaseFeatureFlag {
   /**
    * The initial percentage of users to rollout to
    */
@@ -35,12 +35,12 @@ export interface GradualRolloutFeatureFla extends BaseFeatureFlag {
    */
   rolloutInterval: number;
   /**
-   * The origin timestamp for the gradual rollout
+   * The origin timestamp for the phased rollout
    */
   originTimestamp: number;
 }
 
-export type FeatureFlag = EnabledFeatureFlag | RolloutPercentageFeatureFlag | GradualRolloutFeatureFla;
+export type FeatureFlag = EnabledFeatureFlag | RolloutPercentageFeatureFlag | PhasedRolloutFeatureFla;
 
 export class FeatureFlagService<T extends string = string> {
   protected flags: Map<T, FeatureFlag & { name: T }>;
@@ -94,7 +94,7 @@ export class FeatureFlagService<T extends string = string> {
     return generator() < flag.rolloutPercentage;
   }
 
-  private isEnabledGradualRollout(name: string, identifier: string | undefined, flag: GradualRolloutFeatureFla) {
+  private isEnabledGradualRollout(name: string, identifier: string | undefined, flag: PhasedRolloutFeatureFla) {
     const now = Date.now();
     const step = Math.floor((now - flag.originTimestamp) / flag.rolloutInterval);
     const percentage = Math.min(flag.initialRolloutPercentage + (flag.incrementalRolloutPercentage * step), flag.maxRolloutPercentage ?? 1);

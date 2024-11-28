@@ -21,6 +21,14 @@ Edge Kit is a carefully designed TypeScript toolkit for modern serverless applic
 - [Upstash Redis](./src/services/keyValue/upstashRedisKeyValue.ts)
 - [Ioredis](./src/services/keyValue/ioredisKeyValue.ts)
 
+### Cache
+
+- _Upstash Redis_
+
+### Circuit Breaker
+
+- _Upstash Redis_
+
 ### Vector Database
 
 - [Upstash Vector](./src/services/vectorDatabase/upstashVectorDatabase.ts)
