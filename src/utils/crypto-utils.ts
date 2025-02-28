@@ -63,3 +63,19 @@ export function constantTimeEqual(a: string, b: string): boolean {
   }
   return result === 0;
 }
+
+export function hashCode(str: string) {
+  let hash = 0;
+  for (let i = 0, len = str.length; i < len; i++) {
+    const chr = str.charCodeAt(i);
+    hash = (hash << 5) - hash + chr;
+    hash |= 0; // Convert to 32bit integer
+  }
+  return hash;
+}
+
+const base64Digit = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+const toB64 = (x: number) => x.toString(2).split(/(?=(?:.{6})+(?!.))/g).map(v => base64Digit[parseInt(v, 2)]).join("")
+export function hashCodeB64(str: string) {
+  return toB64(hashCode(str));
+}
