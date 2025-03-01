@@ -1,6 +1,6 @@
 # Edge Kit
 
-Edge Kit is a carefully designed TypeScript toolkit for modern serverless applications, with a special emphasis on NextJS and similar platforms. It includes a set of high-quality, type-safe components that can be copied and reused as desired.
+Edge Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate development with high-quality, copy-paste-ready components. Ideal for NextJS and other serverless platforms, Edge Kit prioritizes type safety and ease of use.
 
 ## 🚀 Features
 
@@ -8,6 +8,39 @@ Edge Kit is a carefully designed TypeScript toolkit for modern serverless applic
 - **AI-Editor-First**: Designed to work seamlessly with AI editors
 - **Type Safety**: Strongly typed components for robust development
 - **Serverless-Ready**: Optimized for NextJS and similar platforms
+
+## Infrastructure
+
+- [Drizzle](./src/database/drizzleSchema.ts)
+- [SQLite](./src/database/sqliteDatabase.ts)
+
+### Role Structures
+
+1. **Single User**
+
+- Ideal for single-admin applications
+- Simple authentication without complex role management
+
+2. **Multi-User with Basic Roles**
+
+- Supports multiple users with predefined roles (e.g., Admin, User)
+- Suitable for small to medium-sized applications
+
+### Authentication
+
+- [NextAuth](./src/auth/nextAuth.ts)
+
+### Authorization
+
+### Billing
+
+- [Stripe](./src/services/billing/stripeBillingManager.ts)
+
+1. **Flat-rate**
+2. **Seat-based**
+3. **Usage-based**
+
+- Trial period support
 
 ## 🛠 Services
 
