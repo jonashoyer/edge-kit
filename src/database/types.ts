@@ -2,6 +2,33 @@ import { GeneratedColumnConfig } from "drizzle-orm";
 import { MySqlColumn } from "drizzle-orm/mysql-core";
 import { PgColumn } from "drizzle-orm/pg-core";
 import { SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { MySqlDatabase, MySqlQueryResultHKT, MySqlTableWithColumns, PreparedQueryHKTBase } from "drizzle-orm/mysql-core"
+import { PgDatabase, PgQueryResultHKT, PgTableWithColumns } from "drizzle-orm/pg-core"
+import { BaseSQLiteDatabase, SQLiteTableWithColumns } from "drizzle-orm/sqlite-core"
+
+export type AnyPostgresDatabase = PgDatabase<PgQueryResultHKT, any>
+export type AnyMySqlDatabase = MySqlDatabase<
+  MySqlQueryResultHKT,
+  PreparedQueryHKTBase,
+  any
+>
+export type AnySQLiteDatabase = BaseSQLiteDatabase<"sync" | "async", any, any>
+
+export type SqlFlavorOptions =
+  | AnyPostgresDatabase
+  | AnyMySqlDatabase
+  | AnySQLiteDatabase
+
+export type DefaultSchema<Flavor extends SqlFlavorOptions, TMySqlSchema extends Record<TKeys, MySqlTableWithColumns<any>>, TPostgresSchema extends Record<TKeys, PgTableWithColumns<any>>, TSQLiteSchema extends Record<TKeys, SQLiteTableWithColumns<any>>, TKeys extends string = string> =
+  Flavor extends AnyMySqlDatabase
+  ? TMySqlSchema
+  : Flavor extends AnyPostgresDatabase
+  ? TPostgresSchema
+  : Flavor extends AnySQLiteDatabase
+  ? TSQLiteSchema
+  : never
+
+
 
 type BaseColumnConfig<T> = {
   name: string

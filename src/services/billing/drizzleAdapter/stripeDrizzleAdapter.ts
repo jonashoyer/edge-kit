@@ -1,33 +1,14 @@
 import { is } from "drizzle-orm"
-import { MySqlDatabase, MySqlQueryResultHKT, MySqlTableWithColumns, PreparedQueryHKTBase } from "drizzle-orm/mysql-core"
-import { PgDatabase, PgQueryResultHKT, PgTableWithColumns } from "drizzle-orm/pg-core"
-import { BaseSQLiteDatabase, SQLiteTableWithColumns } from "drizzle-orm/sqlite-core"
+import { MySqlDatabase } from "drizzle-orm/mysql-core"
+import { PgDatabase } from "drizzle-orm/pg-core"
+import { BaseSQLiteDatabase } from "drizzle-orm/sqlite-core"
 import { StripeCustomerTable as MySqlStripeCustomerTable, OrganizationMemberTable as MySqlOrganizationMemberTable, StripePaymentManagerMySqlDrizzleAdapter } from "./mysql"
-import { StripeCustomerTable as PgStripeCustomerTable, StripePaymentManagerPostgresDrizzleAdapter, StripeSchema } from "./pg"
+import { StripePaymentManagerPostgresDrizzleAdapter, StripeSchema } from "./pg"
 import { StripeCustomerTable as SQLiteStripeCustomerTable, OrganizationMemberTable as SQLiteOrganizationMemberTable, StripePaymentManagerSQLiteDrizzleAdapter } from "./sqlite"
 import Stripe from 'stripe';
+import { DefaultSchema, SqlFlavorOptions } from "../../../database/types"
 
-type AnyPostgresDatabase = PgDatabase<PgQueryResultHKT, any>
-type AnyMySqlDatabase = MySqlDatabase<
-  MySqlQueryResultHKT,
-  PreparedQueryHKTBase,
-  any
->
-type AnySQLiteDatabase = BaseSQLiteDatabase<"sync" | "async", any, any>
 
-export type SqlFlavorOptions =
-  | AnyPostgresDatabase
-  | AnyMySqlDatabase
-  | AnySQLiteDatabase
-
-export type DefaultSchema<Flavor extends SqlFlavorOptions, TMySqlSchema extends Record<TKeys, MySqlTableWithColumns<any>>, TPostgresSchema extends Record<TKeys, PgTableWithColumns<any>>, TSQLiteSchema extends Record<TKeys, SQLiteTableWithColumns<any>>, TKeys extends string = string> =
-  Flavor extends AnyMySqlDatabase
-  ? TMySqlSchema
-  : Flavor extends AnyPostgresDatabase
-  ? TPostgresSchema
-  : Flavor extends AnySQLiteDatabase
-  ? TSQLiteSchema
-  : never
 
 export function StripeDrizzleAdapter<SqlFlavor extends SqlFlavorOptions>(
   db: SqlFlavor,

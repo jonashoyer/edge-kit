@@ -1,4 +1,4 @@
-import { CreateColumnConfig, CreateTableConfig } from "./types";
+import { CreateColumnConfig, CreateTableConfig } from "../../../database/types";
 
 export type BaseStripeCustomerTable<Dialect extends "mysql" | "pg" | "sqlite"> = CreateTableConfig<{
   id: CreateColumnConfig<{
