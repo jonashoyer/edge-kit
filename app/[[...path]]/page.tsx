@@ -1,11 +1,11 @@
 import React from 'react';
 import { notFound } from 'next/navigation';
-import path from 'path';
 import sourceMap from '../../source-map.json';
 import pkg from '../../package.json';
 
 
 export const dynamic = 'force-static';
+export const runtime = 'edge'
 
 // Helper to check if value is an object (directory)
 function isDirectory(value: any): boolean {
