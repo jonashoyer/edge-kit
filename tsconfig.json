@@ -1,7 +1,10 @@
 {
   "compilerOptions": {
     "target": "es2015",
-    "lib": ["es2015", "dom"],
+    "lib": [
+      "es2015",
+      "dom"
+    ],
     "downlevelIteration": true,
     "declaration": true,
     "outDir": "./dist",
@@ -11,9 +14,28 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "moduleResolution": "node",
-    "types": ["node"],
-    "resolveJsonModule": true
+    "types": [
+      "node"
+    ],
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "noEmit": true,
+    "incremental": true,
+    "module": "esnext",
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "**/*.test.ts"]
+  "include": [
+    "src/**/*",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts"
+  ]
 }
