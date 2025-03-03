@@ -8,7 +8,7 @@ function isDirectory(value: any): boolean {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   // Base URL for your site
-  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL || 'https://edge-kit.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.NEXT_PUBLIC_VERCEL_PROJECT_PRODUCTION_URL}` : 'https://edge-kit.vercel.app';
 
   // Current date for lastModified
   const currentDate = new Date();
