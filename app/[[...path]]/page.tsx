@@ -5,7 +5,6 @@ import pkg from '../../package.json';
 
 
 export const dynamic = 'force-static';
-export const runtime = 'edge'
 
 // Helper to check if value is an object (directory)
 function isDirectory(value: any): boolean {
