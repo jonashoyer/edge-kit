@@ -2,8 +2,11 @@
   "name": "edge-kit",
   "version": "1.0.0",
   "scripts": {
-    "dev": "next dev",
-    "build": "next build"
+    "dev": "next dev --turbopack",
+    "build:next": "next build",
+    "build:map": "node scripts/generate-source-map.js",
+    "build": "pnpm build:map && pnpm build:next",
+    "start": "next start"
   },
   "devDependencies": {
     "@types/node": "^22.7.5",
