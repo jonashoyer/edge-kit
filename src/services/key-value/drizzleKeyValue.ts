@@ -1,6 +1,6 @@
-import { eq } from 'drizzle-orm';
-import { AbstractKeyValueService } from './abstractKeyValue';
-import { Nullable } from '../../utils/typeUtils';
+import { eq, inArray } from 'drizzle-orm';
+import { AbstractKeyValueService } from './abstract-key-value';
+import { Nullable } from '../../utils/type-utils';
 import { CreateColumnConfig, CreateTableConfig, SqlFlavorOptions, AnyMySqlDatabase, AnyPostgresDatabase, AnySQLiteDatabase, DefaultSchema } from '../../database/types';
 import { is } from 'drizzle-orm';
 import { MySqlDatabase, MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
@@ -76,6 +76,31 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
     return JSON.parse(result.value) as T;
   }
 
+  async mget<T>(keys: string[]): Promise<Nullable<T>[]> {
+    const now = Math.floor(Date.now() / 1000);
+
+    const results = await this._db
+      .select()
+      .from(this._table)
+      .where(inArray(this._table.key, keys))
+
+    if (this.expireDiscoveryDeletion) {
+      const deleteItems = results.filter(result => result.expiresAt && result.expiresAt < now);
+
+      if (deleteItems.length > 0) {
+        await this._db
+          .delete(this._table)
+          .where(inArray(this._table.key, deleteItems.map(item => item.key)));
+      }
+    }
+
+    return results.map(result => {
+      if (result.expiresAt && result.expiresAt < now) {
+        return null;
+      }
+      return JSON.parse(result.value) as T;
+    });
+  }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     throw new Error('Not implemented');
@@ -138,6 +163,31 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
       .where(eq(this._table.key, key))
 
     return true;
+  }
+
+
+  zadd(key: string, score: number, member: string): Promise<void> {
+    throw new Error('Unsupported operation');
+  }
+
+  zrank(key: string, member: string): Promise<number | null> {
+    throw new Error('Unsupported operation');
+  }
+
+  zcard(key: string): Promise<number> {
+    throw new Error('Unsupported operation');
+  }
+
+  zrange(key: string, start: number, stop: number): Promise<string[]> {
+    throw new Error('Unsupported operation');
+  }
+
+  zrem(key: string, member: string | string[]): Promise<void> {
+    throw new Error('Unsupported operation');
+  }
+
+  mdelete(keys: string[]): Promise<void> {
+    throw new Error('Unsupported operation');
   }
 }
 
