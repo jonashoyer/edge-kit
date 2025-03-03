@@ -1,7 +1,9 @@
 import { integer, sqliteTable, text, primaryKey } from 'drizzle-orm/sqlite-core'
-import type { AdapterAccount } from 'next-auth/adapters'
-import { genId } from '../utils/idGenerator'
+// import type { AdapterAccount } from 'next-auth/adapters'
+import { genId } from '../utils/id-generator'
 
+
+type AdapterAccount = any;
 
 // Start of Organization Schema (for multi-user applications)
 
