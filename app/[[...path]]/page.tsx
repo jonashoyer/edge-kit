@@ -4,7 +4,8 @@ import sourceMap from '../../source-map.json';
 import pkg from '../../package.json';
 
 
-export const dynamic = 'force-static';
+export const dynamic = 'error';
+export const revalidate = false;
 
 // Helper to check if value is an object (directory)
 function isDirectory(value: any): boolean {
@@ -59,7 +60,7 @@ export default async function Page({ params }: { params: Promise<{ path?: string
   const pathName = '/' + path.join('/');
 
   return (
-    <div>
+    <React.Fragment>
       <h1>
         {pathName}
       </h1>
@@ -75,9 +76,8 @@ export default async function Page({ params }: { params: Promise<{ path?: string
 
       {/* Display directory structure */}
       {isDirectory(pathValue) && (
-        <div>
-          <ul>
-            {/* {path.length > 0 && (
+        <ul>
+          {/* {path.length > 0 && (
               <li>
                 <a href={`/${path.slice(0, -1).join('/')}`}>
                   ../{path.slice(0, -1).join('/')}
@@ -85,18 +85,17 @@ export default async function Page({ params }: { params: Promise<{ path?: string
               </li>
             )} */}
 
-            {Object.entries(pathValue).map(([name, content]) => (
-              <li key={name}>
-                <a
-                  href={`/${[...path, name].join('/')}`}
-                >
-                  {/* {isDirectory(content) ? '📁 ' : '📄 '} */}
-                  {name}
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
+          {Object.entries(pathValue).map(([name, content]) => (
+            <li key={name}>
+              <a
+                href={`/${[...path, name].join('/')}`}
+              >
+                {/* {isDirectory(content) ? '📁 ' : '📄 '} */}
+                {name}
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
 
       {/* Display source code */}
@@ -105,7 +104,7 @@ export default async function Page({ params }: { params: Promise<{ path?: string
           {pathValue as string}
         </code>
       }
-    </div>
+    </React.Fragment>
   );
 }
 
