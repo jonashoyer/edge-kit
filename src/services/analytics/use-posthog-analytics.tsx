@@ -1,13 +1,7 @@
 import { Properties } from "posthog-js";
 import { usePostHog } from "posthog-js/react";
 import { AbstractAnalytics } from "./abstract-analytics";
-
-export interface AnalyticsEvents {
-  example_action: {
-    userId: string;
-    timestamp: number;
-  };
-}
+import { AnalyticsEvents } from "./analytics-events";
 
 export const useAnalytics = () => {
   const posthog = usePostHog();
