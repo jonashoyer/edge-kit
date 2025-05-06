@@ -64,6 +64,11 @@ export function constantTimeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
+/**
+ * djb2 hash function
+ * @param str - The string to hash
+ * @returns The hash code of the string
+ */
 export function hashCode(str: string) {
   let hash = 0;
   for (let i = 0, len = str.length; i < len; i++) {

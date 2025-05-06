@@ -1,4 +1,4 @@
-import { hashCodeB64 } from './cryptoUtils';
+import { hashCodeB64 } from './crypto-utils';
 
 /**
  * Creates a signature for API request protection against scraping/spam
