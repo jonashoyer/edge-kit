@@ -16,4 +16,17 @@ export abstract class AbstractKeyValueService {
   abstract zrange(key: string, start: number, stop: number): Promise<string[]>;
   abstract zrem(key: string, member: string | string[]): Promise<void>;
   abstract mdelete(keys: string[]): Promise<void>;
+
+  async withCache<T>(key: string, callback: () => Promise<T>): Promise<T> {
+    const cached = await this.get(key);
+    if (cached !== null) {
+      return cached as T;
+    }
+
+    const value = await callback();
+    if (value) {
+      await this.set(key, value);
+    }
+    return value;
+  }
 }

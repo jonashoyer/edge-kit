@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-import { AbstractStorage, StorageOptions } from './abstract-storage';
+import { AbstractStorage, type StorageOptions } from './abstract-storage';
 
 interface LocalStorageOptions extends StorageOptions {
   basePath: string;

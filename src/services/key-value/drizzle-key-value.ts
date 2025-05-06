@@ -1,20 +1,18 @@
-import { eq, inArray } from 'drizzle-orm';
+import { is, eq, inArray } from 'drizzle-orm';
 import { AbstractKeyValueService } from './abstract-key-value';
-import { Nullable } from '../../utils/type-utils';
-import { CreateColumnConfig, CreateTableConfig, SqlFlavorOptions, AnyMySqlDatabase, AnyPostgresDatabase, AnySQLiteDatabase, DefaultSchema } from '../../database/types';
-import { is } from 'drizzle-orm';
-import { MySqlDatabase, MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
-import { PgDatabase, PgTableWithColumns } from 'drizzle-orm/pg-core';
-import { BaseSQLiteDatabase, SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
+import type { Nullable } from '../../utils/type-utils';
+import type { CreateColumnConfig, CreateTableConfig, SqlFlavorOptions, AnyMySqlDatabase, AnyPostgresDatabase, AnySQLiteDatabase, DefaultSchema } from '../../database/types';
+import { MySqlDatabase, type MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
+import { PgDatabase, type PgTableWithColumns } from 'drizzle-orm/pg-core';
+import { BaseSQLiteDatabase, type SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
 
 export type BaseKeyValueTable<Dialect extends "mysql" | "pg" | "sqlite"> = CreateTableConfig<{
   key: CreateColumnConfig<{
     data: string
     dataType: "string"
-    isPrimaryKey: true
     notNull: true
   }, Dialect>
-  value: CreateColumnConfig<{
+  value: CreateColumnConfig<{ // TODO: Add json type
     data: string
     dataType: "string"
     notNull: true
@@ -22,7 +20,7 @@ export type BaseKeyValueTable<Dialect extends "mysql" | "pg" | "sqlite"> = Creat
   expiresAt: CreateColumnConfig<{
     data: number
     dataType: "number"
-    notNull: false
+    notNull: boolean
   }, Dialect>
 }, Dialect>
 
@@ -166,26 +164,44 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
   }
 
 
+  /**
+   * @deprecated Unsupported operation
+   */
   zadd(key: string, score: number, member: string): Promise<void> {
     throw new Error('Unsupported operation');
   }
 
+  /**
+   * @deprecated Unsupported operation
+   */
   zrank(key: string, member: string): Promise<number | null> {
     throw new Error('Unsupported operation');
   }
 
+  /**
+   * @deprecated Unsupported operation
+   */
   zcard(key: string): Promise<number> {
     throw new Error('Unsupported operation');
   }
 
+  /**
+   * @deprecated Unsupported operation
+   */
   zrange(key: string, start: number, stop: number): Promise<string[]> {
     throw new Error('Unsupported operation');
   }
 
+  /**
+   * @deprecated Unsupported operation
+   */
   zrem(key: string, member: string | string[]): Promise<void> {
     throw new Error('Unsupported operation');
   }
 
+  /**
+   * @deprecated Unsupported operation
+   */
   mdelete(keys: string[]): Promise<void> {
     throw new Error('Unsupported operation');
   }
