@@ -1,27 +1,26 @@
 import Stripe from 'stripe';
-import { StripeKVStore } from './kv-store';
 import { AbstractLogger } from '../logging/abstract-logger';
-import { createStripeClient } from './stripe-client';
+import { AbstractStripeStore } from './abstract-stripe-store';
 
 export class StripeCheckoutService {
-  private kvStore: StripeKVStore;
-  private logger: AbstractLogger;
+  private store: AbstractStripeStore;
+  private logger: AbstractLogger | undefined;
   private stripe: Stripe;
   private successUrl: string;
   private cancelUrl: string;
 
   constructor(
-    kvStore: StripeKVStore,
-    logger: AbstractLogger,
-    stripeSecretKey: string,
+    store: AbstractStripeStore,
+    stripe: Stripe,
     options: {
+      logger?: AbstractLogger,
       successUrl: string;
       cancelUrl: string;
     }
   ) {
-    this.kvStore = kvStore;
-    this.logger = logger;
-    this.stripe = createStripeClient(stripeSecretKey);
+    this.store = store;
+    this.stripe = stripe;
+    this.logger = options.logger;
     this.successUrl = options.successUrl;
     this.cancelUrl = options.cancelUrl;
   }
@@ -36,7 +35,7 @@ export class StripeCheckoutService {
   ): Promise<string> {
     try {
       // First check if we already have a customer ID for this user
-      const existingCustomerId = await this.kvStore.getStripeCustomerId(userId);
+      const existingCustomerId = await this.store.getStripeCustomerId(userId);
       if (existingCustomerId) {
         return existingCustomerId;
       }
@@ -50,12 +49,12 @@ export class StripeCheckoutService {
       });
 
       // Store the mapping in our KV store
-      await this.kvStore.setUserToCustomerMapping(userId, customer.id);
+      await this.store.setUserToCustomerMapping(userId, customer.id);
 
-      this.logger.info('Created new Stripe customer', { userId, customerId: customer.id });
+      this.logger?.info('Created new Stripe customer', { userId, customerId: customer.id });
       return customer.id;
     } catch (error) {
-      this.logger.error('Failed to create Stripe customer', { userId, error });
+      this.logger?.error('Failed to create Stripe customer', { userId, error });
       throw error;
     }
   }
@@ -101,7 +100,7 @@ export class StripeCheckoutService {
         },
       });
 
-      this.logger.info('Created subscription checkout session', {
+      this.logger?.info('Created subscription checkout session', {
         userId,
         customerId,
         checkoutSessionId: session.id
@@ -109,7 +108,7 @@ export class StripeCheckoutService {
 
       return session;
     } catch (error) {
-      this.logger.error('Failed to create subscription checkout', { userId, error });
+      this.logger?.error('Failed to create subscription checkout', { userId, error });
       throw error;
     }
   }
@@ -151,7 +150,7 @@ export class StripeCheckoutService {
         },
       });
 
-      this.logger.info('Created one-time payment checkout session', {
+      this.logger?.info('Created one-time payment checkout session', {
         userId,
         customerId,
         checkoutSessionId: session.id
@@ -159,7 +158,7 @@ export class StripeCheckoutService {
 
       return session;
     } catch (error) {
-      this.logger.error('Failed to create one-time checkout', { userId, error });
+      this.logger?.error('Failed to create one-time checkout', { userId, error });
       throw error;
     }
   }

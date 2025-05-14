@@ -1,22 +1,21 @@
 import Stripe from 'stripe';
-import { StripeKVStore } from './kv-store';
 import { StripeSubscriptionCache } from './types';
 import { AbstractLogger } from '../logging/abstract-logger';
-import { createStripeClient } from './stripe-client';
+import { AbstractStripeStore } from './abstract-stripe-store';
 
 export class StripeSyncService {
-  private kvStore: StripeKVStore;
-  private logger: AbstractLogger;
+  private store: AbstractStripeStore;
   private stripe: Stripe;
+  private logger: AbstractLogger | undefined;
 
   constructor(
-    kvStore: StripeKVStore,
-    logger: AbstractLogger,
-    stripeSecretKey: string
+    store: AbstractStripeStore,
+    stripe: Stripe,
+    logger?: AbstractLogger,
   ) {
-    this.kvStore = kvStore;
+    this.store = store;
+    this.stripe = stripe;
     this.logger = logger;
-    this.stripe = createStripeClient(stripeSecretKey);
   }
 
   /**
@@ -37,7 +36,7 @@ export class StripeSyncService {
       // If no subscriptions, store a "none" status
       if (subscriptions.data.length === 0) {
         const subData: StripeSubscriptionCache = { status: 'none' };
-        await this.kvStore.setCustomerSubscriptionData(customerId, subData);
+        await this.store.setCustomerSubscriptionData(customerId, subData);
         return subData;
       }
 
@@ -63,10 +62,10 @@ export class StripeSyncService {
       };
 
       // Store the data in KV
-      await this.kvStore.setCustomerSubscriptionData(customerId, subData);
+      await this.store.setCustomerSubscriptionData(customerId, subData);
       return subData;
     } catch (error) {
-      this.logger.error('Error syncing Stripe data to KV', { error, customerId });
+      this.logger?.error('Error syncing Stripe data to KV', { error, customerId });
       throw error;
     }
   }
@@ -116,7 +115,7 @@ export class StripeSyncService {
     }
 
     if (!customerId) {
-      this.logger.warn('No customer ID found in Stripe event', { event });
+      this.logger?.warn('No customer ID found in Stripe event', { event });
       return null;
     }
 

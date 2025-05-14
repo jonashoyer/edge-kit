@@ -1,26 +1,25 @@
-import { StripeKVStore } from './kv-store';
 import { StripeSyncService } from './sync-service';
 import { AbstractLogger } from '../logging/abstract-logger';
 import { StripeSubscriptionCache } from './types';
-import { createStripeClient } from './stripe-client';
 import Stripe from 'stripe';
+import { AbstractStripeStore } from './abstract-stripe-store';
 
 export class StripeSubscriptionService {
-  private kvStore: StripeKVStore;
+  private store: AbstractStripeStore;
   private syncService: StripeSyncService;
-  private logger: AbstractLogger;
   private stripe: Stripe;
+  private logger: AbstractLogger | undefined;
 
   constructor(
-    kvStore: StripeKVStore,
+    store: AbstractStripeStore,
     syncService: StripeSyncService,
-    logger: AbstractLogger,
-    stripeSecretKey: string
+    stripe: Stripe,
+    logger?: AbstractLogger,
   ) {
-    this.kvStore = kvStore;
+    this.store = store;
     this.syncService = syncService;
+    this.stripe = stripe;
     this.logger = logger;
-    this.stripe = createStripeClient(stripeSecretKey);
   }
 
   /**
@@ -28,9 +27,9 @@ export class StripeSubscriptionService {
    */
   async getUserSubscription(userId: string): Promise<StripeSubscriptionCache | null> {
     try {
-      return await this.kvStore.getUserSubscriptionData(userId);
+      return await this.store.getUserSubscriptionData(userId);
     } catch (error) {
-      this.logger.error('Failed to get user subscription', { userId, error });
+      this.logger?.error('Failed to get user subscription', { userId, error });
       throw error;
     }
   }
@@ -64,19 +63,19 @@ export class StripeSubscriptionService {
    */
   async cancelSubscriptionAtPeriodEnd(userId: string): Promise<boolean> {
     try {
-      const stripeCustomerId = await this.kvStore.getStripeCustomerId(userId);
+      const stripeCustomerId = await this.store.getStripeCustomerId(userId);
       if (!stripeCustomerId) {
         return false;
       }
 
-      const subscriptionData = await this.kvStore.getCustomerSubscriptionData(stripeCustomerId);
+      const subscriptionData = await this.store.getCustomerSubscriptionData(stripeCustomerId);
       if (!subscriptionData || subscriptionData.status === 'none' || !('subscriptionId' in subscriptionData)) {
         return false;
       }
 
       // Check for null subscriptionId
       if (!subscriptionData.subscriptionId) {
-        this.logger.warn('No subscription ID found for cancellation', { userId });
+        this.logger?.warn('No subscription ID found for cancellation', { userId });
         return false;
       }
 
@@ -87,14 +86,14 @@ export class StripeSubscriptionService {
       // Sync the updated data back to KV
       await this.syncService.syncStripeDataToKV(stripeCustomerId);
 
-      this.logger.info('Subscription canceled at period end', {
+      this.logger?.info('Subscription canceled at period end', {
         userId,
         subscriptionId: subscriptionData.subscriptionId
       });
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to cancel subscription', { userId, error });
+      this.logger?.error('Failed to cancel subscription', { userId, error });
       throw error;
     }
   }
@@ -104,12 +103,12 @@ export class StripeSubscriptionService {
    */
   async resumeSubscription(userId: string): Promise<boolean> {
     try {
-      const stripeCustomerId = await this.kvStore.getStripeCustomerId(userId);
+      const stripeCustomerId = await this.store.getStripeCustomerId(userId);
       if (!stripeCustomerId) {
         return false;
       }
 
-      const subscriptionData = await this.kvStore.getCustomerSubscriptionData(stripeCustomerId);
+      const subscriptionData = await this.store.getCustomerSubscriptionData(stripeCustomerId);
       if (
         !subscriptionData ||
         subscriptionData.status === 'none' ||
@@ -121,7 +120,7 @@ export class StripeSubscriptionService {
 
       // Check for null subscriptionId
       if (!subscriptionData.subscriptionId) {
-        this.logger.warn('No subscription ID found for resumption', { userId });
+        this.logger?.warn('No subscription ID found for resumption', { userId });
         return false;
       }
 
@@ -132,14 +131,14 @@ export class StripeSubscriptionService {
       // Sync the updated data back to KV
       await this.syncService.syncStripeDataToKV(stripeCustomerId);
 
-      this.logger.info('Subscription resumed', {
+      this.logger?.info('Subscription resumed', {
         userId,
         subscriptionId: subscriptionData.subscriptionId
       });
 
       return true;
     } catch (error) {
-      this.logger.error('Failed to resume subscription', { userId, error });
+      this.logger?.error('Failed to resume subscription', { userId, error });
       throw error;
     }
   }
@@ -152,7 +151,7 @@ export class StripeSubscriptionService {
     returnUrl: string
   ): Promise<string | null> {
     try {
-      const stripeCustomerId = await this.kvStore.getStripeCustomerId(userId);
+      const stripeCustomerId = await this.store.getStripeCustomerId(userId);
       if (!stripeCustomerId) {
         return null;
       }
@@ -164,7 +163,7 @@ export class StripeSubscriptionService {
 
       return session.url;
     } catch (error) {
-      this.logger.error('Failed to create customer portal session', { userId, error });
+      this.logger?.error('Failed to create customer portal session', { userId, error });
       throw error;
     }
   }

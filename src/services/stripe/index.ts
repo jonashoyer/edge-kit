@@ -1,16 +1,16 @@
-import { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import { AbstractLogger } from '../logging/abstract-logger';
-import { StripeKVStore } from './kv-store';
 import { StripeSyncService } from './sync-service';
 import { StripeCheckoutService } from './checkout-service';
 import { StripeWebhookService } from './webhook-service';
 import { StripeSubscriptionService } from './subscription-service';
-import { createStripeClient } from './stripe-client';
+import { AbstractStripeStore } from './abstract-stripe-store';
+import Stripe from 'stripe';
 
 export * from './types';
-export { createStripeClient };
 
 export interface StripeServiceOptions {
+  logger?: AbstractLogger;
+
   /**
    * Base URL for the application (used for success/cancel URLs)
    */
@@ -45,20 +45,23 @@ export interface StripeServiceOptions {
  * Main Stripe service that coordinates all Stripe functionality
  */
 export class StripeService {
-  private kvStore: StripeKVStore;
+  private store: AbstractStripeStore;
   private syncService: StripeSyncService;
   private checkoutService: StripeCheckoutService;
   private webhookService: StripeWebhookService;
   private subscriptionService: StripeSubscriptionService;
-  private logger: AbstractLogger;
+  private logger: AbstractLogger | undefined;
   private options: StripeServiceOptions;
+  private stripe: Stripe;
 
   constructor(
-    keyValueService: AbstractKeyValueService,
-    logger: AbstractLogger,
+    store: AbstractStripeStore,
+    stripe: Stripe,
     options: StripeServiceOptions
   ) {
-    this.logger = logger;
+    this.store = store;
+    this.stripe = stripe;
+    this.logger = options.logger;
     this.options = options;
 
     if (!options.secretKey) {
@@ -69,20 +72,17 @@ export class StripeService {
       throw new Error('Stripe webhook secret is required');
     }
 
-    // Initialize the component services
-    this.kvStore = new StripeKVStore(keyValueService);
-
     this.syncService = new StripeSyncService(
-      this.kvStore,
+      this.store,
+      this.stripe,
       this.logger,
-      options.secretKey
     );
 
     this.checkoutService = new StripeCheckoutService(
-      this.kvStore,
-      this.logger,
-      options.secretKey,
+      this.store,
+      stripe,
       {
+        logger: this.logger,
         successUrl: `${options.baseUrl}${options.successPath || '/success'}`,
         cancelUrl: `${options.baseUrl}${options.cancelPath || '/'}`,
       }
@@ -90,19 +90,17 @@ export class StripeService {
 
     this.webhookService = new StripeWebhookService(
       this.syncService,
+      stripe,
+      options.webhookSecret,
       this.logger,
-      options.secretKey,
-      options.webhookSecret
     );
 
     this.subscriptionService = new StripeSubscriptionService(
-      this.kvStore,
+      this.store,
       this.syncService,
+      stripe,
       this.logger,
-      options.secretKey
     );
-
-    this.logger.info('Stripe service initialized');
   }
 
   /**
@@ -150,7 +148,7 @@ export class StripeService {
    * Manually trigger a sync of Stripe data for a user
    */
   async syncStripeDataForUser(userId: string) {
-    const customerId = await this.kvStore.getStripeCustomerId(userId);
+    const customerId = await this.store.getStripeCustomerId(userId);
     if (!customerId) {
       return null;
     }

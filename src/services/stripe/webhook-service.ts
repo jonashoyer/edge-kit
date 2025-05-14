@@ -1,24 +1,23 @@
 import Stripe from 'stripe';
 import { StripeSyncService } from './sync-service';
 import { AbstractLogger } from '../logging/abstract-logger';
-import { createStripeClient } from './stripe-client';
 
 export class StripeWebhookService {
   private syncService: StripeSyncService;
-  private logger: AbstractLogger;
+  private logger: AbstractLogger | undefined;
   private webhookSecret: string;
   private stripe: Stripe;
 
   constructor(
     syncService: StripeSyncService,
-    logger: AbstractLogger,
-    stripeSecretKey: string,
-    webhookSecret: string
+    stripe: Stripe,
+    webhookSecret: string,
+    logger?: AbstractLogger,
   ) {
     this.syncService = syncService;
-    this.logger = logger;
     this.webhookSecret = webhookSecret;
-    this.stripe = createStripeClient(stripeSecretKey);
+    this.stripe = stripe;
+    this.logger = logger;
   }
 
   /**
@@ -38,7 +37,7 @@ export class StripeWebhookService {
         this.webhookSecret
       );
 
-      this.logger.info('Received Stripe webhook', {
+      this.logger?.info('Received Stripe webhook', {
         eventType: event.type,
         eventId: event.id
       });
@@ -49,7 +48,7 @@ export class StripeWebhookService {
       return { received: true };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      this.logger.error('Webhook signature verification failed', { error: errorMessage });
+      this.logger?.error('Webhook signature verification failed', { error: errorMessage });
       return { received: false, error: errorMessage };
     }
   }

@@ -2,11 +2,12 @@ import { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import { Nullable } from '../../utils/type-utils';
 import { StripeSubscriptionCache } from './types';
 import { stripeKeyNamespace } from './stripe-keys';
+import { AbstractStripeStore } from './abstract-stripe-store';
 
 /**
  * Handles key-value storage operations for the Stripe service
  */
-export class StripeKVStore {
+export class StripeKVStore implements AbstractStripeStore {
   private kvService: AbstractKeyValueService;
 
   constructor(kvService: AbstractKeyValueService) {
