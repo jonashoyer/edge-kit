@@ -9,50 +9,19 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 - **Type Safety**: Strongly typed components for robust development
 - **Serverless-Ready**: Optimized for NextJS and similar platforms
 
-## Infrastructure
-
-- [Drizzle](./src/database/drizzleSchema.ts)
-- [SQLite](./src/database/sqliteDatabase.ts)
-
-### Role Structures
-
-1. **Single User**
-
-- Ideal for single-admin applications
-- Simple authentication without complex role management
-
-2. **Multi-User with Basic Roles**
-
-- Supports multiple users with predefined roles (e.g., Admin, User)
-- Suitable for small to medium-sized applications
-
-### Authentication
-
-- [NextAuth](./src/auth/nextAuth.ts)
-
-### Authorization
-
 ### Billing
 
-- [Stripe](./src/services/billing/stripeBillingManager.ts)
-
-1. **Flat-rate**
-2. **Seat-based**
-3. **Usage-based**
-
-- Trial period support
-
-## 🛠 Services
+- [Stripe](./src/services/stripe/index.ts)
 
 ### Storage
 
-- [S3](./src/services/storage/s3Storage.ts)
-- [Cloudflare R2](./src/services/storage/r2Storage.ts)
+- [S3](./src/services/storage/s3-storage.ts)
+- [Cloudflare R2](./src/services/storage/r2-storage.ts)
 
 ### Key-Value Store
 
-- [Upstash Redis](./src/services/keyValue/upstashRedisKeyValue.ts)
-- [Ioredis](./src/services/keyValue/ioredisKeyValue.ts)
+- [Upstash Redis](./src/services/key-value/upstash-redis-key-value.ts)
+- [Ioredis](./src/services/key-value/ioredis-key-value.ts)
 
 ### Cache
 
@@ -64,51 +33,51 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 
 ### Vector Database
 
-- [Upstash Vector](./src/services/vectorDatabase/upstashVectorDatabase.ts)
+- [Upstash Vector](./src/services/vector-database/upstash-vector-database.ts)
 
 ### Logging
 
-- [Axiom](./src/services/logging/axiomLogger.ts)
-- [Pino](./src/services/logging/axiomPinoLogger.ts)
+- [Axiom](./src/services/logging/axiom-logger.ts)
+- [Pino](./src/services/logging/axiom-pino-logger.ts)
 
 ### Alerting
 
-- [Axiom](./src/services/alerting/axiomAlerting.ts)
-- [Slack](./src/services/alerting/slackAlerting.ts)
-- [PagerDuty](./src/services/alerting/pagerDutyAlerting.ts)
+- [Axiom](./src/services/alerting/axiom-alerting.ts)
+- [Slack](./src/services/alerting/slack-alerting.ts)
+- [PagerDuty](./src/services/alerting/pager-duty-alerting.ts)
 
 ### Analytics
 
-- [PostHog](./src/services/analytics/posthogAnalytics.ts)
+- [PostHog](./src/services/analytics/posthog-analytics.ts)
 
 ### Feature Flag
 
-- [Client-side Feature Flag](./src/services/featureFlag/clientFeatureFlag.ts)
+- [Client-side Feature Flag](./src/services/feature-flag/feature-flag.ts)
 
 ### Waitlist
 
-- [Key-Value Waitlist](./src/services/waitlist/keyValueWaitlist.ts): Efficient waitlist management using Redis sorted sets
+- [Key-Value Waitlist](./src/services/waitlist/key-value-waitlist.ts): Efficient waitlist management using Redis sorted sets
 - _Drizzle Waitlist_
 
 ## 🎼 Composers
 
-- [Namespace Composer](./src/composers/namespaceComposer.ts): Manage key-value pairs efficiently
-- [Prompt Composer](./src/composers/promptComposer.ts): Build prompts for LLMs with ease
+- [Namespace Composer](./src/composers/namespace-composer.ts): Manage key-value pairs efficiently
+- [Prompt Composer](./src/composers/prompt-composer.ts): Build prompts for LLMs with ease
 
 ## 🧰 Utilities
 
 Q Kit includes a rich set of utility functions to streamline common tasks:
 
-- [Array](./src/utils/arrayUtils.ts) - Array manipulation functions
-- [Crypto](./src/utils/cryptoUtils.ts) - Cryptography-related utilities
-- [Date](./src/utils/dateUtils.ts) - Date manipulation functions
-- [Form](./src/utils/formUtils.ts) - Form-related helpers
-- [Misc](./src/utils/miscUtils.ts) - Miscellaneous utility functions
-- [Number](./src/utils/numberUtils.ts) - Number manipulation functions
-- [Random](./src/utils/randomUtils.ts) - Random value generation utilities
-- [String](./src/utils/stringUtils.ts) - String manipulation functions
-- [URL](./src/utils/urlUtils.ts) - URL-related utilities
-- [Type](./src/utils/typeUtils.ts) - Common TypeScript type helpers
+- [Array](./src/utils/array-utils.ts) - Array manipulation functions
+- [Crypto](./src/utils/crypto-utils.ts) - Cryptography-related utilities
+- [Date](./src/utils/date-utils.ts) - Date manipulation functions
+- [Form](./src/utils/form-utils.ts) - Form-related helpers
+- [Misc](./src/utils/misc-utils.ts) - Miscellaneous utility functions
+- [Number](./src/utils/number-utils.ts) - Number manipulation functions
+- [Random](./src/utils/random-utils.ts) - Random value generation utilities
+- [String](./src/utils/string-utils.ts) - String manipulation functions
+- [URL](./src/utils/url-utils.ts) - URL-related utilities
+- [Type](./src/utils/type-utils.ts) - Common TypeScript type helpers
 
 ## 📚 Usage
 
@@ -123,3 +92,4 @@ Check out these popular options:
 - [Create T3 App](https://github.com/t3-oss/create-t3-app)
 - [Next.js SaaS Starter](https://github.com/leerob/next-saas-starter)
 - [Create T3 Turbo](https://github.com/t3-oss/create-t3-turbo)
+- [Better T Stack](https://better-t-stack.amanv.dev/new)
