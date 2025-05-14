@@ -8,7 +8,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { StripeService } from '..';
 import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
-import { AbstractLogger } from '../../logging/abstract-logger';
+import Stripe from 'stripe';
+import { StripeKVStore } from '../kv-store';
 
 // Example auth helper, replace with your own auth implementation
 async function getAuthenticatedUser(req: NextRequest) {
@@ -30,11 +31,6 @@ function getKeyValueService(): AbstractKeyValueService {
   throw new Error('Implement your KV service retrieval here');
 }
 
-function getLogger(): AbstractLogger {
-  // Return your logger implementation
-  throw new Error('Implement your logger retrieval here');
-}
-
 // Create Stripe service instance
 function getStripeService() {
   if (!process.env.STRIPE_SECRET_KEY) {
@@ -45,9 +41,20 @@ function getStripeService() {
     throw new Error('STRIPE_WEBHOOK_SECRET environment variable is not set');
   }
 
+  const store = new StripeKVStore(getKeyValueService());
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-02-24.acacia',
+    appInfo: {
+      name: 'Stripe Example App',
+      version: '1.0.0',
+      url: 'https://example.com',
+    },
+  });
+
   return new StripeService(
-    getKeyValueService(),
-    getLogger(),
+    store,
+    stripe,
     {
       baseUrl: process.env.APP_URL || 'http://localhost:3000',
       successPath: '/billing/success',

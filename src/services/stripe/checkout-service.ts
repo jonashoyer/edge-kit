@@ -46,6 +46,8 @@ export class StripeCheckoutService {
         metadata: {
           userId, // Important: Store reference to our userId
         },
+      }, {
+        idempotencyKey: userId,
       });
 
       // Store the mapping in our KV store

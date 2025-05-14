@@ -152,7 +152,7 @@ export class StripeService {
     if (!customerId) {
       return null;
     }
-    return this.syncService.syncStripeDataToKV(customerId);
+    return this.syncService.syncStripeData(customerId);
   }
 
   /**

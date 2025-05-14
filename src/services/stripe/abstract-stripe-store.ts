@@ -1,5 +1,5 @@
 import { Nullable } from '../../utils/type-utils';
-import { StripeSubscriptionCache } from './types';
+import { StripeSubscription } from './types';
 
 /**
  * Abstract class defining the interface for Stripe storage operations
@@ -20,7 +20,7 @@ export abstract class AbstractStripeStore {
    */
   abstract setCustomerSubscriptionData(
     stripeCustomerId: string,
-    subscriptionData: StripeSubscriptionCache
+    subscriptionData: StripeSubscription
   ): Promise<void>;
 
   /**
@@ -28,10 +28,10 @@ export abstract class AbstractStripeStore {
    */
   abstract getCustomerSubscriptionData(
     stripeCustomerId: string
-  ): Promise<Nullable<StripeSubscriptionCache>>;
+  ): Promise<Nullable<StripeSubscription>>;
 
   /**
    * Get subscription data for a user
    */
-  abstract getUserSubscriptionData(userId: string): Promise<Nullable<StripeSubscriptionCache>>;
+  abstract getUserSubscriptionData(userId: string): Promise<Nullable<StripeSubscription>>;
 } 

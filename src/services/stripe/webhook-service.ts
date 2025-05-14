@@ -25,7 +25,8 @@ export class StripeWebhookService {
    */
   async handleWebhook(
     payload: string | Buffer,
-    signature: string
+    signature: string,
+    waitUntil?: (promise: Promise<any>) => void
   ): Promise<{ received: boolean; error?: string }> {
     let event: Stripe.Event;
 
@@ -42,8 +43,8 @@ export class StripeWebhookService {
         eventId: event.id
       });
 
-      // Process the event (this is async, but we don't need to wait for it)
-      void this.syncService.processEvent(event);
+      const run: (promise: Promise<any>) => void | Promise<any> = waitUntil ?? ((promise: Promise<any>) => promise);
+      await run(this.syncService.processEvent(event));
 
       return { received: true };
     } catch (error) {
@@ -52,4 +53,11 @@ export class StripeWebhookService {
       return { received: false, error: errorMessage };
     }
   }
-} 
+}
+
+// NOTE: If you're using this in a Next.js Page Router, you need to disable bodyParser
+// export const config = {
+//   api: {
+//     bodyParser: false,
+//   },
+// };

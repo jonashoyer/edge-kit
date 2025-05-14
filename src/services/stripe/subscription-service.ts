@@ -1,6 +1,6 @@
 import { StripeSyncService } from './sync-service';
 import { AbstractLogger } from '../logging/abstract-logger';
-import { StripeSubscriptionCache } from './types';
+import { StripeSubscription } from './types';
 import Stripe from 'stripe';
 import { AbstractStripeStore } from './abstract-stripe-store';
 
@@ -25,7 +25,7 @@ export class StripeSubscriptionService {
   /**
    * Get the current subscription data for a user
    */
-  async getUserSubscription(userId: string): Promise<StripeSubscriptionCache | null> {
+  async getUserSubscription(userId: string): Promise<StripeSubscription | null> {
     try {
       return await this.store.getUserSubscriptionData(userId);
     } catch (error) {
@@ -50,7 +50,7 @@ export class StripeSubscriptionService {
     }
 
     // Consider active statuses
-    const activeStatuses: Array<StripeSubscriptionCache['status']> = [
+    const activeStatuses: Array<StripeSubscription['status']> = [
       'active',
       'trialing',
     ];
@@ -84,7 +84,7 @@ export class StripeSubscriptionService {
       });
 
       // Sync the updated data back to KV
-      await this.syncService.syncStripeDataToKV(stripeCustomerId);
+      await this.syncService.syncStripeData(stripeCustomerId);
 
       this.logger?.info('Subscription canceled at period end', {
         userId,
@@ -129,7 +129,7 @@ export class StripeSubscriptionService {
       });
 
       // Sync the updated data back to KV
-      await this.syncService.syncStripeDataToKV(stripeCustomerId);
+      await this.syncService.syncStripeData(stripeCustomerId);
 
       this.logger?.info('Subscription resumed', {
         userId,

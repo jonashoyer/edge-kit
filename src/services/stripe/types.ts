@@ -3,7 +3,7 @@ import Stripe from "stripe";
 /**
  * Type representing the cached data about a Stripe subscription
  */
-export type StripeSubscriptionCache =
+export type StripeSubscription =
   | {
     subscriptionId: string | null;
     status: Stripe.Subscription.Status;
@@ -19,10 +19,3 @@ export type StripeSubscriptionCache =
   | {
     status: "none";
   };
-
-export const STRIPE_KEY_PREFIXES = {
-  // Maps user ID to Stripe customer ID
-  USER_TO_CUSTOMER: "stripe:user:",
-  // Stores subscription data for a Stripe customer
-  CUSTOMER_SUBSCRIPTION: "stripe:customer:",
-} as const; 

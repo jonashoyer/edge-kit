@@ -1,5 +1,5 @@
 import Stripe from 'stripe';
-import { StripeSubscriptionCache } from './types';
+import { StripeSubscription } from './types';
 import { AbstractLogger } from '../logging/abstract-logger';
 import { AbstractStripeStore } from './abstract-stripe-store';
 
@@ -19,11 +19,11 @@ export class StripeSyncService {
   }
 
   /**
-   * Syncs all subscription data for a Stripe customer to the KV store.
+   * Syncs all subscription data for a Stripe customer to the data store.
    * This is the heart of our Stripe implementation - a single source of truth.
    * Called after checkout success and by webhook events.
    */
-  async syncStripeDataToKV(customerId: string): Promise<StripeSubscriptionCache> {
+  async syncStripeData(customerId: string): Promise<StripeSubscription> {
     try {
       // Fetch latest subscription data from Stripe
       const subscriptions = await this.stripe.subscriptions.list({
@@ -35,7 +35,7 @@ export class StripeSyncService {
 
       // If no subscriptions, store a "none" status
       if (subscriptions.data.length === 0) {
-        const subData: StripeSubscriptionCache = { status: 'none' };
+        const subData: StripeSubscription = { status: 'none' };
         await this.store.setCustomerSubscriptionData(customerId, subData);
         return subData;
       }
@@ -44,7 +44,7 @@ export class StripeSyncService {
       const subscription = subscriptions.data[0];
 
       // Extract and store the subscription data
-      const subData: StripeSubscriptionCache = {
+      const subData: StripeSubscription = {
         subscriptionId: subscription.id,
         status: subscription.status,
         priceId: subscription.items.data[0].price.id,
@@ -61,7 +61,7 @@ export class StripeSyncService {
             : null,
       };
 
-      // Store the data in KV
+      // Store the data in the data store
       await this.store.setCustomerSubscriptionData(customerId, subData);
       return subData;
     } catch (error) {
@@ -74,9 +74,10 @@ export class StripeSyncService {
    * Process a Stripe webhook event.
    * This extracts the customer ID and triggers the sync.
    */
-  async processEvent(event: Stripe.Event): Promise<StripeSubscriptionCache | null> {
+  async processEvent(event: Stripe.Event): Promise<StripeSubscription | null> {
     const allowedEvents: Stripe.Event.Type[] = [
       'checkout.session.completed',
+      'checkout.session.async_payment_succeeded',
       'customer.subscription.created',
       'customer.subscription.updated',
       'customer.subscription.deleted',
@@ -120,6 +121,6 @@ export class StripeSyncService {
     }
 
     // Sync the data and return it
-    return this.syncStripeDataToKV(customerId);
+    return this.syncStripeData(customerId);
   }
 } 

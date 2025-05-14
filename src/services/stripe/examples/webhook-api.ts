@@ -9,6 +9,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { StripeService } from '..';
 import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
 import { AbstractLogger } from '../../logging/abstract-logger';
+import { StripeKVStore } from '../kv-store';
+import Stripe from 'stripe';
 
 // Example of getting services, replace with your own implementations
 function getKeyValueService(): AbstractKeyValueService {
@@ -31,9 +33,20 @@ function getStripeService() {
     throw new Error('STRIPE_WEBHOOK_SECRET environment variable is not set');
   }
 
+  const store = new StripeKVStore(getKeyValueService());
+
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-02-24.acacia',
+    appInfo: {
+      name: 'Stripe Example App',
+      version: '1.0.0',
+      url: 'https://example.com',
+    },
+  });
+
   return new StripeService(
-    getKeyValueService(),
-    getLogger(),
+    store,
+    stripe,
     {
       baseUrl: process.env.APP_URL || 'http://localhost:3000',
       successPath: '/billing/success',
