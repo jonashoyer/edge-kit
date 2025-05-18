@@ -80,7 +80,36 @@ export function hashCode(str: string) {
 }
 
 const base64Digit = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
-const toB64 = (x: number) => x.toString(2).split(/(?=(?:.{6})+(?!.))/g).map(v => base64Digit[parseInt(v, 2)]).join("")
+const toB64 = (x: number | bigint) => x.toString(2).split(/(?=(?:.{6})+(?!.))/g).map(v => base64Digit[parseInt(v, 2)]).join("")
 export function hashCodeB64(str: string) {
   return toB64(hashCode(str));
 }
+
+
+export function fnv1a64(str: string): bigint {
+  // FNV-1a 64-bit constants
+  const FNV_offset_basis_64 = 14695981039346656037n;
+  const FNV_prime_64 = 1099511628211n;
+  const MASK_64 = (1n << 64n) - 1n;
+
+  let hash = FNV_offset_basis_64;
+
+  // Encode the string to UTF-8 bytes
+  const encoder = new TextEncoder();
+  const bytes = encoder.encode(str);
+
+  for (let i = 0; i < bytes.length; i++) {
+    // XOR the hash with the current byte
+    hash ^= BigInt(bytes[i]); // Use the byte value
+
+    // Multiply by the FNV prime
+    hash *= FNV_prime_64;
+
+    // Apply the 64-bit mask
+    hash &= MASK_64;
+  }
+
+  return hash;
+}
+
+export const fnv1a64B64 = (str: string) => toB64(fnv1a64(str));
