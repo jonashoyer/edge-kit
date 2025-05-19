@@ -72,7 +72,6 @@ export class StripeCheckoutService {
       successUrl?: string;
       cancelUrl?: string;
       trialPeriodDays?: number;
-      customerCreation?: 'always' | 'if_required';
       metadata?: Record<string, string>;
     }
   ): Promise<Stripe.Checkout.Session> {

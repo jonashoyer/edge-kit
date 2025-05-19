@@ -19,8 +19,8 @@ export interface Tpl {
 }
 
 const hashSymbol = Symbol('hash');
-const interpolationSymbol = Symbol('interpolation');
-const interpolationValuesSymbol = Symbol('interpolation-values');
+const placeholderSymbol = Symbol('placeholder');
+const valuesSymbol = Symbol('values');
 
 export type CreateTpl = (options: TplOptions) => Tpl;
 
@@ -37,6 +37,12 @@ function getMinDent(lines: string[]) {
   return mindent;
 }
 
+interface TplString extends String {
+  [hashSymbol]: string | undefined;
+  [placeholderSymbol]: string[];
+  [valuesSymbol]: unknown[];
+}
+
 function applyDedenting(lines: string[], mindent: number) {
   return lines.map(line => line.startsWith(" ") || line.startsWith("\t") ? line.slice(mindent) : line);
 }
@@ -46,12 +52,12 @@ function createTpl(options: TplOptions) {
     createTpl({ ...options, ...newOptions });
 
   tpl.getHash = (tplStr: string) => {
-    const str = tplStr as string & Record<typeof hashSymbol, string | undefined> & Record<typeof interpolationSymbol, string[]>;
+    const str = tplStr as unknown as TplString;
     if (str[hashSymbol]) {
       return str[hashSymbol];
     }
 
-    const hash = (options.hashFn ?? fnv1a64B64)(str[interpolationSymbol].join('_TPL$_'));
+    const hash = (options.hashFn ?? fnv1a64B64)(str[placeholderSymbol].join('_TPL$_'));
     str[hashSymbol] = hash;
     return hash;
   }
@@ -68,7 +74,7 @@ function createTpl(options: TplOptions) {
     } = options;
 
     // Process raw template parts
-    let processedParts = raw.map(part => {
+    let placholderParts = raw.map(part => {
       if (escapeSpecialCharacters) {
         return part
           .replace(/\\\n[ \t]*/g, "")
@@ -80,40 +86,37 @@ function createTpl(options: TplOptions) {
     });
 
     // Calculate minimum indentation for each part
-    const minDent = getMinDent(processedParts.flatMap(part => part.split('\n')));
+    const minDent = getMinDent(placholderParts.flatMap(part => part.split('\n')));
 
     // Apply dedenting to each part
     if (minDent !== null) {
-      processedParts = processedParts.map(part =>
+      placholderParts = placholderParts.map(part =>
         applyDedenting(part.split('\n'), minDent).join('\n')
       );
     }
 
     // Apply whitespace trimming to parts
-    if (trimWhitespace && processedParts.length > 0) {
-      processedParts[0] = processedParts[0].trimStart();
-      processedParts[processedParts.length - 1] = processedParts[processedParts.length - 1].trimEnd();
+    if (trimWhitespace && placholderParts.length > 0) {
+      placholderParts[0] = placholderParts[0].trimStart();
+      placholderParts[placholderParts.length - 1] = placholderParts[placholderParts.length - 1].trimEnd();
     }
 
     // Handle escaped newlines in parts
     if (escapeSpecialCharacters) {
-      processedParts = processedParts.map(part => part.replace(/\\n/g, '\n'));
+      placholderParts = placholderParts.map(part => part.replace(/\\n/g, '\n'));
     }
 
-    // Store the processed parts for hashing
-    const processedPartsForHash = [...processedParts];
-
     // Now apply the values to get the final result
-    const result = processedParts.reduce((acc, part, i) => {
+    const result = placholderParts.reduce((acc, part, i) => {
       return acc + part + (i < values.length ? values[i] : '')
     }, '');
 
     // Create the result string with the symbols attached
-    const resultStr = new String(result) as string & Record<symbol, any>;
-    resultStr[interpolationSymbol] = processedPartsForHash;
-    resultStr[interpolationValuesSymbol] = values;
+    const tplString = new String(result) as unknown as TplString;
+    tplString[placeholderSymbol] = placholderParts;
+    tplString[valuesSymbol] = values;
 
-    return resultStr;
+    return tplString as unknown as string;
   }
 }
 
