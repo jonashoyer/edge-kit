@@ -1,22 +1,20 @@
-export const arrayBufferToBase64Url = (buffer: ArrayBuffer): string => {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=/g, '');
-};
+import { arrayBufferToBase64Url } from "./buffer-utils";
+
+const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array => {
+  return typeof data === 'string'
+    ? new TextEncoder().encode(data)
+    : new Uint8Array(data);
+}
 
 export async function sha256(data: string | ArrayBuffer, salt?: Uint8Array): Promise<ArrayBuffer> {
   const buff = await crypto.subtle.digest("SHA-256", new Uint8Array([...dataToUint8Array(data), ...(salt ?? [])]));
   return buff;
 }
 
-const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array => {
-  if (typeof data === 'string') {
-    return new TextEncoder().encode(data);
-  } else {
-    return new Uint8Array(data);
-  }
-}
+
+
+
+
 
 /**
  * Hashes data using SHA-256
@@ -42,8 +40,15 @@ export async function sha256IpBase64(ip: string, salt?: Uint8Array): Promise<str
   return arrayBufferToBase64Url(hashBuffer);
 }
 
-export function generateSalt(length: number = 16): Uint8Array {
+export function generateRandomBuffer(length: number = 16) {
   return crypto.getRandomValues(new Uint8Array(length));
+}
+
+/**
+ * @deprecated Use generateRandomBuffer instead
+ */
+export function generateSalt(length: number = 16): Uint8Array {
+  return generateRandomBuffer(length);
 }
 
 /**
@@ -113,3 +118,22 @@ export function fnv1a64(str: string): bigint {
 }
 
 export const fnv1a64B64 = (str: string) => toB64(fnv1a64(str));
+
+/**
+ * Compares two ArrayBuffers in constant time.
+ */
+export function constantTimeArrayBufferCompare(a: ArrayBuffer, b: ArrayBuffer): boolean {
+  if (a.byteLength !== b.byteLength) {
+    return false;
+  }
+
+  const aView = new Uint8Array(a);
+  const bView = new Uint8Array(b);
+  let result = 0;
+
+  for (let i = 0; i < a.byteLength; i++) {
+    result |= aView[i] ^ bView[i];
+  }
+
+  return result === 0;
+}
