@@ -75,3 +75,21 @@ export type IsUnion<T> = [T] extends [UnionToIntersection<T>] ? false : true;
 export type UnionToArray<T, A extends unknown[] = []> = IsUnion<T> extends true
   ? UnionToArray<Exclude<T, PopUnion<T>>, [PopUnion<T>, ...A]>
   : [T, ...A];
+
+
+export function betterTypeof(data: unknown) {
+  if (typeof data === "number") {
+    if (Number.isNaN(data)) return "NaN";
+    if (Number.isInteger(data)) return "integer";
+  }
+
+  if (typeof data === "object") {
+    if (Array.isArray(data)) return "array";
+    if (data === null) return "null";
+    if (Object.getPrototypeOf(data) !== Object.prototype && data.constructor) {
+      return data.constructor.name as string & {}; // assert (string & {}) to help IDE autocomplete
+    }
+  }
+
+  return typeof data;
+};

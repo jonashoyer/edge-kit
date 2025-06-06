@@ -1,22 +1,17 @@
+import { z } from "zod";
 import { arrayBufferToBase64Url, arrayBufferToString, base64UrlToArrayBuffer, stringToArrayBuffer } from "../../utils/buffer-utils";
 import { generateRandomBuffer } from "../../utils/crypto-utils";
 
-/**
- * Structure of encrypted data
- */
-export interface EncryptedData {
-  /** The encrypted data as a Base64 URL-safe string */
-  data: ArrayBuffer;
-  /** Nonce (Number used Once) used for encryption as a Base64 URL-safe string */
-  nonce: ArrayBuffer;
-  /** Salt used for key derivation as a Base64 URL-safe string */
-  salt: ArrayBuffer;
-  /** Encryption algorithm details */
-  algorithm: {
-    name: string;
-    pbkdf2Iterations: number;
-  };
-}
+const encryptedDataSchema = z.object({
+  data: z.instanceof(ArrayBuffer),
+  nonce: z.instanceof(ArrayBuffer),
+  salt: z.instanceof(ArrayBuffer),
+  algorithm: z.object({
+    name: z.string(),
+    pbkdf2Iterations: z.number(),
+  }),
+});
+export type EncryptedData = z.infer<typeof encryptedDataSchema>;
 
 /**
  * Basic encryption service using AES-256-GCM

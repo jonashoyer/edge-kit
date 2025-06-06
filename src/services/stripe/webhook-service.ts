@@ -43,8 +43,7 @@ export class StripeWebhookService {
         eventId: event.id
       });
 
-      const run: (promise: Promise<any>) => void | Promise<any> = waitUntil ?? ((promise: Promise<any>) => promise);
-      await run(this.syncService.processEvent(event));
+      await safeWaitUntil(waitUntil ?? ((promise: Promise<any>) => promise), this.syncService.processEvent(event));
 
       return { received: true };
     } catch (error) {
@@ -53,6 +52,23 @@ export class StripeWebhookService {
       return { received: false, error: errorMessage };
     }
   }
+}
+
+/**
+ * Wraps a waitUntil call to ensure that any errors are logged and not thrown
+ * @param waitUntil - The waitUntil function to wrap
+ * @param promise - The promise to wait for
+ */
+const safeWaitUntil = async (waitUntil: (promise: Promise<unknown>) => void | Promise<unknown>, promise: Promise<unknown>) => {
+  const fn = async () => {
+    try {
+      await promise;
+    } catch (error) {
+      console.error('[SAFE WAIT UNTIL] Error', error);
+    }
+  }
+
+  waitUntil(fn());
 }
 
 // NOTE: If you're using this in a Next.js Page Router, you need to disable bodyParser
