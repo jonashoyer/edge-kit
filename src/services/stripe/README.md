@@ -24,10 +24,10 @@ STRIPE_PRICE_ID=price_1234567890
 2. Initialize the service:
 
 ```typescript
-import { StripeService } from '../services/stripe';
-import { StripeKVStore } from '../services/stripe/kv-store';
 import { kv } from '../services/key-value'; // Your KV service implementation
 import { logger } from '../services/logging'; // Your logger implementation
+import { StripeService } from '../services/stripe';
+import { StripeKVStore } from '../services/stripe/kv-store';
 
 const store = new StripeKVStore(kv);
 
@@ -52,7 +52,7 @@ const stripeService = new StripeService(store, stripe, {
 const checkoutSession = await stripeService.createSubscriptionCheckout(
   user.id,
   user.email,
-  process.env.STRIPE_PRICE_ID! // Your price ID
+  process.env.STRIPE_PRICE_ID!, // Your price ID
 );
 
 // Redirect to checkout URL

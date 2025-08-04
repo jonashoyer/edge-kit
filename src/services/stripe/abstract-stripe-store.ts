@@ -18,20 +18,15 @@ export abstract class AbstractStripeStore {
   /**
    * Store subscription data for a customer
    */
-  abstract setCustomerSubscriptionData(
-    stripeCustomerId: string,
-    subscriptionData: StripeSubscription
-  ): Promise<void>;
+  abstract setCustomerSubscriptionData(stripeCustomerId: string, subscriptionData: StripeSubscription): Promise<void>;
 
   /**
    * Get subscription data for a customer
    */
-  abstract getCustomerSubscriptionData(
-    stripeCustomerId: string
-  ): Promise<Nullable<StripeSubscription>>;
+  abstract getCustomerSubscriptionData(stripeCustomerId: string): Promise<Nullable<StripeSubscription>>;
 
   /**
    * Get subscription data for a user
    */
   abstract getUserSubscriptionData(userId: string): Promise<Nullable<StripeSubscription>>;
-} 
+}

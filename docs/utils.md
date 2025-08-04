@@ -6,25 +6,25 @@ Edge Kit includes a rich set of utility functions for common tasks. These utilit
 
 The utilities are organized by category in the `src/utils/` directory:
 
-| Category | File | Description |
-|----------|------|-------------|
-| Array | `array-utils.ts` | Array manipulation functions |
-| Crypto | `crypto-utils.ts` | Cryptography-related utilities |
-| Date | `date-utils.ts` | Date and time manipulation |
-| Form | `form-utils.ts` | Form-related helpers |
-| String | `string-utils.ts` | String manipulation functions |
-| Number | `number-utils.ts` | Number manipulation functions |
-| Random | `random-utils.ts` | Random value generation |
-| Object | `object-utils.ts` | Object manipulation utilities |
-| Promise | `promise-utils.ts` | Promise-related utilities |
-| Type | `type-utils.ts` | TypeScript type helpers |
-| Misc | `misc-utils.ts` | Miscellaneous utility functions |
-| URL | `url-utils.ts` | URL-related utilities |
-| Error | `custom-error.ts` | Custom error types |
-| Singleton | `singleton.ts` | Singleton pattern implementation |
+| Category  | File                 | Description                       |
+| --------- | -------------------- | --------------------------------- |
+| Array     | `array-utils.ts`     | Array manipulation functions      |
+| Crypto    | `crypto-utils.ts`    | Cryptography-related utilities    |
+| Date      | `date-utils.ts`      | Date and time manipulation        |
+| Form      | `form-utils.ts`      | Form-related helpers              |
+| String    | `string-utils.ts`    | String manipulation functions     |
+| Number    | `number-utils.ts`    | Number manipulation functions     |
+| Random    | `random-utils.ts`    | Random value generation           |
+| Object    | `object-utils.ts`    | Object manipulation utilities     |
+| Promise   | `promise-utils.ts`   | Promise-related utilities         |
+| Type      | `type-utils.ts`      | TypeScript type helpers           |
+| Misc      | `misc-utils.ts`      | Miscellaneous utility functions   |
+| URL       | `url-utils.ts`       | URL-related utilities             |
+| Error     | `custom-error.ts`    | Custom error types                |
+| Singleton | `singleton.ts`       | Singleton pattern implementation  |
 | Signature | `signature-utils.ts` | Cryptographic signature utilities |
-| Try/Catch | `try-catch-utils.ts` | Error handling utilities |
-| ID | `id-generator.ts` | ID generation utilities |
+| Try/Catch | `try-catch-utils.ts` | Error handling utilities          |
+| ID        | `id-generator.ts`    | ID generation utilities           |
 
 ## String Utilities
 
@@ -39,7 +39,7 @@ Located in `src/utils/string-utils.ts`
 Example:
 
 ```typescript
-import { firstCharUpper, camelToSnakeCase } from '../utils/string-utils';
+import { camelToSnakeCase, firstCharUpper } from '../utils/string-utils';
 
 firstCharUpper('hello'); // 'Hello'
 camelToSnakeCase('helloWorld'); // 'hello_world'
@@ -84,7 +84,7 @@ Cryptography functions for hashing, encryption, and secure random values.
 Example:
 
 ```typescript
-import { generateHash, encrypt } from '../utils/crypto-utils';
+import { encrypt, generateHash } from '../utils/crypto-utils';
 
 // Generate SHA-256 hash
 const hash = await generateHash('password');
@@ -102,7 +102,7 @@ Functions for generating random values with deterministic seeding options.
 Example:
 
 ```typescript
-import { seedRandomNumberGenerator, generateRandomString } from '../utils/random-utils';
+import { generateRandomString, seedRandomNumberGenerator } from '../utils/random-utils';
 
 // Generate seeded random number
 const generator = seedRandomNumberGenerator('my-seed');
@@ -121,14 +121,14 @@ TypeScript type helpers and utility types.
 Example:
 
 ```typescript
-import { Nullable, DeepPartial } from '../utils/type-utils';
+import { DeepPartial, Nullable } from '../utils/type-utils';
 
 // Nullable type
 const value: Nullable<string> = null; // Can be string or null
 
 // Deep partial
 type User = { name: string; profile: { age: number } };
-const partialUser: DeepPartial<User> = { profile: { } }; // Valid
+const partialUser: DeepPartial<User> = { profile: {} }; // Valid
 ```
 
 ## Promise Utilities
@@ -158,15 +158,12 @@ A utility for implementing the singleton pattern.
 Example:
 
 ```typescript
-import { singleton } from '../utils/singleton';
 import { UpstashRedisKeyValueService } from '../services/key-value/upstash-redis-key-value';
+import { singleton } from '../utils/singleton';
 
 // Create a singleton instance
 export const getKVService = singleton(() => {
-  return new UpstashRedisKeyValueService(
-    process.env.UPSTASH_REDIS_URL!,
-    process.env.UPSTASH_REDIS_TOKEN!
-  );
+  return new UpstashRedisKeyValueService(process.env.UPSTASH_REDIS_URL!, process.env.UPSTASH_REDIS_TOKEN!);
 });
 
 // Usage
@@ -182,8 +179,8 @@ Utilities for error handling and custom error types.
 Example:
 
 ```typescript
-import { tryCatch } from '../utils/try-catch-utils';
 import { CustomError } from '../utils/custom-error';
+import { tryCatch } from '../utils/try-catch-utils';
 
 // Try-catch wrapper
 const [error, result] = await tryCatch(async () => {

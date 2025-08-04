@@ -5,6 +5,7 @@ Edge Kit provides abstract and concrete implementations for cloud storage servic
 ## Overview
 
 The storage services allow you to:
+
 - Upload files to cloud storage
 - Download files from cloud storage
 - Delete files from cloud storage
@@ -17,7 +18,7 @@ The `AbstractStorage` class defines the interface that all storage implementatio
 
 ```typescript
 export abstract class AbstractStorage {
-  constructor(protected options: StorageOptions) { }
+  constructor(protected options: StorageOptions) {}
 
   abstract upload(key: string, data: Buffer): Promise<void>;
   abstract download(key: string): Promise<Buffer>;
@@ -38,6 +39,7 @@ A storage implementation for AWS S3.
 **Location**: `src/services/storage/s3-storage.ts`
 
 **Dependencies**:
+
 - `@aws-sdk/client-s3`
 - `@aws-sdk/s3-request-presigner`
 
@@ -76,6 +78,7 @@ A storage implementation for Cloudflare R2.
 **Location**: `src/services/storage/r2-storage.ts`
 
 **Dependencies**:
+
 - `@aws-sdk/client-s3` (R2 is S3-compatible)
 - `@aws-sdk/s3-request-presigner`
 
@@ -138,7 +141,7 @@ const files = await storage.list('users/123/');
 
 // Delete all files in a "folder" (one by one)
 const filesToDelete = await storage.list('users/123/');
-await Promise.all(filesToDelete.map(file => storage.delete(file)));
+await Promise.all(filesToDelete.map((file) => storage.delete(file)));
 ```
 
 ### Pre-signed URLs

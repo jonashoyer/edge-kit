@@ -8,7 +8,8 @@ export function seedRandomNumberGenerator(seedString: string) {
 }
 
 function xmur3(str: string) {
-  for (var i = 0, h = 1779033703 ^ str.length; i < str.length; i++) {
+  let h = 1779033703 ^ str.length;
+  for (let i = 0; i < str.length; i++) {
     h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
     h = (h << 13) | (h >>> 19);
   }
@@ -43,8 +44,8 @@ export const randomizeArray = <T>(array: T[], rand: RandomNumberGenerator): T[] 
     [arr[i], arr[j]] = [arr[j]!, arr[i]!];
   }
   return arr;
-}
+};
 
 export const pickRandom = <T>(array: T[], rand: RandomNumberGenerator): T => {
   return array[Math.floor(rand() * array.length)]!;
-}
+};

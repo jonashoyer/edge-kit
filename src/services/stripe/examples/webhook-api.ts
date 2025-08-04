@@ -1,26 +1,21 @@
 /**
  * Example Stripe webhook API endpoint
- * 
+ *
  * This would typically be placed in app/api/stripe/webhook/route.ts
  * for a Next.js App Router project
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
+
 import { StripeService } from '..';
 import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
-import { AbstractLogger } from '../../logging/abstract-logger';
 import { StripeKVStore } from '../kv-store';
-import Stripe from 'stripe';
 
 // Example of getting services, replace with your own implementations
 function getKeyValueService(): AbstractKeyValueService {
   // Return your KV service implementation
   throw new Error('Implement your KV service retrieval here');
-}
-
-function getLogger(): AbstractLogger {
-  // Return your logger implementation
-  throw new Error('Implement your logger retrieval here');
 }
 
 // Create Stripe service instance
@@ -44,17 +39,13 @@ function getStripeService() {
     },
   });
 
-  return new StripeService(
-    store,
-    stripe,
-    {
-      baseUrl: process.env.APP_URL || 'http://localhost:3000',
-      successPath: '/billing/success',
-      cancelPath: '/billing',
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-      secretKey: process.env.STRIPE_SECRET_KEY,
-    }
-  );
+  return new StripeService(store, stripe, {
+    baseUrl: process.env.APP_URL || 'http://localhost:3000',
+    successPath: '/billing/success',
+    cancelPath: '/billing',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    secretKey: process.env.STRIPE_SECRET_KEY,
+  });
 }
 
 /**
@@ -68,10 +59,7 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
-      return NextResponse.json(
-        { error: 'Missing Stripe signature' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 });
     }
 
     // Initialize service and process webhook
@@ -79,10 +67,7 @@ export async function POST(req: NextRequest) {
     const result = await stripeService.handleWebhook(body, signature);
 
     if (!result.received) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: result.error }, { status: 400 });
     }
 
     // Always return a 200 success response to Stripe quickly
@@ -91,10 +76,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Webhook error:', error);
 
-    return NextResponse.json(
-      { error: 'Failed to process webhook' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
   }
 }
 
@@ -105,4 +87,4 @@ export const config = {
     bodyParser: false,
   },
 };
-*/ 
+*/

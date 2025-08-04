@@ -1,5 +1,6 @@
-import { AbstractLogger } from './abstract-logger';
 import { Axiom } from '@axiomhq/js';
+
+import { AbstractLogger } from './abstract-logger';
 
 export class AxiomLogger implements AbstractLogger {
   private client: Axiom;
@@ -17,12 +18,14 @@ export class AxiomLogger implements AbstractLogger {
   }
 
   async log(message: string, level: string, metadata?: Record<string, any>) {
-    this.client.ingest(this.dataset, [{
-      level,
-      message,
-      ...metadata,
-      timestamp: new Date().toISOString(),
-    }]);
+    this.client.ingest(this.dataset, [
+      {
+        level,
+        message,
+        ...metadata,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
   }
 
   async info(message: string, metadata?: Record<string, any>): Promise<void> {

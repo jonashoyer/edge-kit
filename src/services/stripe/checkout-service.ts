@@ -1,4 +1,5 @@
 import Stripe from 'stripe';
+
 import { AbstractLogger } from '../logging/abstract-logger';
 import { AbstractStripeStore } from './abstract-stripe-store';
 
@@ -13,10 +14,10 @@ export class StripeCheckoutService {
     store: AbstractStripeStore,
     stripe: Stripe,
     options: {
-      logger?: AbstractLogger,
+      logger?: AbstractLogger;
       successUrl: string;
       cancelUrl: string;
-    }
+    },
   ) {
     this.store = store;
     this.stripe = stripe;
@@ -29,10 +30,7 @@ export class StripeCheckoutService {
    * Creates or retrieves a Stripe customer for the user
    * This ensures we always have a customerId before checkout
    */
-  async getOrCreateStripeCustomer(
-    userId: string,
-    email: string
-  ): Promise<string> {
+  async getOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
     try {
       // First check if we already have a customer ID for this user
       const existingCustomerId = await this.store.getStripeCustomerId(userId);
@@ -41,14 +39,17 @@ export class StripeCheckoutService {
       }
 
       // Create a new customer in Stripe
-      const customer = await this.stripe.customers.create({
-        email,
-        metadata: {
-          userId, // Important: Store reference to our userId
+      const customer = await this.stripe.customers.create(
+        {
+          email,
+          metadata: {
+            userId, // Important: Store reference to our userId
+          },
         },
-      }, {
-        idempotencyKey: userId,
-      });
+        {
+          idempotencyKey: userId,
+        },
+      );
 
       // Store the mapping in our KV store
       await this.store.setUserToCustomerMapping(userId, customer.id);
@@ -73,7 +74,7 @@ export class StripeCheckoutService {
       cancelUrl?: string;
       trialPeriodDays?: number;
       metadata?: Record<string, string>;
-    }
+    },
   ): Promise<Stripe.Checkout.Session> {
     try {
       // Always make sure we have a Stripe customer ID before creating checkout
@@ -90,9 +91,7 @@ export class StripeCheckoutService {
           },
         ],
         mode: 'subscription',
-        subscription_data: options?.trialPeriodDays
-          ? { trial_period_days: options.trialPeriodDays }
-          : undefined,
+        subscription_data: options?.trialPeriodDays ? { trial_period_days: options.trialPeriodDays } : undefined,
         success_url: options?.successUrl || this.successUrl,
         cancel_url: options?.cancelUrl || this.cancelUrl,
         metadata: {
@@ -104,7 +103,7 @@ export class StripeCheckoutService {
       this.logger?.info('Created subscription checkout session', {
         userId,
         customerId,
-        checkoutSessionId: session.id
+        checkoutSessionId: session.id,
       });
 
       return session;
@@ -128,7 +127,7 @@ export class StripeCheckoutService {
       successUrl?: string;
       cancelUrl?: string;
       metadata?: Record<string, string>;
-    }
+    },
   ): Promise<Stripe.Checkout.Session> {
     try {
       // Always make sure we have a Stripe customer ID before creating checkout
@@ -138,7 +137,7 @@ export class StripeCheckoutService {
       const session = await this.stripe.checkout.sessions.create({
         customer: customerId,
         payment_method_types: ['card'],
-        line_items: lineItems.map(item => ({
+        line_items: lineItems.map((item) => ({
           price: item.priceId,
           quantity: item.quantity,
         })),
@@ -154,7 +153,7 @@ export class StripeCheckoutService {
       this.logger?.info('Created one-time payment checkout session', {
         userId,
         customerId,
-        checkoutSessionId: session.id
+        checkoutSessionId: session.id,
       });
 
       return session;
@@ -163,4 +162,4 @@ export class StripeCheckoutService {
       throw error;
     }
   }
-} 
+}

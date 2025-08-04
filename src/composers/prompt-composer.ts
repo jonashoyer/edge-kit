@@ -1,11 +1,10 @@
-import { ml } from "../utils/string-utils";
-
+import { ml } from '../utils/string-utils';
 
 export type PromptTemplateParams<T extends string> = Record<ExtractVariables<T>, string>;
 
 export type PromptComposerComponent = {
-  data: any;
-  converter: (data: any) => string;
+  data: unknown;
+  converter: (data: unknown) => string;
 };
 
 type ExtractVariables<T extends string> = T extends `${string}{{${infer Var}}}${infer Rest}`
@@ -13,27 +12,18 @@ type ExtractVariables<T extends string> = T extends `${string}{{${infer Var}}}${
   : never;
 
 export class PromptComposer {
-  private static replace<T extends string>(
-    template: T,
-    params: Record<ExtractVariables<T>, string>
-  ): string {
-    return ml([template]).replace(
-      /{{(\w+)}}/g,
-      (_, key) => params[key as keyof PromptTemplateParams<T>] ?? '',
-    );
+  private static replace<T extends string>(template: T, params: Record<ExtractVariables<T>, string>): string {
+    return ml([template]).replace(/{{(\w+)}}/g, (_, key) => params[key as keyof PromptTemplateParams<T>] ?? '');
   }
 
-  static build<T extends string>(
-    template: T,
-    params: PromptTemplateParams<T>
-  ): string {
+  static build<T extends string>(template: T, params: PromptTemplateParams<T>): string {
     return this.replace(template, params);
   }
 
   static composer<T extends string, U extends Record<string, PromptComposerComponent>>(
     template: T,
     components: U,
-    params: Record<Exclude<ExtractVariables<T>, keyof U>, string>
+    params: Record<Exclude<ExtractVariables<T>, keyof U>, string>,
   ): string {
     const processedComponents: Record<string, string> = {};
 
@@ -42,7 +32,7 @@ export class PromptComposer {
       processedComponents[key] = converter(data);
     }
     const mergedParams = { ...processedComponents, ...params } as unknown as Record<ExtractVariables<T>, string>;
-    return this.replace(template, mergedParams as any);
+    return this.replace(template, mergedParams);
   }
 
   /**
@@ -57,22 +47,22 @@ export class PromptComposer {
    * // - banana
    * // - cherry
    */
-  static arrayToList(arr: any[]): string {
-    return arr.map(item => `- ${item}`).join('\n');
+  static arrayToList(arr: unknown[]): string {
+    return arr.map((item) => `- ${item}`).join('\n');
   }
 
   /**
    * Converts an object to a key-value string.
    * @param obj - The object to convert.
    * @returns The key-value string.
-   * @example 
+   * @example
    * const obj = { name: 'John', age: 30 };
    * const result = PromptBuilder.objectToKeyValue(obj);
    * console.log(result);
    * // name: John
    * // age: 30
    */
-  static objectToKeyValue(obj: Record<string, any>): string {
+  static objectToKeyValue(obj: Record<string, unknown>): string {
     return Object.entries(obj)
       .map(([key, value]) => `${key}: ${value}`)
       .join('\n');
@@ -92,8 +82,8 @@ export class PromptComposer {
    * //   <age>30</age>
    * // </root>
    */
-  static jsonToXml(json: any, rootName: string = 'root'): string {
-    const convert = (obj: any, name: string): string => {
+  static jsonToXml(json: unknown, rootName: string = 'root'): string {
+    const convert = (obj: unknown, name: string): string => {
       if (obj === null || obj === undefined) {
         return `<${name}/>`;
       }
@@ -103,7 +93,7 @@ export class PromptComposer {
       }
 
       if (Array.isArray(obj)) {
-        return obj.map(item => convert(item, name)).join('\n');
+        return obj.map((item) => convert(item, name)).join('\n');
       }
 
       const children = Object.entries(obj)
@@ -117,7 +107,10 @@ export class PromptComposer {
   }
 
   private static indent(str: string): string {
-    return str.split('\n').map(line => `  ${line}`).join('\n');
+    return str
+      .split('\n')
+      .map((line) => `  ${line}`)
+      .join('\n');
   }
 
   private static escapeXml(str: string): string {
@@ -130,13 +123,12 @@ export class PromptComposer {
   }
 }
 
-
 // const finalPrompt = PromptComposer.composer(
 //   `
 //   Hello {{name}}!
 
 //   Today is {{today}}
-  
+
 //   Tasks:
 //   {{tasks}}
 

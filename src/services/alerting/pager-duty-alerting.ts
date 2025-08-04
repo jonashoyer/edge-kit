@@ -1,13 +1,13 @@
-import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
-import { AbstractLogger } from '../logging/abstract-logger';
 import { fetchExt } from '../../utils/misc-utils';
+import { AbstractLogger } from '../logging/abstract-logger';
+import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
 
 export class PagerDutyAlertingService extends AbstractAlertingService {
   private readonly apiUrl = 'https://events.pagerduty.com/v2/enqueue';
 
   constructor(
     private routingKey: string,
-    logger: AbstractLogger
+    logger: AbstractLogger,
   ) {
     super(logger);
   }

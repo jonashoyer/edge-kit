@@ -1,8 +1,8 @@
-import { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import { Nullable } from '../../utils/type-utils';
-import { StripeSubscription } from './types';
-import { stripeKeyNamespace } from './stripe-keys';
+import { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import { AbstractStripeStore } from './abstract-stripe-store';
+import { stripeKeyNamespace } from './stripe-keys';
+import { StripeSubscription } from './types';
 
 /**
  * Handles key-value storage operations for the Stripe service
@@ -33,10 +33,7 @@ export class StripeKVStore implements AbstractStripeStore {
   /**
    * Store subscription data for a customer
    */
-  async setCustomerSubscriptionData(
-    stripeCustomerId: string,
-    subscriptionData: StripeSubscription
-  ): Promise<void> {
+  async setCustomerSubscriptionData(stripeCustomerId: string, subscriptionData: StripeSubscription): Promise<void> {
     const key = stripeKeyNamespace.key('customerSubscription', stripeCustomerId);
     await this.kvService.set(key, subscriptionData);
   }
@@ -44,9 +41,7 @@ export class StripeKVStore implements AbstractStripeStore {
   /**
    * Get subscription data for a customer
    */
-  async getCustomerSubscriptionData(
-    stripeCustomerId: string
-  ): Promise<Nullable<StripeSubscription>> {
+  async getCustomerSubscriptionData(stripeCustomerId: string): Promise<Nullable<StripeSubscription>> {
     const key = stripeKeyNamespace.key('customerSubscription', stripeCustomerId);
     return this.kvService.get<StripeSubscription>(key);
   }
@@ -61,4 +56,4 @@ export class StripeKVStore implements AbstractStripeStore {
     }
     return this.getCustomerSubscriptionData(stripeCustomerId);
   }
-} 
+}

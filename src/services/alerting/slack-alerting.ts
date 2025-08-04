@@ -1,13 +1,13 @@
-import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
-import { AbstractLogger } from '../logging/abstract-logger';
 import { fetchExt } from '../../utils/misc-utils';
+import { AbstractLogger } from '../logging/abstract-logger';
+import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
 
 export class SlackAlertingService extends AbstractAlertingService {
   constructor(
     private webhookUrl: string,
     private channel: string,
     logger: AbstractLogger,
-    private fields?: { title: string; value: string; short?: boolean }[]
+    private fields?: { title: string; value: string; short?: boolean }[],
   ) {
     super(logger);
   }
@@ -16,20 +16,22 @@ export class SlackAlertingService extends AbstractAlertingService {
     const color = this.getSeverityColor(options.severity);
     const payload = {
       channel: this.channel,
-      attachments: [{
-        color,
-        text: message,
-        fields: [
-          ...(this.fields ?? []),
-          { title: 'Severity', value: options.severity, short: true },
-          { title: 'Source', value: options.source || 'N/A', short: true },
-          ...Object.entries(options.tags || {}).map(([key, value]) => ({
-            title: key,
-            value,
-            short: true,
-          })),
-        ],
-      }],
+      attachments: [
+        {
+          color,
+          text: message,
+          fields: [
+            ...(this.fields ?? []),
+            { title: 'Severity', value: options.severity, short: true },
+            { title: 'Source', value: options.source || 'N/A', short: true },
+            ...Object.entries(options.tags || {}).map(([key, value]) => ({
+              title: key,
+              value,
+              short: true,
+            })),
+          ],
+        },
+      ],
     };
 
     await fetchExt({
@@ -46,10 +48,14 @@ export class SlackAlertingService extends AbstractAlertingService {
 
   private getSeverityColor(severity: AlertOptions['severity']): string {
     switch (severity) {
-      case 'info': return '#2196F3';
-      case 'warning': return '#FFC107';
-      case 'error': return '#F44336';
-      case 'critical': return '#9C27B0';
+      case 'info':
+        return '#2196F3';
+      case 'warning':
+        return '#FFC107';
+      case 'error':
+        return '#F44336';
+      case 'critical':
+        return '#9C27B0';
     }
   }
 

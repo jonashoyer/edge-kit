@@ -1,18 +1,15 @@
 import Stripe from 'stripe';
-import { StripeSubscription } from './types';
+
 import { AbstractLogger } from '../logging/abstract-logger';
 import { AbstractStripeStore } from './abstract-stripe-store';
+import { StripeSubscription } from './types';
 
 export class StripeSyncService {
   private store: AbstractStripeStore;
   private stripe: Stripe;
   private logger: AbstractLogger | undefined;
 
-  constructor(
-    store: AbstractStripeStore,
-    stripe: Stripe,
-    logger?: AbstractLogger,
-  ) {
+  constructor(store: AbstractStripeStore, stripe: Stripe, logger?: AbstractLogger) {
     this.store = store;
     this.stripe = stripe;
     this.logger = logger;
@@ -52,12 +49,11 @@ export class StripeSyncService {
         currentPeriodEnd: subscription.current_period_end,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
         paymentMethod:
-          subscription.default_payment_method &&
-            typeof subscription.default_payment_method !== 'string'
+          subscription.default_payment_method && typeof subscription.default_payment_method !== 'string'
             ? {
-              brand: subscription.default_payment_method.card?.brand ?? null,
-              last4: subscription.default_payment_method.card?.last4 ?? null,
-            }
+                brand: subscription.default_payment_method.card?.brand ?? null,
+                last4: subscription.default_payment_method.card?.last4 ?? null,
+              }
             : null,
       };
 
@@ -123,4 +119,4 @@ export class StripeSyncService {
     // Sync the data and return it
     return this.syncStripeData(customerId);
   }
-} 
+}

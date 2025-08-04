@@ -1,10 +1,11 @@
-import { AbstractLogger } from '../logging/abstract-logger';
-import { StripeSyncService } from './sync-service';
-import { StripeCheckoutService } from './checkout-service';
-import { StripeWebhookService } from './webhook-service';
-import { StripeSubscriptionService } from './subscription-service';
-import { AbstractStripeStore } from './abstract-stripe-store';
 import Stripe from 'stripe';
+
+import { AbstractLogger } from '../logging/abstract-logger';
+import { AbstractStripeStore } from './abstract-stripe-store';
+import { StripeCheckoutService } from './checkout-service';
+import { StripeSubscriptionService } from './subscription-service';
+import { StripeSyncService } from './sync-service';
+import { StripeWebhookService } from './webhook-service';
 
 export * from './types';
 
@@ -54,11 +55,7 @@ export class StripeService {
   private options: StripeServiceOptions;
   private stripe: Stripe;
 
-  constructor(
-    store: AbstractStripeStore,
-    stripe: Stripe,
-    options: StripeServiceOptions
-  ) {
+  constructor(store: AbstractStripeStore, stripe: Stripe, options: StripeServiceOptions) {
     this.store = store;
     this.stripe = stripe;
     this.logger = options.logger;
@@ -72,35 +69,17 @@ export class StripeService {
       throw new Error('Stripe webhook secret is required');
     }
 
-    this.syncService = new StripeSyncService(
-      this.store,
-      this.stripe,
-      this.logger,
-    );
+    this.syncService = new StripeSyncService(this.store, this.stripe, this.logger);
 
-    this.checkoutService = new StripeCheckoutService(
-      this.store,
-      stripe,
-      {
-        logger: this.logger,
-        successUrl: `${options.baseUrl}${options.successPath || '/success'}`,
-        cancelUrl: `${options.baseUrl}${options.cancelPath || '/'}`,
-      }
-    );
+    this.checkoutService = new StripeCheckoutService(this.store, stripe, {
+      logger: this.logger,
+      successUrl: `${options.baseUrl}${options.successPath || '/success'}`,
+      cancelUrl: `${options.baseUrl}${options.cancelPath || '/'}`,
+    });
 
-    this.webhookService = new StripeWebhookService(
-      this.syncService,
-      stripe,
-      options.webhookSecret,
-      this.logger,
-    );
+    this.webhookService = new StripeWebhookService(this.syncService, stripe, options.webhookSecret, this.logger);
 
-    this.subscriptionService = new StripeSubscriptionService(
-      this.store,
-      this.syncService,
-      stripe,
-      this.logger,
-    );
+    this.subscriptionService = new StripeSubscriptionService(this.store, this.syncService, stripe, this.logger);
   }
 
   /**
@@ -110,14 +89,9 @@ export class StripeService {
     userId: string,
     email: string,
     priceId: string,
-    options?: Parameters<StripeCheckoutService['createSubscriptionCheckout']>[3]
+    options?: Parameters<StripeCheckoutService['createSubscriptionCheckout']>[3],
   ) {
-    return this.checkoutService.createSubscriptionCheckout(
-      userId,
-      email,
-      priceId,
-      options
-    );
+    return this.checkoutService.createSubscriptionCheckout(userId, email, priceId, options);
   }
 
   /**
@@ -127,14 +101,9 @@ export class StripeService {
     userId: string,
     email: string,
     lineItems: Parameters<StripeCheckoutService['createOneTimeCheckout']>[2],
-    options?: Parameters<StripeCheckoutService['createOneTimeCheckout']>[3]
+    options?: Parameters<StripeCheckoutService['createOneTimeCheckout']>[3],
   ) {
-    return this.checkoutService.createOneTimeCheckout(
-      userId,
-      email,
-      lineItems,
-      options
-    );
+    return this.checkoutService.createOneTimeCheckout(userId, email, lineItems, options);
   }
 
   /**
@@ -189,4 +158,4 @@ export class StripeService {
   async createCustomerPortalSession(userId: string, returnUrl: string) {
     return this.subscriptionService.createCustomerPortalSession(userId, returnUrl);
   }
-} 
+}

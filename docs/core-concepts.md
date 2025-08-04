@@ -48,11 +48,7 @@ Edge Kit services often use dependency injection for greater flexibility and tes
 
 ```typescript
 // Service with dependencies injected
-const alertingService = new AxiomAlertingService(
-  process.env.AXIOM_TOKEN,
-  'alerts-dataset',
-  logger
-);
+const alertingService = new AxiomAlertingService(process.env.AXIOM_TOKEN, 'alerts-dataset', logger);
 ```
 
 ### Singleton Pattern
@@ -63,10 +59,7 @@ Some services benefit from being singletons. A utility for creating singletons i
 import { singleton } from '../utils/singleton';
 
 export const getKVService = singleton(() => {
-  return new UpstashRedisKeyValueService(
-    process.env.UPSTASH_REDIS_URL!,
-    process.env.UPSTASH_REDIS_TOKEN!
-  );
+  return new UpstashRedisKeyValueService(process.env.UPSTASH_REDIS_URL!, process.env.UPSTASH_REDIS_TOKEN!);
 });
 ```
 
@@ -78,12 +71,8 @@ For services with complex initialization requirements, factory functions are oft
 export function createStripeService(options) {
   const stripe = new Stripe(options.secretKey);
   const store = new MyStripeStore();
-  
-  return new StripeService(
-    store,
-    stripe,
-    options
-  );
+
+  return new StripeService(store, stripe, options);
 }
 ```
 
@@ -94,6 +83,7 @@ Edge Kit services fall into several broad categories:
 ### Infrastructure Services
 
 These services provide abstractions over infrastructure components:
+
 - Storage (S3, R2)
 - Key-Value Stores (Redis)
 - Vector Databases
@@ -101,6 +91,7 @@ These services provide abstractions over infrastructure components:
 ### Business Services
 
 These implement specific business functionality:
+
 - Stripe Integration (payments, subscriptions)
 - Waitlist Management
 - Feature Flags
@@ -108,6 +99,7 @@ These implement specific business functionality:
 ### Operational Services
 
 These support operational aspects of your application:
+
 - Logging
 - Alerting
 - Analytics
@@ -141,13 +133,13 @@ const prompt = PromptComposer.composer(
   `Hello {{name}}! Here are your tasks: {{tasks}}`,
   {
     tasks: {
-      data: ["Task 1", "Task 2", "Task 3"],
+      data: ['Task 1', 'Task 2', 'Task 3'],
       converter: PromptComposer.arrayToList,
-    }
+    },
   },
   {
-    name: "Alice"
-  }
+    name: 'Alice',
+  },
 );
 ```
 

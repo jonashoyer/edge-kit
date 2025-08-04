@@ -19,6 +19,7 @@ Edge Kit is built with a "copy-paste-first" philosophy:
 3. Import and use the components as needed
 
 This approach gives you:
+
 - Complete control over your dependencies
 - Ability to modify code to suit your specific needs
 - No version lock-in or breaking changes to worry about
@@ -86,10 +87,7 @@ Here's a complete example of setting up a Redis key-value service:
 import { UpstashRedisKeyValueService } from './services/key-value/upstash-redis-key-value';
 
 // Create an instance
-const kv = new UpstashRedisKeyValueService(
-  process.env.UPSTASH_REDIS_URL!,
-  process.env.UPSTASH_REDIS_TOKEN!
-);
+const kv = new UpstashRedisKeyValueService(process.env.UPSTASH_REDIS_URL!, process.env.UPSTASH_REDIS_TOKEN!);
 
 // Use the service
 await kv.set('user:123', { name: 'Alice', email: 'alice@example.com' });

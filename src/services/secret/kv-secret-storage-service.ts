@@ -1,7 +1,7 @@
+import { stringToArrayBuffer } from '../../utils/buffer-utils';
 import { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import { AbstractSecretStorageService } from './abstract-secret-storage-service';
-import { EncryptionService, EncryptedData } from './encryption-service';
-import { arrayBufferToString, stringToArrayBuffer } from '../../utils/buffer-utils';
+import { EncryptedData, EncryptionService } from './encryption-service';
 
 /**
  * Implements secure storage of secrets using the BasicEncryptionService and a key-value store
@@ -23,11 +23,11 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
     options: {
       secretPrefix?: string;
       pbkdf2Iterations?: number;
-    } = {}
+    } = {},
   ) {
     this.keyValueService = keyValueService;
     this.encryptionService = new EncryptionService(masterKey, {
-      pbkdf2Iterations: options.pbkdf2Iterations
+      pbkdf2Iterations: options.pbkdf2Iterations,
     });
     this.secretPrefix = options.secretPrefix || 'secret:';
   }
@@ -134,4 +134,4 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
       throw new Error(`Failed to rotate secret key: ${(error as Error).message}`);
     }
   }
-} 
+}

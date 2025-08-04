@@ -1,8 +1,9 @@
-import { StripeSyncService } from './sync-service';
-import { AbstractLogger } from '../logging/abstract-logger';
-import { StripeSubscription } from './types';
 import Stripe from 'stripe';
+
+import { AbstractLogger } from '../logging/abstract-logger';
 import { AbstractStripeStore } from './abstract-stripe-store';
+import { StripeSyncService } from './sync-service';
+import { StripeSubscription } from './types';
 
 export class StripeSubscriptionService {
   private store: AbstractStripeStore;
@@ -10,12 +11,7 @@ export class StripeSubscriptionService {
   private stripe: Stripe;
   private logger: AbstractLogger | undefined;
 
-  constructor(
-    store: AbstractStripeStore,
-    syncService: StripeSyncService,
-    stripe: Stripe,
-    logger?: AbstractLogger,
-  ) {
+  constructor(store: AbstractStripeStore, syncService: StripeSyncService, stripe: Stripe, logger?: AbstractLogger) {
     this.store = store;
     this.syncService = syncService;
     this.stripe = stripe;
@@ -50,10 +46,7 @@ export class StripeSubscriptionService {
     }
 
     // Consider active statuses
-    const activeStatuses: Array<StripeSubscription['status']> = [
-      'active',
-      'trialing',
-    ];
+    const activeStatuses: Array<StripeSubscription['status']> = ['active', 'trialing'];
 
     return activeStatuses.includes(subscription.status);
   }
@@ -88,7 +81,7 @@ export class StripeSubscriptionService {
 
       this.logger?.info('Subscription canceled at period end', {
         userId,
-        subscriptionId: subscriptionData.subscriptionId
+        subscriptionId: subscriptionData.subscriptionId,
       });
 
       return true;
@@ -133,7 +126,7 @@ export class StripeSubscriptionService {
 
       this.logger?.info('Subscription resumed', {
         userId,
-        subscriptionId: subscriptionData.subscriptionId
+        subscriptionId: subscriptionData.subscriptionId,
       });
 
       return true;
@@ -146,10 +139,7 @@ export class StripeSubscriptionService {
   /**
    * Create a customer portal session to manage subscription
    */
-  async createCustomerPortalSession(
-    userId: string,
-    returnUrl: string
-  ): Promise<string | null> {
+  async createCustomerPortalSession(userId: string, returnUrl: string): Promise<string | null> {
     try {
       const stripeCustomerId = await this.store.getStripeCustomerId(userId);
       if (!stripeCustomerId) {
@@ -167,4 +157,4 @@ export class StripeSubscriptionService {
       throw error;
     }
   }
-} 
+}

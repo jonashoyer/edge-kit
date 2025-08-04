@@ -1,37 +1,56 @@
-import { is, eq, inArray } from 'drizzle-orm';
-import { AbstractKeyValueService } from './abstract-key-value';
-import type { Nullable } from '../../utils/type-utils';
-import type { CreateColumnConfig, CreateTableConfig, SqlFlavorOptions, AnyMySqlDatabase, AnyPostgresDatabase, AnySQLiteDatabase, DefaultSchema } from '../../database/types';
+import { eq, inArray, is } from 'drizzle-orm';
 import { MySqlDatabase, type MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
 import { PgDatabase, type PgTableWithColumns } from 'drizzle-orm/pg-core';
 import { BaseSQLiteDatabase, type SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
 
-export type BaseKeyValueTable<Dialect extends "mysql" | "pg" | "sqlite"> = CreateTableConfig<{
-  key: CreateColumnConfig<{
-    data: string
-    dataType: "string"
-    notNull: true
-  }, Dialect>
-  value: CreateColumnConfig<{ // TODO: Add json type
-    data: string
-    dataType: "string"
-    notNull: true
-  }, Dialect>
-  expiresAt: CreateColumnConfig<{
-    data: number
-    dataType: "number"
-    notNull: boolean
-  }, Dialect>
-}, Dialect>
+import type {
+  AnyMySqlDatabase,
+  AnyPostgresDatabase,
+  AnySQLiteDatabase,
+  CreateColumnConfig,
+  CreateTableConfig,
+  DefaultSchema,
+  SqlFlavorOptions,
+} from '../../database/types';
+import type { Nullable } from '../../utils/type-utils';
+import { AbstractKeyValueService } from './abstract-key-value';
 
+export type BaseKeyValueTable<Dialect extends 'mysql' | 'pg' | 'sqlite'> = CreateTableConfig<
+  {
+    key: CreateColumnConfig<
+      {
+        data: string;
+        dataType: 'string';
+        notNull: true;
+      },
+      Dialect
+    >;
+    value: CreateColumnConfig<
+      {
+        // TODO: Add json type
+        data: string;
+        dataType: 'string';
+        notNull: true;
+      },
+      Dialect
+    >;
+    expiresAt: CreateColumnConfig<
+      {
+        data: number;
+        dataType: 'number';
+        notNull: boolean;
+      },
+      Dialect
+    >;
+  },
+  Dialect
+>;
 
-export type MySqlKeyValueTable = MySqlTableWithColumns<BaseKeyValueTable<"mysql">>;
-export type PostgresKeyValueTable = PgTableWithColumns<BaseKeyValueTable<"pg">>;
-export type SQLiteKeyValueTable = SQLiteTableWithColumns<BaseKeyValueTable<"sqlite">>;
-
+export type MySqlKeyValueTable = MySqlTableWithColumns<BaseKeyValueTable<'mysql'>>;
+export type PostgresKeyValueTable = PgTableWithColumns<BaseKeyValueTable<'pg'>>;
+export type SQLiteKeyValueTable = SQLiteTableWithColumns<BaseKeyValueTable<'sqlite'>>;
 
 class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends AbstractKeyValueService {
-
   // Force a flavor for semi type safety
   private _db: AnySQLiteDatabase;
   private _table: SQLiteKeyValueTable;
@@ -44,7 +63,7 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
       { kv: MySqlKeyValueTable },
       { kv: PostgresKeyValueTable },
       { kv: SQLiteKeyValueTable }
-    >['kv']
+    >['kv'],
   ) {
     super();
     this._db = db as AnySQLiteDatabase;
@@ -58,7 +77,7 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
       .select()
       .from(this._table as any)
       .where(eq(this._table.key, key))
-      .get()
+      .get();
 
     if (!result) {
       return null;
@@ -77,22 +96,22 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
   async mget<T>(keys: string[]): Promise<Nullable<T>[]> {
     const now = Math.floor(Date.now() / 1000);
 
-    const results = await this._db
-      .select()
-      .from(this._table)
-      .where(inArray(this._table.key, keys))
+    const results = await this._db.select().from(this._table).where(inArray(this._table.key, keys));
 
     if (this.expireDiscoveryDeletion) {
-      const deleteItems = results.filter(result => result.expiresAt && result.expiresAt < now);
+      const deleteItems = results.filter((result) => result.expiresAt && result.expiresAt < now);
 
       if (deleteItems.length > 0) {
-        await this._db
-          .delete(this._table)
-          .where(inArray(this._table.key, deleteItems.map(item => item.key)));
+        await this._db.delete(this._table).where(
+          inArray(
+            this._table.key,
+            deleteItems.map((item) => item.key),
+          ),
+        );
       }
     }
 
-    return results.map(result => {
+    return results.map((result) => {
       if (result.expiresAt && result.expiresAt < now) {
         return null;
       }
@@ -100,23 +119,22 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
     });
   }
 
-  async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
+  async set<T>(_key: string, _value: T, _ttlSeconds?: number): Promise<void> {
     throw new Error('Not implemented');
   }
 
   async delete(key: string): Promise<void> {
-    await this._db
-      .delete(this._table)
-      .where(eq(this._table.key, key))
+    await this._db.delete(this._table).where(eq(this._table.key, key));
   }
 
   async exists(key: string): Promise<boolean> {
     const now = Math.floor(Date.now() / 1000);
 
-    const result = await this._db.select({ key: this._table.key, expiresAt: this._table.expiresAt })
+    const result = await this._db
+      .select({ key: this._table.key, expiresAt: this._table.expiresAt })
       .from(this._table)
       .where(eq(this._table.key, key))
-      .get()
+      .get();
 
     if (!result) {
       return false;
@@ -155,54 +173,50 @@ class BaseDrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions> extends Abs
 
     const expiresAt = Math.floor(Date.now() / 1000) + ttlSeconds;
 
-    await this._db
-      .update(this._table)
-      .set({ expiresAt })
-      .where(eq(this._table.key, key))
+    await this._db.update(this._table).set({ expiresAt }).where(eq(this._table.key, key));
 
     return true;
   }
 
-
   /**
    * @deprecated Unsupported operation
    */
-  zadd(key: string, score: number, member: string): Promise<void> {
+  zadd(_key: string, _score: number, _member: string): Promise<void> {
     throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
-  zrank(key: string, member: string): Promise<number | null> {
+  zrank(_key: string, _member: string): Promise<number | null> {
     throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
-  zcard(key: string): Promise<number> {
+  zcard(_key: string): Promise<number> {
     throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
-  zrange(key: string, start: number, stop: number): Promise<string[]> {
+  zrange(_key: string, _start: number, _stop: number): Promise<string[]> {
     throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
-  zrem(key: string, member: string | string[]): Promise<void> {
+  zrem(_key: string, _member: string | string[]): Promise<void> {
     throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
-  mdelete(keys: string[]): Promise<void> {
+  mdelete(_keys: string[]): Promise<void> {
     throw new Error('Unsupported operation');
   }
 }
@@ -218,26 +232,23 @@ class MySqlKeyValueService extends BaseDrizzleKeyValueService<AnyMySqlDatabase> 
   }
 
   override async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
-    const expiresAt = ttlSeconds
-      ? Math.floor(Date.now() / 1000) + ttlSeconds
-      : null;
+    const expiresAt = ttlSeconds ? Math.floor(Date.now() / 1000) + ttlSeconds : null;
 
     await this.db
       .insert(this.table)
       .values({
         key,
         value: JSON.stringify(value),
-        expiresAt
+        expiresAt,
       })
       .onDuplicateKeyUpdate({
         set: {
           value: JSON.stringify(value),
-          expiresAt
-        }
+          expiresAt,
+        },
       })
       .execute();
   }
-
 }
 
 class PostgresKeyValueService extends BaseDrizzleKeyValueService<AnyPostgresDatabase> {
@@ -251,9 +262,7 @@ class PostgresKeyValueService extends BaseDrizzleKeyValueService<AnyPostgresData
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
-    const expiresAt = ttlSeconds
-      ? Math.floor(Date.now() / 1000) + ttlSeconds
-      : null;
+    const expiresAt = ttlSeconds ? Math.floor(Date.now() / 1000) + ttlSeconds : null;
 
     // Using upsert for PostgreSQL
     await this.db
@@ -261,14 +270,14 @@ class PostgresKeyValueService extends BaseDrizzleKeyValueService<AnyPostgresData
       .values({
         key,
         value: JSON.stringify(value),
-        expiresAt
+        expiresAt,
       })
       .onConflictDoUpdate({
         target: this.table.key,
         set: {
           value: JSON.stringify(value),
-          expiresAt
-        }
+          expiresAt,
+        },
       });
   }
 }
@@ -285,23 +294,21 @@ class SQLiteKeyValueService extends BaseDrizzleKeyValueService<AnySQLiteDatabase
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
-    const expiresAt = ttlSeconds
-      ? Math.floor(Date.now() / 1000) + ttlSeconds
-      : null;
+    const expiresAt = ttlSeconds ? Math.floor(Date.now() / 1000) + ttlSeconds : null;
 
     await this.db
       .insert(this.table)
       .values({
         key,
         value: JSON.stringify(value),
-        expiresAt
+        expiresAt,
       })
       .onConflictDoUpdate({
         target: this.table.key,
         set: {
           value: JSON.stringify(value),
-          expiresAt
-        }
+          expiresAt,
+        },
       });
   }
 }
@@ -313,7 +320,7 @@ export function DrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions>(
     { kv: MySqlKeyValueTable },
     { kv: PostgresKeyValueTable },
     { kv: SQLiteKeyValueTable }
-  >['kv']
+  >['kv'],
 ): AbstractKeyValueService {
   if (is(db, MySqlDatabase)) {
     return new MySqlKeyValueService(db, table as any);
@@ -324,4 +331,4 @@ export function DrizzleKeyValueService<SqlFlavor extends SqlFlavorOptions>(
   }
 
   throw new Error(`Unsupported database type (${typeof db}) in DrizzleKeyValue adapter.`);
-} 
+}

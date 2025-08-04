@@ -1,16 +1,17 @@
 /**
  * Example success route handler after Stripe checkout
- * 
+ *
  * This would typically be placed in app/billing/success/route.ts
  * for a Next.js App Router project
  */
 
-import { NextRequest } from 'next/server';
-import { StripeService } from '../../stripe';
-import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
 import { redirect } from 'next/navigation';
-import { StripeKVStore } from '../kv-store';
+import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
+
+import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
+import { StripeService } from '../../stripe';
+import { StripeKVStore } from '../kv-store';
 
 // Example auth helper, replace with your own auth implementation
 async function getAuthenticatedUser(req: NextRequest) {
@@ -52,17 +53,13 @@ function getStripeService() {
     },
   });
 
-  return new StripeService(
-    store,
-    stripe,
-    {
-      baseUrl: process.env.APP_URL || 'http://localhost:3000',
-      successPath: '/billing/success',
-      cancelPath: '/billing',
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-      secretKey: process.env.STRIPE_SECRET_KEY,
-    }
-  );
+  return new StripeService(store, stripe, {
+    baseUrl: process.env.APP_URL || 'http://localhost:3000',
+    successPath: '/billing/success',
+    cancelPath: '/billing',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    secretKey: process.env.STRIPE_SECRET_KEY,
+  });
 }
 
 /**
@@ -92,4 +89,4 @@ export async function GET(req: NextRequest) {
     // Even on error, we should redirect somewhere
     return redirect('/billing?error=sync_failed');
   }
-} 
+}

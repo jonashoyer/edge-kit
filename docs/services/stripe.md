@@ -5,6 +5,7 @@ Edge Kit provides a comprehensive set of services for integrating with Stripe, e
 ## Overview
 
 The Stripe integration services allow you to:
+
 - Create checkout sessions for one-time payments and subscriptions
 - Process Stripe webhooks
 - Manage customer subscriptions
@@ -27,10 +28,11 @@ The Edge Kit Stripe integration consists of several coordinated services:
 ### Creating the Stripe Service
 
 ```typescript
+import Stripe from 'stripe';
+
+import { AxiomLogger } from '../services/logging/axiom-logger';
 import { StripeService } from '../services/stripe';
 import { MyStripeStore } from './my-stripe-store';
-import Stripe from 'stripe';
-import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create a logger (optional)
 const logger = new AxiomLogger({
@@ -47,18 +49,14 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 const stripeStore = new MyStripeStore();
 
 // Create the Stripe service
-const stripeService = new StripeService(
-  stripeStore,
-  stripe,
-  {
-    logger,
-    baseUrl: process.env.APP_URL!, // Your application URL
-    successPath: '/checkout/success', // Path for successful checkouts
-    cancelPath: '/checkout/cancel', // Path for canceled checkouts
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-    secretKey: process.env.STRIPE_SECRET_KEY!,
-  }
-);
+const stripeService = new StripeService(stripeStore, stripe, {
+  logger,
+  baseUrl: process.env.APP_URL!, // Your application URL
+  successPath: '/checkout/success', // Path for successful checkouts
+  cancelPath: '/checkout/cancel', // Path for canceled checkouts
+  webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
+  secretKey: process.env.STRIPE_SECRET_KEY!,
+});
 ```
 
 ### Implementing the Stripe Store
@@ -84,7 +82,7 @@ export class MyStripeStore implements AbstractStripeStore {
       where: { id: userId },
       select: { stripeCustomerId: true },
     });
-    
+
     return user?.stripeCustomerId || null;
   }
 
@@ -94,7 +92,7 @@ export class MyStripeStore implements AbstractStripeStore {
       where: { stripeCustomerId },
       select: { id: true },
     });
-    
+
     return user?.id || null;
   }
 
@@ -113,7 +111,7 @@ export class MyStripeStore implements AbstractStripeStore {
     const customer = await db.stripeCustomer.findUnique({
       where: { stripeId: stripeCustomerId },
     });
-    
+
     return customer?.data || null;
   }
 
@@ -132,7 +130,7 @@ export class MyStripeStore implements AbstractStripeStore {
     const subscription = await db.stripeSubscription.findUnique({
       where: { stripeId: stripeSubscriptionId },
     });
-    
+
     return subscription?.data || null;
   }
 
@@ -140,17 +138,17 @@ export class MyStripeStore implements AbstractStripeStore {
     // Get customer ID first
     const stripeCustomerId = await this.getStripeCustomerId(userId);
     if (!stripeCustomerId) return null;
-    
+
     // Find active subscription
     const customer = await db.stripeCustomer.findUnique({
       where: { stripeId: stripeCustomerId },
       include: { subscriptions: true },
     });
-    
-    const activeSubscription = customer?.subscriptions.find(sub => 
-      sub.data.status === 'active' || sub.data.status === 'trialing'
+
+    const activeSubscription = customer?.subscriptions.find(
+      (sub) => sub.data.status === 'active' || sub.data.status === 'trialing',
     );
-    
+
     return activeSubscription?.data || null;
   }
 }
@@ -177,7 +175,7 @@ const checkoutSession = await stripeService.createOneTimeCheckout(
     metadata: {
       orderId: 'order_123',
     },
-  }
+  },
 );
 
 // Redirect to checkout
@@ -198,7 +196,7 @@ const checkoutSession = await stripeService.createSubscriptionCheckout(
     metadata: {
       planType: 'premium',
     },
-  }
+  },
 );
 
 // Redirect to checkout
@@ -211,8 +209,8 @@ return {
 
 ```typescript
 // Next.js API route example
-import { NextApiRequest, NextApiResponse } from 'next';
 import { buffer } from 'micro';
+import { NextApiRequest, NextApiResponse } from 'next';
 
 export const config = {
   api: {
@@ -256,10 +254,7 @@ await stripeService.cancelSubscriptionAtPeriodEnd(userId);
 await stripeService.resumeSubscription(userId);
 
 // Create a customer portal session for self-service
-const portalSession = await stripeService.createCustomerPortalSession(
-  userId,
-  `${process.env.APP_URL}/account`
-);
+const portalSession = await stripeService.createCustomerPortalSession(userId, `${process.env.APP_URL}/account`);
 
 // Redirect to portal
 return {
@@ -308,20 +303,20 @@ function SubscriptionPage({ user, plans }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ planId }),
       });
-      
+
       const { redirectUrl } = await response.json();
-      
+
       // Redirect to Stripe Checkout
       window.location.href = redirectUrl;
     } catch (error) {
       console.error('Failed to create subscription:', error);
     }
   }
-  
+
   return (
     <div>
       <h1>Choose a Plan</h1>
-      
+
       <div className="plans">
         {plans.map(plan => (
           <div key={plan.id} className="plan-card">
@@ -343,7 +338,7 @@ async function createSubscription(req, res) {
   const { planId } = req.body;
   const userId = req.user.id;
   const userEmail = req.user.email;
-  
+
   try {
     const session = await stripeService.createSubscriptionCheckout(
       userId,
@@ -356,7 +351,7 @@ async function createSubscription(req, res) {
         },
       }
     );
-    
+
     return res.status(200).json({ redirectUrl: session.url });
   } catch (error) {
     console.error('Failed to create subscription:', error);
@@ -367,13 +362,13 @@ async function createSubscription(req, res) {
 // API route for account management
 async function accountManagement(req, res) {
   const userId = req.user.id;
-  
+
   try {
     const session = await stripeService.createCustomerPortalSession(
       userId,
       `${process.env.APP_URL}/account`
     );
-    
+
     return res.status(200).json({ redirectUrl: session.url });
   } catch (error) {
     console.error('Failed to create portal session:', error);
@@ -389,35 +384,30 @@ async function accountManagement(req, res) {
 async function reportUsage(userId, usageAmount) {
   // Get the user's subscription
   const subscription = await stripeService.getUserSubscription(userId);
-  
+
   if (!subscription) {
     throw new Error('No active subscription found');
   }
-  
+
   // Find the metered price item
-  const meteredItem = subscription.items.find(item => 
-    item.price.recurring?.usage_type === 'metered'
-  );
-  
+  const meteredItem = subscription.items.find((item) => item.price.recurring?.usage_type === 'metered');
+
   if (!meteredItem) {
     throw new Error('No metered subscription item found');
   }
-  
+
   // Report usage to Stripe
-  await stripe.subscriptionItems.createUsageRecord(
-    meteredItem.id,
-    {
-      quantity: usageAmount,
-      timestamp: 'now',
-      action: 'increment',
-    }
-  );
+  await stripe.subscriptionItems.createUsageRecord(meteredItem.id, {
+    quantity: usageAmount,
+    timestamp: 'now',
+    action: 'increment',
+  });
 }
 
 // Usage in your application
 async function processApiRequest(userId, requestSize) {
   // Process the request...
-  
+
   // Report usage (e.g., per MB processed)
   const usageMB = Math.ceil(requestSize / (1024 * 1024));
   await reportUsage(userId, usageMB);
@@ -432,17 +422,17 @@ async function purchaseProduct(req, res) {
   const { productId, quantity } = req.body;
   const userId = req.user.id;
   const userEmail = req.user.email;
-  
+
   try {
     // Get product details from your database
     const product = await db.products.findUnique({
       where: { id: productId },
     });
-    
+
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
-    
+
     // Create checkout session
     const session = await stripeService.createOneTimeCheckout(
       userId,
@@ -458,9 +448,9 @@ async function purchaseProduct(req, res) {
           productId,
           orderId: generateOrderId(),
         },
-      }
+      },
     );
-    
+
     return res.status(200).json({ redirectUrl: session.url });
   } catch (error) {
     console.error('Failed to create checkout:', error);
@@ -487,10 +477,11 @@ Stripe sends webhooks for important events that your application should respond 
 You can extend the webhook handling for additional business logic:
 
 ```typescript
+import { buffer } from 'micro';
+import Stripe from 'stripe';
+
 import { StripeService } from '../services/stripe';
 import { MyStripeStore } from './my-stripe-store';
-import Stripe from 'stripe';
-import { buffer } from 'micro';
 
 // Initialize Stripe service (as shown earlier)
 const stripeService = new StripeService(/* ... */);
@@ -500,19 +491,19 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') {
     return res.status(405).end('Method Not Allowed');
   }
-  
+
   const buf = await buffer(req);
   const signature = req.headers['stripe-signature'];
-  
+
   try {
     // Let StripeService handle the webhook first
     const event = await stripeService.handleWebhook(buf, signature);
-    
+
     // Add custom logic for specific events
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object;
-        
+
         // Handle completed checkout
         if (session.mode === 'subscription') {
           // New subscription checkout
@@ -523,18 +514,18 @@ export default async function handler(req, res) {
         }
         break;
       }
-      
+
       case 'customer.subscription.updated': {
         const subscription = event.data.object;
-        
+
         // Handle subscription updates
         await handleSubscriptionUpdate(subscription);
         break;
       }
-      
+
       // Add more custom handlers as needed
     }
-    
+
     return res.status(200).json({ received: true });
   } catch (error) {
     console.error('Webhook error:', error);
@@ -547,12 +538,12 @@ async function onSubscriptionCreated(session) {
   // Example: Grant access to premium features
   const metadata = session.metadata;
   const userId = metadata.userId;
-  
+
   await db.user.update({
     where: { id: userId },
     data: { isPremium: true },
   });
-  
+
   // Send welcome email
   await sendEmail({
     to: session.customer_email,
@@ -565,15 +556,15 @@ async function processOrder(session) {
   // Example: Create order in your database
   const metadata = session.metadata;
   const orderId = metadata.orderId;
-  
+
   await db.order.update({
     where: { id: orderId },
-    data: { 
+    data: {
       status: 'paid',
       stripePaymentId: session.payment_intent,
     },
   });
-  
+
   // Trigger order fulfillment
   await fulfillOrder(orderId);
 }
@@ -582,22 +573,22 @@ async function handleSubscriptionUpdate(subscription) {
   // Example: Handle plan changes
   const newPlanId = subscription.items.data[0].price.id;
   const userId = await stripeStore.getUserIdByStripeCustomerId(subscription.customer);
-  
+
   if (!userId) return;
-  
+
   // Update user's plan in your database
   await db.user.update({
     where: { id: userId },
     data: { planId: newPlanId },
   });
-  
+
   // Handle cancellation
   if (subscription.cancel_at_period_end) {
     await db.user.update({
       where: { id: userId },
       data: { willDowngrade: true },
     });
-    
+
     // Send retention email
     await sendEmail({
       to: user.email,
@@ -634,13 +625,13 @@ async function processPayment(paymentIntentId, amount) {
   const existingPayment = await db.payment.findUnique({
     where: { stripePaymentIntentId: paymentIntentId },
   });
-  
+
   if (existingPayment) {
     // Already processed this payment
     console.log(`Payment ${paymentIntentId} already processed`);
     return;
   }
-  
+
   // Process the payment
   await db.payment.create({
     data: {
@@ -649,7 +640,7 @@ async function processPayment(paymentIntentId, amount) {
       status: 'completed',
     },
   });
-  
+
   // Additional processing...
 }
 ```
@@ -669,7 +660,7 @@ async function scheduledSyncJob() {
       },
     },
   });
-  
+
   // Sync each user's data
   for (const user of users) {
     try {
@@ -685,16 +676,12 @@ async function scheduledSyncJob() {
 
 ```typescript
 try {
-  const session = await stripeService.createSubscriptionCheckout(
-    userId,
-    userEmail,
-    priceId
-  );
-  
+  const session = await stripeService.createSubscriptionCheckout(userId, userEmail, priceId);
+
   return { redirectUrl: session.url };
 } catch (error) {
   console.error('Stripe error:', error);
-  
+
   // Handle specific errors
   if (error.type === 'StripeCardError') {
     return { error: 'Your card was declined.' };
@@ -739,9 +726,10 @@ You can extend the Stripe integration by inheriting from the base services:
 ### Custom Checkout Service
 
 ```typescript
-import { StripeCheckoutService } from '../services/stripe/checkout-service';
-import { AbstractStripeStore } from '../services/stripe/abstract-stripe-store';
 import Stripe from 'stripe';
+
+import { AbstractStripeStore } from '../services/stripe/abstract-stripe-store';
+import { StripeCheckoutService } from '../services/stripe/checkout-service';
 
 class EnhancedCheckoutService extends StripeCheckoutService {
   constructor(
@@ -751,22 +739,22 @@ class EnhancedCheckoutService extends StripeCheckoutService {
       logger?: any;
       successUrl: string;
       cancelUrl: string;
-    }
+    },
   ) {
     super(store, stripe, options);
   }
-  
+
   // Add a method for creating checkouts with coupons
   async createSubscriptionCheckoutWithCoupon(
     userId: string,
     email: string,
     priceId: string,
     couponId: string,
-    options?: any
+    options?: any,
   ) {
     // Get or create a customer
     const customerId = await this.getOrCreateCustomer(userId, email);
-    
+
     // Create checkout session with coupon
     const session = await this.stripe.checkout.sessions.create({
       customer: customerId,
@@ -777,7 +765,7 @@ class EnhancedCheckoutService extends StripeCheckoutService {
       discounts: [{ coupon: couponId }],
       ...options,
     });
-    
+
     return session;
   }
 }
@@ -786,9 +774,10 @@ class EnhancedCheckoutService extends StripeCheckoutService {
 ### Custom Webhook Handler
 
 ```typescript
-import { StripeWebhookService } from '../services/stripe/webhook-service';
-import { StripeSyncService } from '../services/stripe/sync-service';
 import Stripe from 'stripe';
+
+import { StripeSyncService } from '../services/stripe/sync-service';
+import { StripeWebhookService } from '../services/stripe/webhook-service';
 
 class EnhancedWebhookService extends StripeWebhookService {
   constructor(
@@ -796,35 +785,32 @@ class EnhancedWebhookService extends StripeWebhookService {
     stripe: Stripe,
     webhookSecret: string,
     logger?: any,
-    private emailService?: any
+    private emailService?: any,
   ) {
     super(syncService, stripe, webhookSecret, logger);
   }
-  
+
   // Override the handleEvent method to add custom logic
   protected async handleEvent(event: Stripe.Event) {
     // Call the parent implementation first
     await super.handleEvent(event);
-    
+
     // Add custom logic
     switch (event.type) {
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        
+
         // Send a custom email
         if (this.emailService && invoice.customer_email) {
-          await this.emailService.sendPaymentSuccessEmail(
-            invoice.customer_email,
-            {
-              amount: invoice.amount_paid,
-              currency: invoice.currency,
-              date: new Date(invoice.created * 1000).toLocaleDateString(),
-            }
-          );
+          await this.emailService.sendPaymentSuccessEmail(invoice.customer_email, {
+            amount: invoice.amount_paid,
+            currency: invoice.currency,
+            date: new Date(invoice.created * 1000).toLocaleDateString(),
+          });
         }
         break;
       }
-      
+
       // Add more custom handlers...
     }
   }
@@ -848,7 +834,7 @@ class InMemoryStripeStore implements AbstractStripeStore {
   private customerMap = new Map<string, string>();
   private customerData = new Map<string, CustomerData>();
   private subscriptionData = new Map<string, SubscriptionData>();
-  
+
   // Implement the abstract methods...
 }
 
@@ -908,19 +894,15 @@ jest.mock('stripe', () => {
 
 // Test creating a checkout session
 test('creates a subscription checkout session', async () => {
-  const result = await stripeService.createSubscriptionCheckout(
-    'user_123',
-    'test@example.com',
-    'price_123'
-  );
-  
+  const result = await stripeService.createSubscriptionCheckout('user_123', 'test@example.com', 'price_123');
+
   expect(result.url).toBe('https://checkout.stripe.com/test');
   expect(stripe.checkout.sessions.create).toHaveBeenCalledWith(
     expect.objectContaining({
       customer: 'cus_test_123',
       line_items: [{ price: 'price_123', quantity: 1 }],
       mode: 'subscription',
-    })
+    }),
   );
 });
 ```

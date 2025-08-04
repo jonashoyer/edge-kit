@@ -40,4 +40,4 @@ export abstract class AbstractSecretStorageService {
    * @param newEncryptionKey - Optional new encryption key to use (if not provided, a new default one will be used)
    */
   abstract rotateSecretKey(key: string, namespace?: string, newEncryptionKey?: string): Promise<void>;
-} 
+}

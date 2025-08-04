@@ -1,8 +1,14 @@
-import { z } from "zod";
-import { arrayBufferToBase64Url, arrayBufferToString, base64UrlToArrayBuffer, stringToArrayBuffer } from "../../utils/buffer-utils";
-import { generateRandomBuffer } from "../../utils/crypto-utils";
+import { z } from 'zod';
 
-const encryptedDataSchema = z.object({
+import {
+  arrayBufferToBase64Url,
+  arrayBufferToString,
+  base64UrlToArrayBuffer,
+  stringToArrayBuffer,
+} from '../../utils/buffer-utils';
+import { generateRandomBuffer } from '../../utils/crypto-utils';
+
+export const encryptedDataSchema = z.object({
   data: z.instanceof(ArrayBuffer),
   nonce: z.instanceof(ArrayBuffer),
   salt: z.instanceof(ArrayBuffer),
@@ -33,7 +39,7 @@ export class EncryptionService {
       pbkdf2Iterations?: number;
       nonceLength?: number;
       saltLength?: number;
-    } = {}
+    } = {},
   ) {
     this.masterKeyMaterial = masterKey;
     this.pbkdf2Iterations = options.pbkdf2Iterations ?? 100_000;
@@ -45,13 +51,7 @@ export class EncryptionService {
    * Imports the master key material for use with PBKDF2
    */
   private async getMasterKeyForPbkdf2(): Promise<CryptoKey> {
-    return crypto.subtle.importKey(
-      'raw',
-      this.masterKeyMaterial,
-      { name: 'PBKDF2' },
-      false,
-      ['deriveKey']
-    );
+    return crypto.subtle.importKey('raw', this.masterKeyMaterial, { name: 'PBKDF2' }, false, ['deriveKey']);
   }
 
   /**
@@ -69,7 +69,7 @@ export class EncryptionService {
       masterCryptoKey,
       { name: 'AES-GCM', length: 256 },
       false, // Non-extractable for better security
-      ['encrypt', 'decrypt']
+      ['encrypt', 'decrypt'],
     );
   }
 
@@ -91,7 +91,7 @@ export class EncryptionService {
     const salt = generateRandomBuffer(this.saltLength);
 
     // Derive encryption key from master key and salt
-    const derivedKey = await this.deriveKey(salt);
+    const derivedKey = await this.deriveKey(salt.buffer);
 
     // Generate a random nonce for AES-GCM
     const nonce = generateRandomBuffer(this.nonceLength);
@@ -107,14 +107,14 @@ export class EncryptionService {
         tagLength: 128, // Authentication tag length (128 bits)
       },
       derivedKey,
-      dataToEncrypt
+      dataToEncrypt,
     );
 
     // Return encrypted data with all metadata needed for decryption
     return {
       data,
-      nonce,
-      salt,
+      nonce: nonce.buffer,
+      salt: salt.buffer,
       algorithm: {
         name: 'AES-GCM',
         pbkdf2Iterations: this.pbkdf2Iterations,
@@ -142,7 +142,7 @@ export class EncryptionService {
           tagLength: 128,
         },
         derivedKey,
-        data
+        data,
       );
 
       return arrayBufferToString(decryptedBuffer);
@@ -154,14 +154,13 @@ export class EncryptionService {
     }
   }
 
-
   async encryptStringified(value: string): Promise<string> {
     const encryptedData = await this.encrypt(value);
     return `#${encryptedData.algorithm.name}:${encryptedData.algorithm.pbkdf2Iterations}:${arrayBufferToBase64Url(encryptedData.data)}:${arrayBufferToBase64Url(encryptedData.nonce)}:${arrayBufferToBase64Url(encryptedData.salt)}`;
   }
 
   async decryptStringified(value: string): Promise<string> {
-    const regex = /^\#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
+    const regex = /^#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
 
     const match = value.match(regex);
     if (!match) {
@@ -180,4 +179,4 @@ export class EncryptionService {
     });
     return encryptedData;
   }
-} 
+}

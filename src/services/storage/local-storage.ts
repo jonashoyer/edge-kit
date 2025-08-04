@@ -1,6 +1,7 @@
 import { promises as fs } from 'fs';
-import path from 'path';
 import os from 'os';
+import path from 'path';
+
 import { AbstractStorage, type StorageOptions } from './abstract-storage';
 
 interface LocalStorageOptions extends StorageOptions {
@@ -80,7 +81,7 @@ export class LocalStorage extends AbstractStorage {
     return result;
   }
 
-  async getPresignedUrl(key: string, expiresIn: number): Promise<string> {
+  async getPresignedUrl(key: string, _expiresIn: number): Promise<string> {
     // In local storage, we don't need presigned URLs, so we just return the local file path
     // You could implement a simple HTTP server to serve these files if needed
     return `file://${this.getFilePath(key)}`;
@@ -115,4 +116,4 @@ export class LocalStorage extends AbstractStorage {
       }
     }
   }
-} 
+}

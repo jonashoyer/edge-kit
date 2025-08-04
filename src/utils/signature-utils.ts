@@ -29,9 +29,8 @@ export function verifyRequestSignature(
   signature: string,
   key: string = 'default',
   rotation: string = ENCODING_ROTATION,
-  maxDriftMs: number = 3 * 60 * 1000
+  maxDriftMs: number = 3 * 60 * 1000,
 ) {
-
   const [timestampSecB36] = signature.split(':');
   const timestamp = parseInt(timestampSecB36, 36) * 1000;
 
@@ -42,11 +41,7 @@ export function verifyRequestSignature(
     return false;
   }
 
-  const expectedSignature = createRequestSignature(
-    key,
-    rotation,
-    timestamp,
-  );
+  const expectedSignature = createRequestSignature(key, rotation, timestamp);
 
   return signature === expectedSignature;
 }

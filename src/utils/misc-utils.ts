@@ -1,18 +1,18 @@
-export const timeout = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+export const timeout = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const tryParse = <T>(value: string | null | undefined, defaultValue: T) => {
   if (!value) return defaultValue;
   try {
     return JSON.parse(value) as T;
-  } catch (e) {
+  } catch {
     return defaultValue;
   }
-}
+};
 
 export const getStackTrace = () => {
   const err = new Error();
   return err.stack;
-}
+};
 
 export const clone = <T>(value: T) => JSON.parse(JSON.stringify(value)) as T;
 
@@ -58,4 +58,4 @@ export const memoize = <T extends (...args: any[]) => any>(fn: T): T => {
     cache.set(key, result);
     return result;
   }) as T;
-}
+};

@@ -9,4 +9,4 @@ export const stripeKeyNamespace = new NamespaceComposer({
 
   // Stores subscription data for a Stripe customer
   customerSubscription: (customerId: string) => `stripe:customer:${customerId}`,
-}); 
+});

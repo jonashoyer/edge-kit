@@ -1,5 +1,6 @@
-import { AbstractLogger } from "./abstract-logger";
 import pino from 'pino';
+
+import { AbstractLogger } from './abstract-logger';
 
 export class AxiomPinoLogger extends AbstractLogger {
   private logger: pino.Logger;
@@ -14,7 +15,7 @@ export class AxiomPinoLogger extends AbstractLogger {
           dataset: options.dataset,
           token: options.token,
         },
-      })
+      }),
     );
   }
 

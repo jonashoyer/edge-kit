@@ -7,12 +7,12 @@ export interface AlertOptions {
 }
 
 export abstract class AbstractAlertingService {
-  constructor(protected logger: AbstractLogger) { }
+  constructor(protected logger: AbstractLogger) {}
 
   abstract alert(message: string, options: AlertOptions): Promise<void>;
 
   protected logAlert(message: string, options: AlertOptions): void {
-    const logLevel = options.severity === 'info' ? 'info' : (options.severity === 'warning' ? 'warn' : 'error');
+    const logLevel = options.severity === 'info' ? 'info' : options.severity === 'warning' ? 'warn' : 'error';
     this.logger.log(message, logLevel, {
       alertSeverity: options.severity,
       alertSource: options.source,

@@ -1,20 +1,13 @@
-import { arrayBufferToBase64Url } from "./buffer-utils";
+import { arrayBufferToBase64Url } from './buffer-utils';
 
 const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array => {
-  return typeof data === 'string'
-    ? new TextEncoder().encode(data)
-    : new Uint8Array(data);
-}
+  return typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
+};
 
 export async function sha256(data: string | ArrayBuffer, salt?: Uint8Array): Promise<ArrayBuffer> {
-  const buff = await crypto.subtle.digest("SHA-256", new Uint8Array([...dataToUint8Array(data), ...(salt ?? [])]));
+  const buff = await crypto.subtle.digest('SHA-256', new Uint8Array([...dataToUint8Array(data), ...(salt ?? [])]));
   return buff;
 }
-
-
-
-
-
 
 /**
  * Hashes data using SHA-256
@@ -23,10 +16,9 @@ export async function sha256(data: string | ArrayBuffer, salt?: Uint8Array): Pro
  * @returns The hashed data as a Base64URL string
  */
 export async function sha256Base64(data: string | ArrayBuffer, salt?: Uint8Array): Promise<string> {
-  const hashBuffer = await sha256(dataToUint8Array(data), salt);
+  const hashBuffer = await sha256(data, salt);
   return arrayBufferToBase64Url(hashBuffer);
 }
-
 
 /**
  * Hashes an IP address using SHA-256. Tip: a substring of 6 bytes is enough for a unique hash.
@@ -35,8 +27,8 @@ export async function sha256Base64(data: string | ArrayBuffer, salt?: Uint8Array
  * @returns The hashed IP address as a Base64URL string
  */
 export async function sha256IpBase64(ip: string, salt?: Uint8Array): Promise<string> {
-  const ipBytes = new Uint8Array(ip.split('.').map(e => parseInt(e, 10)));
-  const hashBuffer = await sha256(ipBytes, salt);
+  const ipBytes = new Uint8Array(ip.split('.').map((e) => parseInt(e, 10)));
+  const hashBuffer = await sha256(ipBytes.buffer, salt);
   return arrayBufferToBase64Url(hashBuffer);
 }
 
@@ -84,12 +76,16 @@ export function hashCode(str: string) {
   return hash;
 }
 
-const base64Digit = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
-const toB64 = (x: number | bigint) => x.toString(2).split(/(?=(?:.{6})+(?!.))/g).map(v => base64Digit[parseInt(v, 2)]).join("")
+const base64Digit = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
+const toB64 = (x: number | bigint) =>
+  x
+    .toString(2)
+    .split(/(?=(?:.{6})+(?!.))/g)
+    .map((v) => base64Digit[parseInt(v, 2)])
+    .join('');
 export function hashCodeB64(str: string) {
   return toB64(hashCode(str));
 }
-
 
 export function fnv1a64(str: string): bigint {
   // FNV-1a 64-bit constants

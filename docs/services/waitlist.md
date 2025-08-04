@@ -5,6 +5,7 @@ Edge Kit provides a waitlist management system that allows you to create and man
 ## Overview
 
 The waitlist services allow you to:
+
 - Add users to a waitlist
 - Check a user's position in the waitlist
 - Get the total number of users on the waitlist
@@ -43,6 +44,7 @@ A waitlist implementation using a key-value store (like Redis) as the backend.
 **Location**: `src/services/waitlist/key-value-waitlist.ts`
 
 **Dependencies**:
+
 - An implementation of `AbstractKeyValueService` (like Upstash Redis or ioredis)
 - `NamespaceComposer` for key management
 
@@ -53,10 +55,7 @@ import { UpstashRedisKeyValueService } from '../services/key-value/upstash-redis
 import { KeyValueWaitlistService } from '../services/waitlist/key-value-waitlist';
 
 // Create a key-value service
-const kv = new UpstashRedisKeyValueService(
-  process.env.UPSTASH_REDIS_URL!,
-  process.env.UPSTASH_REDIS_TOKEN!
-);
+const kv = new UpstashRedisKeyValueService(process.env.UPSTASH_REDIS_URL!, process.env.UPSTASH_REDIS_TOKEN!);
 
 // Create the waitlist service
 const waitlist = new KeyValueWaitlistService(kv);
@@ -132,58 +131,58 @@ function WaitlistForm() {
   const [name, setName] = useState('');
   const [source, setSource] = useState('');
   const [status, setStatus] = useState('');
-  
+
   async function handleSubmit(e) {
     e.preventDefault();
     setStatus('submitting');
-    
+
     try {
       const position = await fetch('/api/waitlist/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, name, source }),
       }).then(res => res.json()).then(data => data.position);
-      
+
       setStatus('success');
       setEmail('');
       setName('');
       setSource('');
-      
+
       alert(`Thank you! You're #${position + 1} on our waitlist.`);
     } catch (error) {
       setStatus('error');
       alert('Failed to join waitlist. Please try again.');
     }
   }
-  
+
   return (
     <form onSubmit={handleSubmit}>
       <h2>Join our Waitlist</h2>
-      
+
       <div>
         <label htmlFor="email">Email</label>
-        <input 
-          type="email" 
+        <input
+          type="email"
           id="email"
           value={email}
           onChange={e => setEmail(e.target.value)}
           required
         />
       </div>
-      
+
       <div>
         <label htmlFor="name">Name</label>
-        <input 
-          type="text" 
+        <input
+          type="text"
           id="name"
           value={name}
           onChange={e => setName(e.target.value)}
         />
       </div>
-      
+
       <div>
         <label htmlFor="source">How did you hear about us?</label>
-        <select 
+        <select
           id="source"
           value={source}
           onChange={e => setSource(e.target.value)}
@@ -195,9 +194,9 @@ function WaitlistForm() {
           <option value="blog">Blog or article</option>
         </select>
       </div>
-      
-      <button 
-        type="submit" 
+
+      <button
+        type="submit"
         disabled={status === 'submitting'}
       >
         {status === 'submitting' ? 'Joining...' : 'Join Waitlist'}
@@ -212,27 +211,25 @@ function WaitlistForm() {
 ```typescript
 // Next.js API route example
 import { NextApiRequest, NextApiResponse } from 'next';
+
 import { UpstashRedisKeyValueService } from '../../services/key-value/upstash-redis-key-value';
 import { KeyValueWaitlistService } from '../../services/waitlist/key-value-waitlist';
 
 // Create services (ideally in a separate file and reused)
-const kv = new UpstashRedisKeyValueService(
-  process.env.UPSTASH_REDIS_URL!,
-  process.env.UPSTASH_REDIS_TOKEN!
-);
+const kv = new UpstashRedisKeyValueService(process.env.UPSTASH_REDIS_URL!, process.env.UPSTASH_REDIS_TOKEN!);
 const waitlist = new KeyValueWaitlistService(kv);
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-  
+
   const { email, name, source } = req.body;
-  
+
   if (!email || typeof email !== 'string') {
     return res.status(400).json({ error: 'Valid email is required' });
   }
-  
+
   try {
     // Add to waitlist and get position
     const position = await waitlist.join(email, {
@@ -242,10 +239,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       userAgent: req.headers['user-agent'],
       joinedAt: new Date().toISOString(),
     });
-    
+
     // Notify internal team (optional)
     // await notifyTeam(email, position);
-    
+
     return res.status(200).json({ success: true, position });
   } catch (error) {
     console.error('Waitlist join error:', error);
@@ -264,20 +261,20 @@ function WaitlistAdmin() {
   const [totalEntries, setTotalEntries] = useState(0);
   const [selectedEmails, setSelectedEmails] = useState([]);
   const entriesPerPage = 20;
-  
+
   // Load waitlist entries
   useEffect(() => {
     async function loadEntries() {
       const response = await fetch(`/api/admin/waitlist?limit=${entriesPerPage}&offset=${page * entriesPerPage}`);
       const data = await response.json();
-      
+
       setEntries(data.entries);
       setTotalEntries(data.total);
     }
-    
+
     loadEntries();
   }, [page]);
-  
+
   // Toggle selection of an entry
   function toggleSelect(email) {
     if (selectedEmails.includes(email)) {
@@ -286,15 +283,15 @@ function WaitlistAdmin() {
       setSelectedEmails([...selectedEmails, email]);
     }
   }
-  
+
   // Invite selected users
   async function inviteSelected() {
     if (!selectedEmails.length) return;
-    
+
     if (!confirm(`Are you sure you want to invite ${selectedEmails.length} users?`)) {
       return;
     }
-    
+
     try {
       // Send invites
       await fetch('/api/admin/waitlist/invite', {
@@ -302,46 +299,46 @@ function WaitlistAdmin() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ emails: selectedEmails }),
       });
-      
+
       // Remove from waitlist
       await fetch('/api/admin/waitlist/remove', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ emails: selectedEmails }),
       });
-      
+
       // Refresh the list
       const response = await fetch(`/api/admin/waitlist?limit=${entriesPerPage}&offset=${page * entriesPerPage}`);
       const data = await response.json();
-      
+
       setEntries(data.entries);
       setTotalEntries(data.total);
       setSelectedEmails([]);
-      
+
       alert('Invites sent successfully!');
     } catch (error) {
       console.error('Failed to invite users:', error);
       alert('Failed to invite users. Please try again.');
     }
   }
-  
+
   return (
     <div>
       <h1>Waitlist Management</h1>
       <p>Total users on waitlist: {totalEntries}</p>
-      
+
       <div className="actions">
         <button onClick={inviteSelected} disabled={!selectedEmails.length}>
           Invite Selected ({selectedEmails.length})
         </button>
       </div>
-      
+
       <table>
         <thead>
           <tr>
             <th>
-              <input 
-                type="checkbox" 
+              <input
+                type="checkbox"
                 onChange={e => {
                   if (e.target.checked) {
                     setSelectedEmails(entries.map(entry => entry.email));
@@ -363,7 +360,7 @@ function WaitlistAdmin() {
           {entries.map((entry, index) => (
             <tr key={entry.email}>
               <td>
-                <input 
+                <input
                   type="checkbox"
                   checked={selectedEmails.includes(entry.email)}
                   onChange={() => toggleSelect(entry.email)}
@@ -378,16 +375,16 @@ function WaitlistAdmin() {
           ))}
         </tbody>
       </table>
-      
+
       <div className="pagination">
-        <button 
+        <button
           onClick={() => setPage(p => Math.max(0, p - 1))}
           disabled={page === 0}
         >
           Previous
         </button>
         <span>Page {page + 1} of {Math.ceil(totalEntries / entriesPerPage)}</span>
-        <button 
+        <button
           onClick={() => setPage(p => p + 1)}
           disabled={(page + 1) * entriesPerPage >= totalEntries}
         >
@@ -413,7 +410,7 @@ async function joinWaitlist(email: string, metadata?: Record<string, any>): Prom
   if (!isValidEmail(email)) {
     throw new Error('Invalid email address');
   }
-  
+
   return await waitlist.join(email, metadata);
 }
 ```
@@ -421,16 +418,19 @@ async function joinWaitlist(email: string, metadata?: Record<string, any>): Prom
 2. **Duplicate Prevention**: Handle duplicate join attempts gracefully:
 
 ```typescript
-async function joinWaitlist(email: string, metadata?: Record<string, any>): Promise<{ position: number; isNew: boolean }> {
+async function joinWaitlist(
+  email: string,
+  metadata?: Record<string, any>,
+): Promise<{ position: number; isNew: boolean }> {
   // Check if already on waitlist
   const isOnWaitlist = await waitlist.isOnWaitlist(email);
-  
+
   if (isOnWaitlist) {
     // Get current position
-    const position = await waitlist.getPosition(email) || 0;
+    const position = (await waitlist.getPosition(email)) || 0;
     return { position, isNew: false };
   }
-  
+
   // Add to waitlist
   const position = await waitlist.join(email, metadata);
   return { position, isNew: true };
@@ -443,14 +443,12 @@ async function joinWaitlist(email: string, metadata?: Record<string, any>): Prom
 function formatPosition(position: number): string {
   // Convert 0-based index to 1-based position
   const displayPosition = position + 1;
-  
+
   // Add ordinal suffix
   const suffixes = ['th', 'st', 'nd', 'rd'];
   const remainder = displayPosition % 100;
-  const suffix = 
-    (remainder >= 11 && remainder <= 13) ? 'th' : 
-    suffixes[displayPosition % 10] || 'th';
-  
+  const suffix = remainder >= 11 && remainder <= 13 ? 'th' : suffixes[displayPosition % 10] || 'th';
+
   return `${displayPosition}${suffix}`;
 }
 
@@ -473,12 +471,12 @@ const waitlist = new KeyValueWaitlistService(kv);
 async function rateLimit(ip: string): Promise<boolean> {
   const key = `ratelimit:waitlist:${ip}`;
   const count = await kv.increment(key);
-  
+
   // Set TTL on first increment
   if (count === 1) {
     await kv.expire(key, 3600); // 1 hour TTL
   }
-  
+
   // Allow 5 attempts per hour
   return count <= 5;
 }
@@ -486,13 +484,13 @@ async function rateLimit(ip: string): Promise<boolean> {
 // Usage in API route
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-  
+
   // Check rate limit
   const allowed = await rateLimit(ip as string);
   if (!allowed) {
     return res.status(429).json({ error: 'Too many requests. Please try again later.' });
   }
-  
+
   // Process waitlist join
   // ...
 }
@@ -503,22 +501,22 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 ```typescript
 async function joinWithReferral(email: string, referrerEmail?: string): Promise<number> {
   // Join waitlist
-  const position = await waitlist.join(email, { 
+  const position = await waitlist.join(email, {
     referredBy: referrerEmail,
   });
-  
+
   // If there's a referrer, update their metadata to track the referral
-  if (referrerEmail && await waitlist.isOnWaitlist(referrerEmail)) {
+  if (referrerEmail && (await waitlist.isOnWaitlist(referrerEmail))) {
     // Get referrer's entry
-    const referrerEntries = await waitlist.getEntries(1, await waitlist.getPosition(referrerEmail) || 0);
-    
+    const referrerEntries = await waitlist.getEntries(1, (await waitlist.getPosition(referrerEmail)) || 0);
+
     if (referrerEntries.length > 0) {
       const referrer = referrerEntries[0];
-      
+
       // Update referrer's metadata
       const referrals = referrer.metadata?.referrals || [];
       referrals.push(email);
-      
+
       // Remove and re-add with updated metadata
       await waitlist.removeEntries([referrerEmail]);
       await waitlist.join(referrerEmail, {
@@ -529,7 +527,7 @@ async function joinWithReferral(email: string, referrerEmail?: string): Promise<
       });
     }
   }
-  
+
   return position;
 }
 ```
@@ -539,26 +537,27 @@ async function joinWithReferral(email: string, referrerEmail?: string): Promise<
 You can create your own waitlist implementation by extending the `AbstractWaitlistService` class:
 
 ```typescript
-import { AbstractWaitlistService, WaitlistEntry } from '../services/waitlist/abstract-waitlist';
 import { PrismaClient } from '@prisma/client';
+
+import { AbstractWaitlistService, WaitlistEntry } from '../services/waitlist/abstract-waitlist';
 
 // Example implementation using Prisma ORM
 export class PrismaWaitlistService extends AbstractWaitlistService {
   constructor(private prisma: PrismaClient) {
     super();
   }
-  
+
   async join(email: string, metadata?: Record<string, any>): Promise<number> {
     // Check if already on waitlist
     const existingEntry = await this.prisma.waitlistEntry.findUnique({
       where: { email },
     });
-    
+
     if (existingEntry) {
       // Return existing position
-      return await this.getPosition(email) || 0;
+      return (await this.getPosition(email)) || 0;
     }
-    
+
     // Create new entry
     await this.prisma.waitlistEntry.create({
       data: {
@@ -567,18 +566,18 @@ export class PrismaWaitlistService extends AbstractWaitlistService {
         metadata: metadata || {},
       },
     });
-    
+
     // Get and return position
-    return await this.getPosition(email) || 0;
+    return (await this.getPosition(email)) || 0;
   }
-  
+
   async getPosition(email: string): Promise<number | null> {
     const entry = await this.prisma.waitlistEntry.findUnique({
       where: { email },
     });
-    
+
     if (!entry) return null;
-    
+
     // Count entries that joined before this one
     const position = await this.prisma.waitlistEntry.count({
       where: {
@@ -587,36 +586,36 @@ export class PrismaWaitlistService extends AbstractWaitlistService {
         },
       },
     });
-    
+
     return position;
   }
-  
+
   async getEntryCount(): Promise<number> {
     return await this.prisma.waitlistEntry.count();
   }
-  
+
   async isOnWaitlist(email: string): Promise<boolean> {
     const count = await this.prisma.waitlistEntry.count({
       where: { email },
     });
-    
+
     return count > 0;
   }
-  
+
   async getEntries(limit: number, offset: number): Promise<WaitlistEntry[]> {
     const entries = await this.prisma.waitlistEntry.findMany({
       orderBy: { joinedAt: 'asc' },
       skip: offset,
       take: limit,
     });
-    
-    return entries.map(entry => ({
+
+    return entries.map((entry) => ({
       email: entry.email,
       joinedAt: entry.joinedAt,
       metadata: entry.metadata as Record<string, any>,
     }));
   }
-  
+
   async removeEntries(emails: string[]): Promise<void> {
     await this.prisma.waitlistEntry.deleteMany({
       where: {

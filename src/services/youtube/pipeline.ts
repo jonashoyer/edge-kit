@@ -1,4 +1,4 @@
-import { pipeline, type TextGenerationPipeline } from "@huggingface/transformers";
+import { pipeline, type TextGenerationPipeline } from '@huggingface/transformers';
 
 export class PipelineSingleton {
   pipeline: TextGenerationPipeline | null = null;
@@ -14,8 +14,7 @@ export class PipelineSingleton {
 
   async getTextGenerationPipeline() {
     if (!this.pipeline) {
-
-      // @ts-ignore
+      // @ts-expect-error, pipeline function is not typed correctly
       this.pipeline = await pipeline('text-generation', 'HuggingFaceTB/SmolLM2-135M-Instruct');
       // this.pipeline = await pipeline('text-generation', 'onnx-community/MobileLLM-125M', { dtype: 'fp32' });
     }

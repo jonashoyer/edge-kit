@@ -1,6 +1,7 @@
 import IORedis, { RedisOptions } from 'ioredis';
-import { AbstractKeyValueService } from './abstract-key-value';
+
 import { Nullable } from '../../utils/type-utils';
+import { AbstractKeyValueService } from './abstract-key-value';
 
 export class IoredisKeyValueService extends AbstractKeyValueService {
   private client: IORedis;
@@ -53,7 +54,7 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
 
   async mget<T>(keys: string[]): Promise<Nullable<T>[]> {
     const values = await this.client.mget(keys);
-    return values.map(value => {
+    return values.map((value) => {
       if (value === null) return null;
       try {
         return JSON.parse(value) as T;

@@ -6,5 +6,4 @@ export abstract class Singleton {
       throw new Error("You can't call new() on a Singleton class");
     }
   }
-
 }

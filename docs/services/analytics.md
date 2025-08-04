@@ -5,6 +5,7 @@ Edge Kit provides abstract and concrete implementations for analytics services, 
 ## Overview
 
 The analytics services allow you to:
+
 - Track user events and actions
 - Identify users for consistent tracking
 - Reset user identity when needed
@@ -38,6 +39,7 @@ A client-side analytics implementation using PostHog.
 **Location**: `src/services/analytics/posthog-analytics.ts`
 
 **Dependencies**:
+
 - `posthog-js`
 
 **Usage**:
@@ -47,16 +49,16 @@ import { PosthogAnalytics } from '../services/analytics/posthog-analytics';
 
 // Define your analytics events with strong typing
 interface MyAnalyticsEvents {
-  'page_view': {
+  page_view: {
     page: string;
     referrer?: string;
     user_type: 'guest' | 'member' | 'admin';
   };
-  'button_click': {
+  button_click: {
     button_id: string;
     page: string;
   };
-  'purchase_complete': {
+  purchase_complete: {
     order_id: string;
     amount: number;
     currency: string;
@@ -67,7 +69,7 @@ interface MyAnalyticsEvents {
 // Create the analytics instance
 const analytics = new PosthogAnalytics<MyAnalyticsEvents>(
   'phc_YourPostHogToken',
-  { api_host: 'https://eu.posthog.com' } // Optional configuration
+  { api_host: 'https://eu.posthog.com' }, // Optional configuration
 );
 
 // Identify a user
@@ -95,6 +97,7 @@ A server-side analytics implementation using PostHog Node.js SDK.
 **Location**: `src/services/analytics/posthog-server-analytics.ts`
 
 **Dependencies**:
+
 - `posthog-node`
 
 **Usage**:
@@ -104,13 +107,13 @@ import { PostHogServerAnalytics } from '../services/analytics/posthog-server-ana
 
 // Define your analytics events with strong typing
 interface MyServerAnalyticsEvents {
-  'api_request': {
+  api_request: {
     endpoint: string;
     method: string;
     status_code: number;
     duration_ms: number;
   };
-  'user_signup': {
+  user_signup: {
     signup_method: 'email' | 'google' | 'github';
     referrer?: string;
   };
@@ -119,16 +122,20 @@ interface MyServerAnalyticsEvents {
 // Create the analytics instance
 const serverAnalytics = new PostHogServerAnalytics<MyServerAnalyticsEvents>(
   'phc_YourPostHogToken',
-  { host: 'https://eu.posthog.com' } // Optional configuration
+  { host: 'https://eu.posthog.com' }, // Optional configuration
 );
 
 // Track events with type-safe properties
-serverAnalytics.capture('api_request', {
-  endpoint: '/api/users',
-  method: 'GET',
-  status_code: 200,
-  duration_ms: 52,
-}, 'user-123'); // user distinct ID
+serverAnalytics.capture(
+  'api_request',
+  {
+    endpoint: '/api/users',
+    method: 'GET',
+    status_code: 200,
+    duration_ms: 52,
+  },
+  'user-123',
+); // user distinct ID
 
 // Always shut down before your application exits
 process.on('beforeExit', async () => {
@@ -159,10 +166,10 @@ analytics.capture('purchase_complete', {
   order_id: order.id,
   amount: order.total,
   currency: 'USD',
-  items: order.items.map(item => ({
+  items: order.items.map((item) => ({
     product_id: item.id,
     quantity: item.quantity,
-    price: item.price
+    price: item.price,
   })),
 });
 ```
@@ -173,7 +180,7 @@ analytics.capture('purchase_complete', {
 // Identify a user after login
 function onUserLogin(user) {
   analytics.identify(user.id);
-  
+
   // You can also set user properties in PostHog
   posthog.people.set({
     email: user.email,
@@ -195,33 +202,41 @@ function onUserLogout() {
 // Track backend events
 async function processOrder(order, userId) {
   // Process the order...
-  
+
   // Track the event
-  serverAnalytics.capture('order_processed', {
-    order_id: order.id,
-    processing_time_ms: performance.now() - startTime,
-    payment_method: order.paymentMethod,
-    total_items: order.items.length,
-  }, userId);
+  serverAnalytics.capture(
+    'order_processed',
+    {
+      order_id: order.id,
+      processing_time_ms: performance.now() - startTime,
+      payment_method: order.paymentMethod,
+      total_items: order.items.length,
+    },
+    userId,
+  );
 }
 
 // Track API usage
 app.use((req, res, next) => {
   const startTime = performance.now();
-  
+
   // Once the response is finished
   res.on('finish', () => {
     const duration = performance.now() - startTime;
-    
-    serverAnalytics.capture('api_request', {
-      endpoint: req.path,
-      method: req.method,
-      status_code: res.statusCode,
-      duration_ms: Math.round(duration),
-      user_agent: req.headers['user-agent'],
-    }, req.user?.id || 'anonymous');
+
+    serverAnalytics.capture(
+      'api_request',
+      {
+        endpoint: req.path,
+        method: req.method,
+        status_code: res.statusCode,
+        duration_ms: Math.round(duration),
+        user_agent: req.headers['user-agent'],
+      },
+      req.user?.id || 'anonymous',
+    );
   });
-  
+
   next();
 });
 ```
@@ -233,11 +248,11 @@ The Edge Kit analytics services use TypeScript generics to provide type safety f
 ```typescript
 // Define your event schema
 interface MyAnalyticsEvents {
-  'page_view': {
+  page_view: {
     page: string;
     // Other properties...
   };
-  'form_submit': {
+  form_submit: {
     form_id: string;
     success: boolean;
     // Other properties...
@@ -246,9 +261,7 @@ interface MyAnalyticsEvents {
 }
 
 // Create a typed analytics instance
-const analytics = new PosthogAnalytics<MyAnalyticsEvents>(
-  'phc_YourPostHogToken'
-);
+const analytics = new PosthogAnalytics<MyAnalyticsEvents>('phc_YourPostHogToken');
 
 // Type-safe event tracking
 analytics.capture('page_view', {
@@ -273,11 +286,11 @@ import { FeatureFlagService } from '../services/feature-flag/feature-flag';
 
 // Define analytics events
 interface MyAnalyticsEvents {
-  'experiment_viewed': {
+  experiment_viewed: {
     experiment_id: string;
     variant: string;
   };
-  'conversion': {
+  conversion: {
     experiment_id?: string;
     variant?: string;
     action: string;
@@ -285,9 +298,7 @@ interface MyAnalyticsEvents {
 }
 
 // Setup analytics
-const analytics = new PosthogAnalytics<MyAnalyticsEvents>(
-  'phc_YourPostHogToken'
-);
+const analytics = new PosthogAnalytics<MyAnalyticsEvents>('phc_YourPostHogToken');
 
 // Setup feature flags
 const featureFlags = new FeatureFlagService({
@@ -298,13 +309,13 @@ const featureFlags = new FeatureFlagService({
 function renderCheckoutPage(userId: string) {
   // Check which variant the user gets
   const useNewCheckoutFlow = featureFlags.isEnabled('NEW_CHECKOUT_FLOW', userId);
-  
+
   // Track experiment view
   analytics.capture('experiment_viewed', {
     experiment_id: 'checkout_redesign',
     variant: useNewCheckoutFlow ? 'new' : 'control',
   });
-  
+
   // Render appropriate variant
   if (useNewCheckoutFlow) {
     renderNewCheckout();
@@ -317,7 +328,7 @@ function renderCheckoutPage(userId: string) {
 function onPurchaseComplete(orderId: string, userId: string) {
   // Check which variant the user saw
   const useNewCheckoutFlow = featureFlags.isEnabled('NEW_CHECKOUT_FLOW', userId);
-  
+
   // Track conversion with experiment data
   analytics.capture('conversion', {
     experiment_id: 'checkout_redesign',
@@ -361,37 +372,37 @@ analytics.capture('button_click', { page_url: '/dashboard', btn_id: 'save' });
 // Define a complete schema at the start
 interface AnalyticsEvents {
   // User journey events
-  'page_view': {
+  page_view: {
     page: string;
     referrer?: string;
     user_type: 'guest' | 'member' | 'admin';
   };
-  'signup_started': {
+  signup_started: {
     referrer?: string;
     signup_method: 'email' | 'google' | 'github';
   };
-  'signup_completed': {
+  signup_completed: {
     signup_method: 'email' | 'google' | 'github';
     time_to_complete_seconds: number;
   };
-  
+
   // Engagement events
-  'button_click': {
+  button_click: {
     button_id: string;
     page: string;
   };
-  'feature_used': {
+  feature_used: {
     feature_id: string;
     action: string;
   };
-  
+
   // Business events
-  'purchase_started': {
+  purchase_started: {
     product_id: string;
     price: number;
     currency: string;
   };
-  'purchase_completed': {
+  purchase_completed: {
     order_id: string;
     total: number;
     currency: string;
@@ -437,36 +448,39 @@ You can create your own analytics implementation by implementing the `AbstractAn
 ```typescript
 import { AbstractAnalytics } from '../services/analytics/abstract-analytics';
 
-export class CustomAnalytics<T extends Record<K, AnalyticsProperties>, K extends keyof T = keyof T> 
-  implements AbstractAnalytics<T, K> {
-  
-  constructor(private apiKey: string, private endpoint: string) {
+export class CustomAnalytics<T extends Record<K, AnalyticsProperties>, K extends keyof T = keyof T>
+  implements AbstractAnalytics<T, K>
+{
+  constructor(
+    private apiKey: string,
+    private endpoint: string,
+  ) {
     // Initialize your analytics client
   }
-  
+
   capture<TEvent extends K>(event: TEvent, properties: T[TEvent]): void {
     // Implement event tracking
     fetch(this.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify({
         event: String(event),
         properties,
         timestamp: new Date().toISOString(),
       }),
-    }).catch(error => {
+    }).catch((error) => {
       console.error('Analytics error:', error);
     });
   }
-  
+
   identify(distinctId?: string): void {
     // Implement user identification
     // ...
   }
-  
+
   reset(): void {
     // Implement identity reset
     // ...

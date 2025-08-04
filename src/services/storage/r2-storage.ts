@@ -1,5 +1,5 @@
-import { S3Storage } from './s3-storage';
 import { StorageOptions } from './abstract-storage';
+import { S3Storage } from './s3-storage';
 
 interface R2StorageOptions extends StorageOptions {
   accountId: string;

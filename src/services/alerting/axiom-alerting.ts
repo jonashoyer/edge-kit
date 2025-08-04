@@ -1,6 +1,7 @@
-import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
-import { AbstractLogger } from '../logging/abstract-logger';
 import { Axiom } from '@axiomhq/js';
+
+import { AbstractLogger } from '../logging/abstract-logger';
+import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
 
 export class AxiomAlertingService extends AbstractAlertingService {
   private client: Axiom;
@@ -13,13 +14,15 @@ export class AxiomAlertingService extends AbstractAlertingService {
   }
 
   async alert(message: string, options: AlertOptions): Promise<void> {
-    await this.client.ingest(this.dataset, [{
-      severity: options.severity,
-      message,
-      source: options.source,
-      ...options.tags,
-      timestamp: new Date().toISOString(),
-    }]);
+    await this.client.ingest(this.dataset, [
+      {
+        severity: options.severity,
+        message,
+        source: options.source,
+        ...options.tags,
+        timestamp: new Date().toISOString(),
+      },
+    ]);
 
     this.logAlert(message, options);
   }

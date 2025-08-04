@@ -7,6 +7,7 @@ Composers are utilities that help compose and structure complex functionality in
 The `NamespaceComposer` helps manage key namespaces for key-value stores, cache systems, or any other system that requires structured key management.
 
 ### Location
+
 `src/composers/namespace-composer.ts`
 
 ### Features
@@ -25,23 +26,21 @@ const namespace = new NamespaceComposer({
   // Static keys
   user: 'users',
   settings: 'settings',
-  
+
   // Dynamic keys with parameters
   userSession: (userId: string) => `session:user:${userId}`,
-  documentChunk: (documentId: string, chunkNumber: number) => 
-    `chunk:${documentId}:${chunkNumber}`,
+  documentChunk: (documentId: string, chunkNumber: number) => `chunk:${documentId}:${chunkNumber}`,
   profile: (userId: string) => `profiles:${userId}`,
-  
+
   // Complex parameters
-  object: (params: { type: string, id: string }) => 
-    `objects:${params.type}:${params.id}`,
+  object: (params: { type: string; id: string }) => `objects:${params.type}:${params.id}`,
 });
 
 // Type-safe usage
-const userKey = namespace.key('user');  // 'users'
-const sessionKey = namespace.key('userSession', 'user123');  // 'session:user:user123'
-const chunkKey = namespace.key('documentChunk', 'doc456', 1);  // 'chunk:doc456:1'
-const objectKey = namespace.key('object', { type: 'post', id: 'post789' });  // 'objects:post:post789'
+const userKey = namespace.key('user'); // 'users'
+const sessionKey = namespace.key('userSession', 'user123'); // 'session:user:user123'
+const chunkKey = namespace.key('documentChunk', 'doc456', 1); // 'chunk:doc456:1'
+const objectKey = namespace.key('object', { type: 'post', id: 'post789' }); // 'objects:post:post789'
 ```
 
 ### Use Cases
@@ -56,6 +55,7 @@ const objectKey = namespace.key('object', { type: 'post', id: 'post789' });  // 
 The `PromptComposer` helps build structured prompts for large language models (LLMs) with support for templates and dynamic content.
 
 ### Location
+
 `src/composers/prompt-composer.ts`
 
 ### Features
@@ -71,13 +71,10 @@ The `PromptComposer` helps build structured prompts for large language models (L
 import { PromptComposer } from '../composers/prompt-composer';
 
 // Simple template with parameters
-const simplePrompt = PromptComposer.build(
-  "Hello {{name}}! Today is {{date}}.",
-  { 
-    name: "Alice",
-    date: new Date().toLocaleDateString()
-  }
-);
+const simplePrompt = PromptComposer.build('Hello {{name}}! Today is {{date}}.', {
+  name: 'Alice',
+  date: new Date().toLocaleDateString(),
+});
 
 // Advanced composition with components
 const advancedPrompt = PromptComposer.composer(
@@ -99,29 +96,29 @@ const advancedPrompt = PromptComposer.composer(
     // Components with custom converters
     today: {
       data: new Date(),
-      converter: (date) => date.toLocaleDateString()
+      converter: (date) => date.toLocaleDateString(),
     },
     tasks: {
-      data: ["Buy groceries", "Walk the dog", "Finish report"],
+      data: ['Buy groceries', 'Walk the dog', 'Finish report'],
       converter: PromptComposer.arrayToList,
     },
     status: {
-      data: { ok: true, progress: "50%" },
-      converter: PromptComposer.objectToKeyValue
+      data: { ok: true, progress: '50%' },
+      converter: PromptComposer.objectToKeyValue,
     },
     xml: {
       data: {
-        name: "John",
+        name: 'John',
         age: 30,
-        isStudent: false
+        isStudent: false,
       },
-      converter: (data) => PromptComposer.jsonToXml(data, 'user')
+      converter: (data) => PromptComposer.jsonToXml(data, 'user'),
     },
   },
   // Simple parameters
   {
-    name: "Alice"
-  }
+    name: 'Alice',
+  },
 );
 ```
 

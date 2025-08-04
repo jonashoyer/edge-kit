@@ -5,6 +5,7 @@ Edge Kit provides abstract and concrete implementations for logging services, al
 ## Overview
 
 The logging services allow you to:
+
 - Log messages at different severity levels
 - Add contextual metadata to logs
 - Route logs to various destinations
@@ -17,19 +18,19 @@ The `AbstractLogger` class defines the interface that all logger implementations
 ```typescript
 export abstract class AbstractLogger {
   abstract log(message: string, level: LogLevel, metadata?: Record<string, any>): void;
-  
+
   info(message: string, metadata?: Record<string, any>): void {
     this.log(message, 'info', metadata);
   }
-  
+
   warn(message: string, metadata?: Record<string, any>): void {
     this.log(message, 'warn', metadata);
   }
-  
+
   error(message: string, metadata?: Record<string, any>): void {
     this.log(message, 'error', metadata);
   }
-  
+
   debug(message: string, metadata?: Record<string, any>): void {
     this.log(message, 'debug', metadata);
   }
@@ -49,6 +50,7 @@ A direct logging implementation for the Axiom logging platform.
 **Location**: `src/services/logging/axiom-logger.ts`
 
 **Dependencies**:
+
 - `@axiomhq/js`
 
 **Usage**:
@@ -74,6 +76,7 @@ A logging implementation that uses Pino with Axiom transport for structured logg
 **Location**: `src/services/logging/axiom-pino-logger.ts`
 
 **Dependencies**:
+
 - `pino`
 - `@axiomhq/pino`
 
@@ -106,17 +109,17 @@ logger.warn('Something concerning happened');
 logger.error('Something went wrong');
 
 // Log with metadata
-logger.info('User action', { 
-  userId: '123', 
-  action: 'login', 
-  timestamp: new Date().toISOString() 
+logger.info('User action', {
+  userId: '123',
+  action: 'login',
+  timestamp: new Date().toISOString(),
 });
 
 // Log errors
 try {
   // Some operation
 } catch (error) {
-  logger.error('Operation failed', { 
+  logger.error('Operation failed', {
     error: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
   });
@@ -131,11 +134,11 @@ Using structured logging with consistent metadata keys helps with filtering and 
 // Request logging middleware example
 app.use((req, res, next) => {
   const requestId = generateRequestId();
-  
+
   // Add context to request
   req.logger = logger;
   req.requestId = requestId;
-  
+
   logger.info('Request received', {
     requestId,
     method: req.method,
@@ -143,7 +146,7 @@ app.use((req, res, next) => {
     ip: req.ip,
     userAgent: req.headers['user-agent'],
   });
-  
+
   // Continue processing
   next();
 });
@@ -154,7 +157,7 @@ app.get('/api/users/:id', (req, res) => {
     requestId: req.requestId,
     userId: req.params.id,
   });
-  
+
   // Process request...
 });
 ```
@@ -166,8 +169,8 @@ app.get('/api/users/:id', (req, res) => {
 Loggers work well with alerting services for critical issues:
 
 ```typescript
-import { AxiomLogger } from '../services/logging/axiom-logger';
 import { AxiomAlertingService } from '../services/alerting/axiom-alerting';
+import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create logger
 const logger = new AxiomLogger({
@@ -176,11 +179,7 @@ const logger = new AxiomLogger({
 });
 
 // Create alerting service using the logger
-const alerting = new AxiomAlertingService(
-  process.env.AXIOM_TOKEN!,
-  'alerts-dataset',
-  logger
-);
+const alerting = new AxiomAlertingService(process.env.AXIOM_TOKEN!, 'alerts-dataset', logger);
 
 // Log normal events
 logger.info('User signed up', { userId: '123' });
@@ -219,7 +218,7 @@ app.get('/api/data', async (req, res) => {
     // This will log with request context if it fails
     return await someAsyncOperation();
   });
-  
+
   const data = await fetchData();
   res.json(data);
 });
@@ -295,7 +294,8 @@ logger.info('Payment processed', {
 
 ```typescript
 // Only log a percentage of high-volume events
-if (Math.random() < 0.01) { // 1% sample
+if (Math.random() < 0.01) {
+  // 1% sample
   logger.debug('Cache hit', { key, hitCount });
 }
 ```
@@ -311,14 +311,16 @@ export class MyCustomLogger extends AbstractLogger {
   constructor(private options: { serviceName: string }) {
     super();
   }
-  
+
   log(message: string, level: LogLevel, metadata?: Record<string, any>): void {
     const timestamp = new Date().toISOString();
     const formattedMetadata = metadata ? JSON.stringify(metadata) : '';
-    
+
     // Implement your logging logic
-    console.log(`[${timestamp}] [${this.options.serviceName}] [${level.toUpperCase()}] ${message} ${formattedMetadata}`);
-    
+    console.log(
+      `[${timestamp}] [${this.options.serviceName}] [${level.toUpperCase()}] ${message} ${formattedMetadata}`,
+    );
+
     // Could also send to a logging service, file, etc.
   }
 }

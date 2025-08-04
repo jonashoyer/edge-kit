@@ -1,12 +1,9 @@
-type TemplateLiteralFn = (...args: any[]) => string;
+type TemplateLiteralFn = (...args: never[]) => string;
 
 export class NamespaceComposer<T extends Record<string, string | TemplateLiteralFn>> {
-  constructor(private definitions: T) { }
+  constructor(private definitions: T) {}
 
-  key<K extends keyof T>(
-    key: K,
-    ...params: T[K] extends TemplateLiteralFn ? Parameters<T[K]> : []
-  ): string {
+  key<K extends keyof T>(key: K, ...params: T[K] extends TemplateLiteralFn ? Parameters<T[K]> : []): string {
     const definition = this.definitions[key];
     if (typeof definition === 'string') {
       return definition;
@@ -14,14 +11,10 @@ export class NamespaceComposer<T extends Record<string, string | TemplateLiteral
     return this.resolveTemplateLiteral(definition, params);
   }
 
-  private resolveTemplateLiteral(
-    template: TemplateLiteralFn,
-    params: any[]
-  ): string {
+  private resolveTemplateLiteral(template: TemplateLiteralFn, params: never[]): string {
     return template(...params);
   }
 }
-
 
 /*
 // KV namespace composer example

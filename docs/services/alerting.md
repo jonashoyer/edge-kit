@@ -5,6 +5,7 @@ Edge Kit provides abstract and concrete implementations for alerting services, a
 ## Overview
 
 The alerting services allow you to:
+
 - Send alerts with different severity levels
 - Route alerts to various destinations (monitoring systems, chat platforms, etc.)
 - Include contextual information with alerts
@@ -22,12 +23,12 @@ export interface AlertOptions {
 }
 
 export abstract class AbstractAlertingService {
-  constructor(protected logger: AbstractLogger) { }
+  constructor(protected logger: AbstractLogger) {}
 
   abstract alert(message: string, options: AlertOptions): Promise<void>;
 
   protected logAlert(message: string, options: AlertOptions): void {
-    const logLevel = options.severity === 'info' ? 'info' : (options.severity === 'warning' ? 'warn' : 'error');
+    const logLevel = options.severity === 'info' ? 'info' : options.severity === 'warning' ? 'warn' : 'error';
     this.logger.log(message, logLevel, {
       alertSeverity: options.severity,
       alertSource: options.source,
@@ -48,14 +49,15 @@ An alerting implementation that sends alerts to Axiom.
 **Location**: `src/services/alerting/axiom-alerting.ts`
 
 **Dependencies**:
+
 - `@axiomhq/js`
 - The `AbstractLogger` implementation of your choice
 
 **Usage**:
 
 ```typescript
-import { AxiomLogger } from '../services/logging/axiom-logger';
 import { AxiomAlertingService } from '../services/alerting/axiom-alerting';
+import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create logger
 const logger = new AxiomLogger({
@@ -64,11 +66,7 @@ const logger = new AxiomLogger({
 });
 
 // Create alerting service
-const alerting = new AxiomAlertingService(
-  process.env.AXIOM_TOKEN!,
-  'alerts-dataset',
-  logger
-);
+const alerting = new AxiomAlertingService(process.env.AXIOM_TOKEN!, 'alerts-dataset', logger);
 
 // Send an alert
 await alerting.alert('Payment processor offline', {
@@ -88,14 +86,15 @@ An alerting implementation that sends alerts to Slack channels.
 **Location**: `src/services/alerting/slack-alerting.ts`
 
 **Dependencies**:
+
 - `node-fetch` or equivalent HTTP client
 - The `AbstractLogger` implementation of your choice
 
 **Usage**:
 
 ```typescript
-import { AxiomLogger } from '../services/logging/axiom-logger';
 import { SlackAlertingService } from '../services/alerting/slack-alerting';
+import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create logger
 const logger = new AxiomLogger({
@@ -109,7 +108,7 @@ const alerting = new SlackAlertingService(
     webhookUrl: process.env.SLACK_WEBHOOK_URL!,
     channel: '#alerts',
   },
-  logger
+  logger,
 );
 
 // Send an alert
@@ -130,14 +129,15 @@ An alerting implementation that creates incidents in PagerDuty.
 **Location**: `src/services/alerting/pager-duty-alerting.ts`
 
 **Dependencies**:
+
 - `node-fetch` or equivalent HTTP client
 - The `AbstractLogger` implementation of your choice
 
 **Usage**:
 
 ```typescript
-import { AxiomLogger } from '../services/logging/axiom-logger';
 import { PagerDutyAlertingService } from '../services/alerting/pager-duty-alerting';
+import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create logger
 const logger = new AxiomLogger({
@@ -151,7 +151,7 @@ const alerting = new PagerDutyAlertingService(
     integrationKey: process.env.PAGERDUTY_INTEGRATION_KEY!,
     serviceId: 'YOUR_SERVICE_ID',
   },
-  logger
+  logger,
 );
 
 // Send an alert
@@ -203,9 +203,9 @@ await alerting.alert('Payment processor connection lost', {
 You can use multiple alerting services together for redundancy and reaching different audiences:
 
 ```typescript
-import { AxiomLogger } from '../services/logging/axiom-logger';
-import { SlackAlertingService } from '../services/alerting/slack-alerting';
 import { PagerDutyAlertingService } from '../services/alerting/pager-duty-alerting';
+import { SlackAlertingService } from '../services/alerting/slack-alerting';
+import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create logger
 const logger = new AxiomLogger({
@@ -216,12 +216,12 @@ const logger = new AxiomLogger({
 // Create alerting services
 const slackAlerting = new SlackAlertingService(
   { webhookUrl: process.env.SLACK_WEBHOOK_URL!, channel: '#alerts' },
-  logger
+  logger,
 );
 
 const pagerDutyAlerting = new PagerDutyAlertingService(
   { integrationKey: process.env.PAGERDUTY_INTEGRATION_KEY!, serviceId: 'service-id' },
-  logger
+  logger,
 );
 
 // Function to send alert to all channels
@@ -230,9 +230,7 @@ async function sendAlert(message: string, options: AlertOptions) {
   await Promise.all([
     slackAlerting.alert(message, options),
     // Only page people for critical issues
-    options.severity === 'critical' 
-      ? pagerDutyAlerting.alert(message, options)
-      : Promise.resolve(),
+    options.severity === 'critical' ? pagerDutyAlerting.alert(message, options) : Promise.resolve(),
   ]);
 }
 
@@ -248,8 +246,8 @@ await sendAlert('API Service unhealthy', {
 ### Using with Health Checks
 
 ```typescript
-import { AxiomLogger } from '../services/logging/axiom-logger';
 import { SlackAlertingService } from '../services/alerting/slack-alerting';
+import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create logger and alerting
 const logger = new AxiomLogger({
@@ -257,10 +255,7 @@ const logger = new AxiomLogger({
   dataset: 'application-logs',
 });
 
-const alerting = new SlackAlertingService(
-  { webhookUrl: process.env.SLACK_WEBHOOK_URL!, channel: '#alerts' },
-  logger
-);
+const alerting = new SlackAlertingService({ webhookUrl: process.env.SLACK_WEBHOOK_URL!, channel: '#alerts' }, logger);
 
 // Health check implementation
 async function checkSystemHealth() {
@@ -269,26 +264,23 @@ async function checkSystemHealth() {
     redis: await checkRedisConnection(),
     api: await checkExternalApiStatus(),
   };
-  
+
   // Check for failures
   const failures = Object.entries(healthChecks)
     .filter(([_, status]) => status !== 'healthy')
     .map(([name, status]) => ({ name, status }));
-  
+
   if (failures.length > 0) {
     // Send alert for failures
-    await alerting.alert(
-      `System health check failed for ${failures.length} component(s)`,
-      {
-        severity: failures.some(f => f.status === 'critical') ? 'critical' : 'error',
-        source: 'health-monitor',
-        tags: {
-          failedComponents: failures.map(f => f.name).join(','),
-        },
-      }
-    );
+    await alerting.alert(`System health check failed for ${failures.length} component(s)`, {
+      severity: failures.some((f) => f.status === 'critical') ? 'critical' : 'error',
+      source: 'health-monitor',
+      tags: {
+        failedComponents: failures.map((f) => f.name).join(','),
+      },
+    });
   }
-  
+
   return healthChecks;
 }
 ```
@@ -296,8 +288,8 @@ async function checkSystemHealth() {
 ### Error Boundary Pattern
 
 ```typescript
-import { AxiomLogger } from '../services/logging/axiom-logger';
 import { SlackAlertingService } from '../services/alerting/slack-alerting';
+import { AxiomLogger } from '../services/logging/axiom-logger';
 
 // Create logger and alerting
 const logger = new AxiomLogger({
@@ -305,15 +297,12 @@ const logger = new AxiomLogger({
   dataset: 'application-logs',
 });
 
-const alerting = new SlackAlertingService(
-  { webhookUrl: process.env.SLACK_WEBHOOK_URL!, channel: '#alerts' },
-  logger
-);
+const alerting = new SlackAlertingService({ webhookUrl: process.env.SLACK_WEBHOOK_URL!, channel: '#alerts' }, logger);
 
 // Error boundary function
 async function withErrorBoundary<T>(
   operation: () => Promise<T>,
-  context: { name: string; importance: 'low' | 'medium' | 'high' }
+  context: { name: string; importance: 'low' | 'medium' | 'high' },
 ): Promise<T> {
   try {
     return await operation();
@@ -324,7 +313,7 @@ async function withErrorBoundary<T>(
       medium: 'error',
       high: 'critical',
     } as const;
-    
+
     // Send alert
     await alerting.alert(
       `Operation "${context.name}" failed: ${error instanceof Error ? error.message : String(error)}`,
@@ -335,9 +324,9 @@ async function withErrorBoundary<T>(
           operation: context.name,
           errorType: error instanceof Error ? error.constructor.name : 'Unknown',
         },
-      }
+      },
     );
-    
+
     // Rethrow the error
     throw error;
   }
@@ -350,7 +339,7 @@ async function processPayment(userId: string, amount: number) {
       // Payment processing logic that might throw
       // ...
     },
-    { name: 'processPayment', importance: 'high' }
+    { name: 'processPayment', importance: 'high' },
   );
 }
 ```
@@ -430,13 +419,14 @@ alerting.alert('Rate limit exceeded', {
 const lastAlertTime = await cache.get(`last-alert:${errorType}`);
 const now = Date.now();
 
-if (!lastAlertTime || (now - parseInt(lastAlertTime)) > 15 * 60 * 1000) { // 15 minutes
+if (!lastAlertTime || now - parseInt(lastAlertTime) > 15 * 60 * 1000) {
+  // 15 minutes
   await alerting.alert('High error rate detected', {
     severity: 'error',
     source: 'error-monitor',
     tags: { errorType },
   });
-  
+
   await cache.set(`last-alert:${errorType}`, now.toString(), 60 * 60); // 1 hour TTL
 }
 ```
@@ -455,21 +445,21 @@ export class CustomAlertingService extends AbstractAlertingService {
       endpoint: string;
       apiKey: string;
     },
-    logger: AbstractLogger
+    logger: AbstractLogger,
   ) {
     super(logger);
   }
-  
+
   async alert(message: string, options: AlertOptions): Promise<void> {
     // Log the alert (built into base class)
     this.logAlert(message, options);
-    
+
     // Send to your custom alerting service
     await fetch(this.options.endpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.options.apiKey}`,
+        Authorization: `Bearer ${this.options.apiKey}`,
       },
       body: JSON.stringify({
         message,

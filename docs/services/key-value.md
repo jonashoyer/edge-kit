@@ -5,6 +5,7 @@ Edge Kit provides abstract and concrete implementations for key-value storage se
 ## Overview
 
 The key-value services allow you to:
+
 - Store and retrieve data by key
 - Check if a key exists
 - Delete keys
@@ -51,6 +52,7 @@ A key-value implementation using Upstash Redis, optimized for serverless environ
 **Location**: `src/services/key-value/upstash-redis-key-value.ts`
 
 **Dependencies**:
+
 - `@upstash/redis`
 
 **Usage**:
@@ -58,10 +60,7 @@ A key-value implementation using Upstash Redis, optimized for serverless environ
 ```typescript
 import { UpstashRedisKeyValueService } from '../services/key-value/upstash-redis-key-value';
 
-const kv = new UpstashRedisKeyValueService(
-  process.env.UPSTASH_REDIS_URL!,
-  process.env.UPSTASH_REDIS_TOKEN!
-);
+const kv = new UpstashRedisKeyValueService(process.env.UPSTASH_REDIS_URL!, process.env.UPSTASH_REDIS_TOKEN!);
 
 // Store a value
 await kv.set('user:123', { name: 'Alice', email: 'alice@example.com' });
@@ -83,6 +82,7 @@ A key-value implementation using ioredis, ideal for server environments.
 **Location**: `src/services/key-value/ioredis-key-value.ts`
 
 **Dependencies**:
+
 - `ioredis`
 
 **Usage**:
@@ -137,8 +137,8 @@ await kv.set('user:123', {
   roles: ['admin', 'user'],
   metadata: {
     lastLogin: new Date(),
-    preferences: { theme: 'dark' }
-  }
+    preferences: { theme: 'dark' },
+  },
 });
 
 // Retrieve the object with its type
@@ -149,8 +149,8 @@ const user = await kv.get<{
   roles: string[];
   metadata: {
     lastLogin: string;
-    preferences: { theme: string }
-  }
+    preferences: { theme: string };
+  };
 }>('user:123');
 
 // Access properties
@@ -240,10 +240,7 @@ const namespace = new NamespaceComposer({
 });
 
 // Create KV service
-const kv = new UpstashRedisKeyValueService(
-  process.env.UPSTASH_REDIS_URL!,
-  process.env.UPSTASH_REDIS_TOKEN!
-);
+const kv = new UpstashRedisKeyValueService(process.env.UPSTASH_REDIS_URL!, process.env.UPSTASH_REDIS_TOKEN!);
 
 // Use with namespaced keys
 await kv.set(namespace.key('user', '123'), { name: 'Alice' });
@@ -307,15 +304,15 @@ import { Nullable } from '../utils/type-utils';
 
 export class MyKeyValueService extends AbstractKeyValueService {
   // Implement all abstract methods...
-  
+
   async get<T>(key: string): Promise<Nullable<T>> {
     // Implementation
   }
-  
+
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     // Implementation
   }
-  
+
   // And so on...
 }
 ```

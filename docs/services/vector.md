@@ -5,6 +5,7 @@ Edge Kit provides abstract and concrete implementations for vector databases, al
 ## Overview
 
 The vector database services allow you to:
+
 - Store vector embeddings with associated metadata
 - Perform similarity searches to find nearest neighbors
 - Manage vectors within namespaces
@@ -22,16 +23,16 @@ export abstract class AbstractVectorDatabase<TMetadata = Record<string, any>, TV
   abstract delete(namespace: string, ids: string[]): Promise<void>;
 
   abstract query<TIncludeVectors extends boolean, TIncludeMetadata extends boolean>(
-    namespace: string, 
-    vector: TVector, 
-    topK: number, 
-    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
+    namespace: string,
+    vector: TVector,
+    topK: number,
+    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>,
   ): Promise<VectorEntry<TVector, TMetadata, TIncludeVectors>[]>;
 
   abstract list<TIncludeVectors extends boolean, TIncludeMetadata extends boolean>(
-    namespace: string, 
-    ids: string[], 
-    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
+    namespace: string,
+    ids: string[],
+    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>,
   ): Promise<(VectorEntry<TVector, TMetadata, TIncludeVectors, TIncludeMetadata> | null)[]>;
 }
 ```
@@ -45,6 +46,7 @@ A vector database implementation using Upstash Vector, optimized for serverless 
 **Location**: `src/services/vector/upstash-vector-database.ts`
 
 **Dependencies**:
+
 - `@upstash/vector`
 
 **Usage**:
@@ -81,7 +83,7 @@ const results = await vectorDb.query(
   'documents',
   [0.1, 0.2, 0.3, 0.5], // Query vector
   5, // Return top 5 results
-  { includeVectors: false, includeMetadata: true }
+  { includeVectors: false, includeMetadata: true },
 );
 
 // Access results
@@ -121,10 +123,10 @@ const results = await vectorDb.query(
   'my-namespace',
   [0.15, 0.25, 0.35], // Query vector
   10, // Top 10 results
-  { 
+  {
     includeVectors: false, // Don't include vectors in results
-    includeMetadata: true,  // Include metadata in results
-  }
+    includeMetadata: true, // Include metadata in results
+  },
 );
 
 // Process results
@@ -138,14 +140,10 @@ for (const match of results) {
 
 ```typescript
 // Get specific vectors by ID
-const vectors = await vectorDb.list(
-  'my-namespace',
-  ['vec1', 'vec2'],
-  { 
-    includeVectors: true,
-    includeMetadata: true,
-  }
-);
+const vectors = await vectorDb.list('my-namespace', ['vec1', 'vec2'], {
+  includeVectors: true,
+  includeMetadata: true,
+});
 
 // Access vector data
 for (const vector of vectors) {
@@ -179,27 +177,24 @@ async function getEmbedding(text: string): Promise<number[]> {
 // Store document with its embedding
 async function storeDocument(id: string, text: string, metadata: any) {
   const embedding = await getEmbedding(text);
-  
-  await vectorDb.upsert('documents', [{
-    id,
-    vector: embedding,
-    metadata: {
-      ...metadata,
-      text,
+
+  await vectorDb.upsert('documents', [
+    {
+      id,
+      vector: embedding,
+      metadata: {
+        ...metadata,
+        text,
+      },
     },
-  }]);
+  ]);
 }
 
 // Search for similar documents
 async function findSimilarDocuments(query: string, limit: number = 5) {
   const queryEmbedding = await getEmbedding(query);
-  
-  return await vectorDb.query(
-    'documents',
-    queryEmbedding,
-    limit,
-    { includeMetadata: true }
-  );
+
+  return await vectorDb.query('documents', queryEmbedding, limit, { includeMetadata: true });
 }
 ```
 
@@ -211,7 +206,7 @@ Store document embeddings and find semantically similar documents:
 
 ```typescript
 // Search documents semantically
-const query = "climate change effects on agriculture";
+const query = 'climate change effects on agriculture';
 const searchResults = await findSimilarDocuments(query);
 
 // Display results
@@ -227,19 +222,15 @@ Store item embeddings and find similar items:
 
 ```typescript
 // Recommend similar products
-const productId = "product-123";
+const productId = 'product-123';
 const productVector = await getProductEmbedding(productId);
 
-const similarProducts = await vectorDb.query(
-  'products',
-  productVector,
-  5,
-  { includeMetadata: true }
-);
+const similarProducts = await vectorDb.query('products', productVector, 5, { includeMetadata: true });
 
 // Display recommendations
 for (const product of similarProducts) {
-  if (product.id !== productId) { // Exclude the original product
+  if (product.id !== productId) {
+    // Exclude the original product
     console.log(`Recommended: ${product.metadata?.name}`);
   }
 }
@@ -251,14 +242,10 @@ Use vectors for clustering or classification tasks:
 
 ```typescript
 // Get all vectors for clustering analysis
-const allVectors = await vectorDb.list(
-  'data-points',
-  allIds,
-  { includeVectors: true, includeMetadata: true }
-);
+const allVectors = await vectorDb.list('data-points', allIds, { includeVectors: true, includeMetadata: true });
 
 // Process for clustering (using external library)
-const clusters = performClustering(allVectors.map(v => v?.vector));
+const clusters = performClustering(allVectors.map((v) => v?.vector));
 ```
 
 ## Best Practices
@@ -276,7 +263,7 @@ await vectorDb.upsert('users', [...]);
 
 ```typescript
 // All vectors in a namespace should have the same dimensions
-const documentVectors = someDocuments.map(doc => ({
+const documentVectors = someDocuments.map((doc) => ({
   id: doc.id,
   vector: getEmbedding(doc.text), // Always same dimension
   metadata: { title: doc.title },
@@ -287,15 +274,17 @@ const documentVectors = someDocuments.map(doc => ({
 
 ```typescript
 // Good: Store minimal metadata needed for retrieval
-await vectorDb.upsert('documents', [{
-  id: doc.id,
-  vector: embedding,
-  metadata: {
-    title: doc.title,
-    url: doc.url,
-    // Don't store the full document text here
+await vectorDb.upsert('documents', [
+  {
+    id: doc.id,
+    vector: embedding,
+    metadata: {
+      title: doc.title,
+      url: doc.url,
+      // Don't store the full document text here
+    },
   },
-}]);
+]);
 ```
 
 4. **Error Handling**: Always handle potential errors:
@@ -315,49 +304,44 @@ try {
 You can create your own vector database implementation by extending the `AbstractVectorDatabase` class:
 
 ```typescript
-import { 
-  AbstractVectorDatabase, 
+import {
+  AbstractVectorDatabase,
   VectorDatabaseOptions,
   VectorEntry,
-  VectorQueryOptions
+  VectorQueryOptions,
 } from '../services/vector/abstract-vector-database';
 
 interface MyVectorOptions extends VectorDatabaseOptions {
   customOption: string;
 }
 
-export class MyVectorDatabase<TMetadata = Record<string, any>> 
-  extends AbstractVectorDatabase<TMetadata, number[]> {
-  
+export class MyVectorDatabase<TMetadata = Record<string, any>> extends AbstractVectorDatabase<TMetadata, number[]> {
   constructor(options: MyVectorOptions) {
     super(options);
     // Initialize your vector database client
   }
-  
-  async upsert(
-    namespace: string, 
-    entries: VectorEntry<number[], TMetadata, true>[]
-  ): Promise<void> {
+
+  async upsert(namespace: string, entries: VectorEntry<number[], TMetadata, true>[]): Promise<void> {
     // Implementation
   }
-  
+
   async delete(namespace: string, ids: string[]): Promise<void> {
     // Implementation
   }
-  
+
   async query<TIncludeVectors extends boolean, TIncludeMetadata extends boolean>(
     namespace: string,
     vector: number[],
     topK: number,
-    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
+    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>,
   ): Promise<VectorEntry<number[], TMetadata, TIncludeVectors>[]> {
     // Implementation
   }
-  
+
   async list<TIncludeVectors extends boolean, TIncludeMetadata extends boolean>(
     namespace: string,
     ids: string[],
-    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
+    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>,
   ): Promise<(VectorEntry<number[], TMetadata, TIncludeVectors, TIncludeMetadata> | null)[]> {
     // Implementation
   }

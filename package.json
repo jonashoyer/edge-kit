@@ -1,6 +1,7 @@
 {
   "name": "edge-kit",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "type-check": "tsc --noEmit",
     "lint": "eslint . --ext .ts,.tsx",
@@ -9,14 +10,17 @@
     "format:write": "prettier --write \"**/*.{ts,tsx,json}\""
   },
   "devDependencies": {
-    "@ianvs/prettier-plugin-sort-imports": "^4.4.2",
+    "@eslint/js": "^9.32.0",
+    "@ianvs/prettier-plugin-sort-imports": "^4.5.1",
     "@types/node": "^22.7.5",
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
-    "eslint": "^8.57.0",
-    "eslint-plugin-import": "^2.31.0",
+    "eslint": "^9.32.0",
+    "eslint-plugin-import": "^2.32.0",
+    "next": "^15.4.5",
     "prettier": "^3.6.2",
-    "typescript": "^5.6.3"
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.38.0"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.670.0",

@@ -1,6 +1,13 @@
+import {
+  DeleteObjectCommand,
+  GetObjectCommand,
+  ListObjectsV2Command,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
 import { AbstractStorage, StorageOptions } from './abstract-storage';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, ListObjectsV2Command } from '@aws-sdk/client-s3';
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 interface S3StorageOptions extends StorageOptions {
   bucket: string;
@@ -25,34 +32,42 @@ export class S3Storage extends AbstractStorage {
   }
 
   async upload(key: string, data: Buffer): Promise<void> {
-    await this.client.send(new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-      Body: data,
-    }));
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        Body: data,
+      }),
+    );
   }
 
   async download(key: string): Promise<Buffer> {
-    const response = await this.client.send(new GetObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    }));
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
     return Buffer.from(await response.Body!.transformToByteArray());
   }
 
   async delete(key: string): Promise<void> {
-    await this.client.send(new DeleteObjectCommand({
-      Bucket: this.bucket,
-      Key: key,
-    }));
+    await this.client.send(
+      new DeleteObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+      }),
+    );
   }
 
   async list(prefix?: string): Promise<string[]> {
-    const response = await this.client.send(new ListObjectsV2Command({
-      Bucket: this.bucket,
-      Prefix: prefix,
-    }));
-    return response.Contents?.map(object => object.Key!) ?? [];
+    const response = await this.client.send(
+      new ListObjectsV2Command({
+        Bucket: this.bucket,
+        Prefix: prefix,
+      }),
+    );
+    return response.Contents?.map((object) => object.Key!) ?? [];
   }
 
   async getPresignedUrl(key: string, expiresIn: number): Promise<string> {

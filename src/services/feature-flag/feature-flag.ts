@@ -1,4 +1,4 @@
-import { seedRandomNumberGenerator } from "../../utils/random-utils";
+import { seedRandomNumberGenerator } from '../../utils/random-utils';
 
 export interface BaseFeatureFlag {
   disabled?: boolean;
@@ -69,7 +69,6 @@ export class FeatureFlagService<T extends string = string> {
     return Array.from(this.flags.values());
   }
 
-
   public isEnabled(name: T, identifier?: string) {
     const flag = this.flags.get(name);
     if (!flag) return false;
@@ -97,10 +96,12 @@ export class FeatureFlagService<T extends string = string> {
   private isEnabledGradualRollout(name: string, identifier: string | undefined, flag: PhasedRolloutFeatureFla) {
     const now = Date.now();
     const step = Math.floor((now - flag.originTimestamp) / flag.rolloutInterval);
-    const percentage = Math.min(flag.initialRolloutPercentage + (flag.incrementalRolloutPercentage * step), flag.maxRolloutPercentage ?? 1);
+    const percentage = Math.min(
+      flag.initialRolloutPercentage + flag.incrementalRolloutPercentage * step,
+      flag.maxRolloutPercentage ?? 1,
+    );
 
     if (percentage >= 1) return true;
-
 
     if (!identifier) {
       console.trace(`[FeatureFlag] [WARN] Feature flag ${name} is enabled but no identifier was provided`);

@@ -82,10 +82,10 @@ The secret service is an integral part of edge-kit. Ensure your project is set u
 ## Basic Usage with `KvSecretStorageService`
 
 ```typescript
-import { KvSecretStorageService } from '@/services/secret/kv-secret-storage-service';
-import { DrizzleKeyValueService } from '@/services/key-value/drizzle-key-value'; // Example KV service
 import { db } from '@/database/client'; // Your Drizzle DB instance
 import { keyValueTable } from '@/database/schema'; // Your key-value schema
+import { DrizzleKeyValueService } from '@/services/key-value/drizzle-key-value'; // Example KV service
+import { KvSecretStorageService } from '@/services/secret/kv-secret-storage-service';
 import { stringToArrayBuffer } from '@/utils/buffer-utils';
 
 // 1. Initialize the Key-Value Service (example with Drizzle)
@@ -101,27 +101,16 @@ if (!MASTER_KEY_STRING) {
 const masterKeyArrayBuffer = stringToArrayBuffer(MASTER_KEY_STRING);
 
 // 3. Initialize the KvSecretStorageService
-const secretService = new KvSecretStorageService(
-  keyValueService,
-  masterKeyArrayBuffer,
-  {
-    secretPrefix: 'myapp:secrets:', // Optional: custom prefix
-    pbkdf2Iterations: 150000, // Optional: override PBKDF2 iterations
-  }
-);
+const secretService = new KvSecretStorageService(keyValueService, masterKeyArrayBuffer, {
+  secretPrefix: 'myapp:secrets:', // Optional: custom prefix
+  pbkdf2Iterations: 150000, // Optional: override PBKDF2 iterations
+});
 
 // --- Store a secret (string) ---
-await secretService.storeSecret(
-  'apiKey',
-  'my-super-secret-api-key',
-  'external-services'
-);
+await secretService.storeSecret('apiKey', 'my-super-secret-api-key', 'external-services');
 
 // --- Retrieve a secret (string) ---
-const apiKey = await secretService.getSecret<string>(
-  'apiKey',
-  'external-services'
-);
+const apiKey = await secretService.getSecret<string>('apiKey', 'external-services');
 if (apiKey) {
   console.log('Retrieved API Key:', apiKey);
 }
@@ -135,14 +124,11 @@ interface UserAuth {
 await secretService.storeSecret<UserAuth>(
   'user-123-auth',
   { accessToken: 'abc', refreshToken: 'xyz', expiresAt: Date.now() + 3600000 },
-  'user-credentials'
+  'user-credentials',
 );
 
 // --- Retrieve an object ---
-const userAuth = await secretService.getSecret<UserAuth>(
-  'user-123-auth',
-  'user-credentials'
-);
+const userAuth = await secretService.getSecret<UserAuth>('user-123-auth', 'user-credentials');
 if (userAuth) {
   console.log('User Access Token:', userAuth.accessToken);
 }
@@ -186,16 +172,14 @@ You might create a wrapper class or a set of utility functions:
 ```typescript
 // Conceptual IntegrationSecrets - build this yourself if needed
 import { KvSecretStorageService } from '@/services/secret/kv-secret-storage-service';
+
 // ... other imports
 
 export class IntegrationSecretsManager {
   private secretService: KvSecretStorageService;
   private baseNamespace: string;
 
-  constructor(
-    secretService: KvSecretStorageService,
-    baseNamespace: string = 'integrations'
-  ) {
+  constructor(secretService: KvSecretStorageService, baseNamespace: string = 'integrations') {
     this.secretService = secretService;
     this.baseNamespace = baseNamespace;
   }
@@ -204,36 +188,16 @@ export class IntegrationSecretsManager {
     return `${this.baseNamespace}:${integrationType}`;
   }
 
-  async storeCredentials<T>(
-    serviceId: string,
-    integrationType: string,
-    credentials: T
-  ): Promise<void> {
-    await this.secretService.storeSecret<T>(
-      serviceId,
-      credentials,
-      this.getNamespace(integrationType)
-    );
+  async storeCredentials<T>(serviceId: string, integrationType: string, credentials: T): Promise<void> {
+    await this.secretService.storeSecret<T>(serviceId, credentials, this.getNamespace(integrationType));
   }
 
-  async getCredentials<T>(
-    serviceId: string,
-    integrationType: string
-  ): Promise<T | null> {
-    return this.secretService.getSecret<T>(
-      serviceId,
-      this.getNamespace(integrationType)
-    );
+  async getCredentials<T>(serviceId: string, integrationType: string): Promise<T | null> {
+    return this.secretService.getSecret<T>(serviceId, this.getNamespace(integrationType));
   }
 
-  async deleteCredentials(
-    serviceId: string,
-    integrationType: string
-  ): Promise<void> {
-    await this.secretService.deleteSecret(
-      serviceId,
-      this.getNamespace(integrationType)
-    );
+  async deleteCredentials(serviceId: string, integrationType: string): Promise<void> {
+    await this.secretService.deleteSecret(serviceId, this.getNamespace(integrationType));
   }
 
   // ... other methods like hasCredentials, rotateCredentialsKey etc.
@@ -250,7 +214,6 @@ This approach uses distinct namespaces for different integration types (e.g., `i
 ## Security Considerations
 
 1.  **Master Key Management**:
-
     - The security of all encrypted data hinges on the secrecy and strength of your `masterKey`.
     - **NEVER** hardcode the master key in your application code.
     - Store it in secure environment variables (e.g., `.env` files, platform-specific secret management like Vercel Environment Variables, AWS Secrets Manager, Google Secret Manager).
@@ -258,25 +221,20 @@ This approach uses distinct namespaces for different integration types (e.g., `i
     - Consider using a dedicated key management service (KMS) for handling the master key if your infrastructure supports it.
 
 2.  **Key Rotation**:
-
     - Regularly rotate your master key according to your organization's security policies. The `rotateSecretKey` method facilitates this by allowing re-encryption of secrets with a new key.
     - When rotating to a new master key using `rotateSecretKey(key, namespace, newMasterKeyString)`, the `KvSecretStorageService` updates the specific secret. However, the service instance itself will revert to using its originally configured master key for subsequent operations unless you re-initialize it with the new master key. Plan your key rotation strategy accordingly.
 
 3.  **Secure Environment**:
-
     - Ensure your application runtime environment (Node.js, Edge functions) is secure. Decrypted secrets will reside in memory during processing.
     - Protect against unauthorized access to your environment variables and deployment artifacts.
 
 4.  **Nonce and Salt Management**:
-
     - The `EncryptionService` automatically generates a unique, random salt for PBKDF2 key derivation and a unique, random nonce (IV) for AES-GCM encryption for each secret stored. This is crucial for security and prevents attacks like nonce reuse. These are stored alongside the ciphertext.
 
 5.  **Data Integrity**:
-
     - AES-GCM is an Authenticated Encryption with Associated Data (AEAD) mode. This means it provides both confidentiality (encryption) and integrity/authenticity (authentication tag). The `decrypt` method will automatically verify the authentication tag. If the ciphertext or associated data has been tampered with, decryption will fail, preventing the use of corrupted or malicious data.
 
 6.  **Error Handling**:
-
     - The `getSecret` method in `KvSecretStorageService` is designed to return `null` if a secret is not found or if decryption fails (e.g., due to a wrong key or tampered data). This allows applications to handle such cases gracefully without crashing. Check for `null` and handle appropriately.
     - Log decryption failures securely if needed for auditing, but be cautious about logging sensitive details.
 

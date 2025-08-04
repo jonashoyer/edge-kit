@@ -1,9 +1,11 @@
 # Edge Kit Documentation
 
 ## Introduction
+
 Edge Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate development with high-quality, copy-paste-ready components. It's ideal for NextJS and other serverless platforms, prioritizing type safety and ease of use.
 
 ## Documentation Structure
+
 - [Getting Started](./getting-started.md)
 - [Core Concepts](./core-concepts.md)
 - Services
@@ -21,6 +23,7 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 - [Utilities](./utils.md)
 
 ## Project Structure
+
 ```
 edge-kit/
 ├── src/              # Source code
@@ -32,12 +35,14 @@ edge-kit/
 ```
 
 ## Key Features
+
 - **Modular Design**: Copy and use only what you need
 - **AI-Editor-First**: Designed to work seamlessly with AI editors
 - **Type Safety**: Strongly typed components for robust development
 - **Serverless-Ready**: Optimized for NextJS and similar platforms
 
 ## Development Philosophy
+
 Edge Kit is built with a "copy-paste-ready" philosophy. Instead of being a package you install, you can examine the implementations and copy exactly what you need into your project. This approach gives you:
 
 1. Complete control over your dependencies
@@ -46,6 +51,7 @@ Edge Kit is built with a "copy-paste-ready" philosophy. Instead of being a packa
 4. Excellent learning opportunities about implementation details
 
 ## Next Steps
+
 - Read [Getting Started](./getting-started.md) to set up your development environment
 - Explore [Core Concepts](./core-concepts.md) to understand the design philosophy
-- Browse the services documentation to find the components you need 
+- Browse the services documentation to find the components you need

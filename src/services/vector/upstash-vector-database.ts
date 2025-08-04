@@ -1,12 +1,21 @@
-import { Index } from "@upstash/vector";
-import { AbstractVectorDatabase, VectorDatabaseOptions, VectorEntry, VectorQueryOptions } from './abstract-vector-database';
+import { Index } from '@upstash/vector';
+
+import {
+  AbstractVectorDatabase,
+  VectorDatabaseOptions,
+  VectorEntry,
+  VectorQueryOptions,
+} from './abstract-vector-database';
 
 interface UpstashVectorOptions extends VectorDatabaseOptions {
   url: string;
   token: string;
 }
 
-export class UpstashVectorDatabase<TMetadata = Record<string, any>> extends AbstractVectorDatabase<TMetadata, number[]> {
+export class UpstashVectorDatabase<TMetadata = Record<string, any>> extends AbstractVectorDatabase<
+  TMetadata,
+  number[]
+> {
   private client: Index;
 
   constructor(options: UpstashVectorOptions) {
@@ -19,7 +28,7 @@ export class UpstashVectorDatabase<TMetadata = Record<string, any>> extends Abst
 
   async upsert(namespace: string, entries: VectorEntry<number[], TMetadata, true>[]): Promise<void> {
     await this.client.upsert(
-      entries.map(entry => ({
+      entries.map((entry) => ({
         id: entry.id,
         vector: entry.vector,
         metadata: entry.metadata,
@@ -32,14 +41,17 @@ export class UpstashVectorDatabase<TMetadata = Record<string, any>> extends Abst
     namespace: string,
     vector: number[],
     topK: number,
-    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
+    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>,
   ): Promise<VectorEntry<number[], TMetadata, TIncludeVectors>[]> {
-    const results = await this.client.query({
-      vector,
-      topK,
-      includeVectors: opts?.includeVectors,
-      includeMetadata: opts?.includeMetadata,
-    }, { namespace });
+    const results = await this.client.query(
+      {
+        vector,
+        topK,
+        includeVectors: opts?.includeVectors,
+        includeMetadata: opts?.includeMetadata,
+      },
+      { namespace },
+    );
 
     return results.map((result: any) => ({
       id: result.id,
@@ -55,7 +67,7 @@ export class UpstashVectorDatabase<TMetadata = Record<string, any>> extends Abst
   async list<TIncludeVectors extends boolean, TIncludeMetadata extends boolean>(
     namespace: string,
     ids: string[],
-    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
+    opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>,
   ): Promise<(VectorEntry<number[], TMetadata, TIncludeVectors, TIncludeMetadata> | null)[]> {
     const results = await this.client.fetch(ids, {
       includeVectors: opts?.includeVectors,
@@ -63,13 +75,13 @@ export class UpstashVectorDatabase<TMetadata = Record<string, any>> extends Abst
       namespace,
     });
 
-    return results.map(e => {
+    return results.map((e) => {
       if (!e) return null;
       return {
         id: e.id,
         vector: opts?.includeVectors ? e.vector : undefined,
         metadata: opts?.includeMetadata ? e.metadata : undefined,
-      }
+      };
     }) as (VectorEntry<number[], TMetadata, TIncludeVectors, TIncludeMetadata> | null)[];
   }
 }

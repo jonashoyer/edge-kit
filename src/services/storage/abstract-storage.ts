@@ -4,7 +4,7 @@ export interface StorageOptions {
 }
 
 export abstract class AbstractStorage {
-  constructor(protected options: StorageOptions) { }
+  constructor(protected options: StorageOptions) {}
 
   abstract upload(key: string, data: Buffer): Promise<void>;
   abstract download(key: string): Promise<Buffer>;

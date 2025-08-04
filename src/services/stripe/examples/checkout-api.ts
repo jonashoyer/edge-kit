@@ -1,14 +1,15 @@
 /**
  * Example Stripe checkout API endpoint
- * 
+ *
  * This would typically be placed in app/api/stripe/checkout/route.ts
  * for a Next.js App Router project
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
+
 import { StripeService } from '..';
 import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
-import Stripe from 'stripe';
 import { StripeKVStore } from '../kv-store';
 
 // Example auth helper, replace with your own auth implementation
@@ -52,17 +53,13 @@ function getStripeService() {
     },
   });
 
-  return new StripeService(
-    store,
-    stripe,
-    {
-      baseUrl: process.env.APP_URL || 'http://localhost:3000',
-      successPath: '/billing/success',
-      cancelPath: '/billing',
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
-      secretKey: process.env.STRIPE_SECRET_KEY,
-    }
-  );
+  return new StripeService(store, stripe, {
+    baseUrl: process.env.APP_URL || 'http://localhost:3000',
+    successPath: '/billing/success',
+    cancelPath: '/billing',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    secretKey: process.env.STRIPE_SECRET_KEY,
+  });
 }
 
 // Example API handler for creating a subscription checkout
@@ -71,37 +68,24 @@ export async function POST(req: NextRequest) {
     const user = await getAuthenticatedUser(req);
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     const data = await req.json();
     const { priceId } = data;
 
     if (!priceId) {
-      return NextResponse.json(
-        { error: 'Price ID is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Price ID is required' }, { status: 400 });
     }
 
     const stripeService = getStripeService();
 
-    const checkoutSession = await stripeService.createSubscriptionCheckout(
-      user.id,
-      user.email,
-      priceId
-    );
+    const checkoutSession = await stripeService.createSubscriptionCheckout(user.id, user.email, priceId);
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
     console.error('Checkout error:', error);
 
-    return NextResponse.json(
-      { error: 'Failed to create checkout session' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
   }
-} 
+}

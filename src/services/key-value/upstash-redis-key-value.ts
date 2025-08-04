@@ -1,6 +1,7 @@
 import { Redis } from '@upstash/redis';
-import { AbstractKeyValueService } from './abstract-key-value';
+
 import { Nullable } from '../../utils/type-utils';
+import { AbstractKeyValueService } from './abstract-key-value';
 
 export class UpstashRedisKeyValueService extends AbstractKeyValueService {
   private client: Redis;
