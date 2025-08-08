@@ -33,7 +33,7 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 
 ### Vector Database
 
-- [Upstash Vector](./src/services/vector-database/upstash-vector-database.ts)
+- [Upstash Vector](./src/services/vector/upstash-vector-database.ts)
 
 ### Logging
 
@@ -50,6 +50,10 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 
 - [PostHog](./src/services/analytics/posthog-analytics.ts)
 
+### LLM
+
+- [Optimistic LLM warm-up](./src/services/llm/optimistic-llm.ts) – proactively warms provider token caches. See `./src/services/llm/README.md` for usage.
+
 ### Feature Flag
 
 - [Client-side Feature Flag](./src/services/feature-flag/feature-flag.ts)
@@ -63,10 +67,11 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 
 - [Namespace Composer](./src/composers/namespace-composer.ts): Manage key-value pairs efficiently
 - [Prompt Composer](./src/composers/prompt-composer.ts): Build prompts for LLMs with ease
+- [Template Composer](./src/composers/template-composer.ts): Simple string templating with named variables
 
 ## 🧰 Utilities
 
-Q Kit includes a rich set of utility functions to streamline common tasks:
+Edge Kit includes a rich set of utility functions to streamline common tasks:
 
 - [Array](./src/utils/array-utils.ts) - Array manipulation functions
 - [Crypto](./src/utils/crypto-utils.ts) - Cryptography-related utilities
