@@ -16,32 +16,6 @@ export const getStackTrace = () => {
 
 export const clone = <T>(value: T) => JSON.parse(JSON.stringify(value)) as T;
 
-export interface FetchExtOptions {
-  url: string;
-  init?: RequestInit;
-  timeout?: number;
-}
-
-export const fetchExt = async (opts: FetchExtOptions) => {
-  const timeout = opts.timeout ?? 10000;
-
-  const controller = new AbortController();
-  const signal = controller.signal;
-
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const res = await fetch(opts.url, { signal, ...opts.init });
-    clearTimeout(timeoutId);
-    return res;
-  } catch (error) {
-    if (error instanceof Error && error.name === 'AbortError') {
-      throw new Error('Fetch request timed out');
-    }
-    throw error;
-  }
-};
-
 /**
  * Memoizes a function.
  * @param fn The function to memoize.

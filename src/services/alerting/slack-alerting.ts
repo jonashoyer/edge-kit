@@ -1,4 +1,4 @@
-import { fetchExt } from '../../utils/misc-utils';
+import { fetchExt } from '../../utils/fetch-utils';
 import { AbstractLogger } from '../logging/abstract-logger';
 import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
 
