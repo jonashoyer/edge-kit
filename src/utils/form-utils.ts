@@ -46,12 +46,11 @@ export const zFile = (opts?: ZFileOptions) =>
       },
       `The maximum size is ${opts?.maxSize ?? 'N/A'}MB`,
     )
-    .refine(
-      (file) => {
-        return !opts?.acceptedTypes || opts.acceptedTypes.includes(file.type);
-      },
-      (file) => ({ message: `File type is not supported (${file.type})` }),
-    );
+    .superRefine((file: File, ctx) => {
+      if (opts?.acceptedTypes && !opts.acceptedTypes.includes(file.type)) {
+        ctx.addIssue({ code: 'custom', message: `File type is not supported (${file.type})` });
+      }
+    });
 
 const sizeInMB = (sizeInBytes: number) => {
   return sizeInBytes / (1024 * 1024);

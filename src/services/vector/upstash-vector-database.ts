@@ -26,12 +26,12 @@ export class UpstashVectorDatabase<TMetadata = Record<string, any>> extends Abst
     });
   }
 
-  async upsert(namespace: string, entries: VectorEntry<number[], TMetadata, true>[]): Promise<void> {
+  async upsert(namespace: string, entries: VectorEntry<number[], TMetadata, true, true>[]): Promise<void> {
     await this.client.upsert(
       entries.map((entry) => ({
         id: entry.id,
         vector: entry.vector,
-        metadata: entry.metadata,
+        metadata: entry.metadata as any,
       })),
       { namespace },
     );

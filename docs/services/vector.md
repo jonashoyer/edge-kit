@@ -1,3 +1,54 @@
+# Vector + RAG Basics
+
+Edge Kit includes a minimal RAG foundation built on the `AbstractVectorDatabase` and AI SDK.
+
+## Components
+
+- Vector DB: `UpstashVectorDatabase` (or bring your own)
+- Embeddings: AI SDK `embedMany` with a provider model (e.g., `voyage.textEmbeddingModel('voyage-3')`)
+- Chunker: `SimpleChunker`
+- Optional Reranker: `SimpleReranker` (LLM-scoring fallback)
+- Unified Service: `RagService` (handles chunking, embeddings, vector upsert/query, and optional rerank)
+
+## Quick Start
+
+```ts
+// Embedding model (Voyage via AI SDK provider)
+import { voyage } from 'voyage-ai-provider';
+
+import { RagService } from '@/services/rag/rag-service';
+import { SimpleChunker } from '@/services/rag/simple-chunker';
+import { SimpleReranker } from '@/services/rag/simple-reranker';
+// Optional reranking (Voyage reranker)
+import { VoyageReranker } from '@/services/rag/voyage-reranker';
+import { UpstashVectorDatabase } from '@/services/vector/upstash-vector-database';
+
+// Vector DB
+const vectorDb = new UpstashVectorDatabase({ url: process.env.VECTOR_URL!, token: process.env.VECTOR_TOKEN! });
+
+const embeddingModel = voyage.textEmbeddingModel('voyage-3');
+
+// Unified RAG service
+const rag = new RagService({ vectorDb, embeddingModel });
+
+// Chunking
+const chunker = new SimpleChunker({ maxTokens: 300, overlapTokens: 30 });
+
+const doc = '... your long text ...';
+await rag.indexDocument({ namespace: 'my-namespace', docId: 'doc-1', text: doc, baseMetadata: { source: 'example' } });
+
+// Retrieval
+const results = await rag.search({ namespace: 'my-namespace', query: 'what does it say about pricing?', topK: 8 });
+
+const reranker = new VoyageReranker({ apiKey: process.env.VOYAGE_API_KEY!, model: 'rerank-1' });
+const rerankedResults = await rag.search({
+  namespace: 'my-namespace',
+  query: 'what does it say about pricing?',
+  topK: 8,
+  rerank: true,
+});
+```
+
 # Vector Database Services
 
 Edge Kit provides abstract and concrete implementations for vector databases, allowing you to store, retrieve, and query vector embeddings for AI and machine learning applications.

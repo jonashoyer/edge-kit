@@ -17,9 +17,9 @@ export interface VectorQueryOptions<TIncludeVectors extends boolean, TIncludeMet
 }
 
 export abstract class AbstractVectorDatabase<TMetadata = Record<string, any>, TVector = number[]> {
-  constructor(protected options: VectorDatabaseOptions) {}
+  constructor(protected options: VectorDatabaseOptions) { }
 
-  abstract upsert(namespace: string, entries: VectorEntry<TVector, TMetadata, true>[]): Promise<void>;
+  abstract upsert(namespace: string, entries: VectorEntry<TVector, TMetadata, true, true>[]): Promise<void>;
   abstract delete(namespace: string, ids: string[]): Promise<void>;
 
   abstract query<TIncludeVectors extends boolean, TIncludeMetadata extends boolean>(

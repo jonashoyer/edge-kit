@@ -35,6 +35,14 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 
 - [Upstash Vector](./src/services/vector/upstash-vector-database.ts)
 
+### RAG (Retrieval)
+
+- [RAG Service](./src/services/rag/rag-service.ts): End-to-end chunking, indexing, and search
+- [Voyage Reranker](./src/services/rag/voyage-reranker.ts): Optional reranking for better relevance
+- [Contextualized Embeddings](./src/services/rag/contextualized-embedder.ts): Optional Voyage `voyage-context-3` integration for context-aware chunk embeddings
+
+Contextualized embeddings are useful when chunks lose global document context; see Voyage docs for details: [Contextualized Chunk Embeddings](https://docs.voyageai.com/docs/contextualized-chunk-embeddings).
+
 ### Logging
 
 - [Axiom](./src/services/logging/axiom-logger.ts)
