@@ -1,29 +1,28 @@
-import { z } from 'zod';
+import { arrayBufferToBase64Url, arrayBufferToString, base64UrlToArrayBuffer, stringToArrayBuffer } from "../../utils/buffer-utils";
+import { generateRandomBuffer } from "../../utils/crypto-utils";
 
-import {
-  arrayBufferToBase64Url,
-  arrayBufferToString,
-  base64UrlToArrayBuffer,
-  stringToArrayBuffer,
-} from '../../utils/buffer-utils';
-import { generateRandomBuffer } from '../../utils/crypto-utils';
-
-export const encryptedDataSchema = z.object({
-  data: z.instanceof(ArrayBuffer),
-  nonce: z.instanceof(ArrayBuffer),
-  salt: z.instanceof(ArrayBuffer),
-  algorithm: z.object({
-    name: z.string(),
-    pbkdf2Iterations: z.number(),
-  }),
-});
-export type EncryptedData = z.infer<typeof encryptedDataSchema>;
+/**
+ * Structure of encrypted data
+ */
+export interface EncryptedData {
+  /** The encrypted data as a Base64 URL-safe string */
+  data: ArrayBuffer;
+  /** Nonce (Number used Once) used for encryption as a Base64 URL-safe string */
+  nonce: ArrayBuffer;
+  /** Salt used for key derivation as a Base64 URL-safe string */
+  salt: ArrayBuffer;
+  /** Encryption algorithm details */
+  algorithm: {
+    name: string;
+    pbkdf2Iterations: number;
+  };
+}
 
 /**
  * Basic encryption service using AES-256-GCM
  */
 export class EncryptionService {
-  private masterKeyMaterial: ArrayBuffer;
+  private masterKeyMaterial: BufferSource;
   private pbkdf2Iterations: number;
   private nonceLength: number;
   private saltLength: number;
@@ -34,13 +33,14 @@ export class EncryptionService {
    * @param options - Additional configuration options
    */
   constructor(
-    masterKey: ArrayBuffer,
+    masterKey: BufferSource,
     options: {
       pbkdf2Iterations?: number;
       nonceLength?: number;
       saltLength?: number;
-    } = {},
+    } = {}
   ) {
+    // Normalize to ArrayBuffer to satisfy subtle.importKey raw usage
     this.masterKeyMaterial = masterKey;
     this.pbkdf2Iterations = options.pbkdf2Iterations ?? 100_000;
     this.nonceLength = options.nonceLength ?? 12;
@@ -51,25 +51,31 @@ export class EncryptionService {
    * Imports the master key material for use with PBKDF2
    */
   private async getMasterKeyForPbkdf2(): Promise<CryptoKey> {
-    return crypto.subtle.importKey('raw', this.masterKeyMaterial, { name: 'PBKDF2' }, false, ['deriveKey']);
+    return crypto.subtle.importKey(
+      'raw',
+      this.masterKeyMaterial,
+      { name: 'PBKDF2' },
+      false,
+      ['deriveKey']
+    );
   }
 
   /**
    * Derives an encryption key from the master key and salt using PBKDF2
    */
-  private async deriveKey(salt: ArrayBuffer, pbkdf2Iterations?: number): Promise<CryptoKey> {
+  private async deriveKey(salt: BufferSource, pbkdf2Iterations?: number): Promise<CryptoKey> {
     const masterCryptoKey = await this.getMasterKeyForPbkdf2();
     return crypto.subtle.deriveKey(
       {
         name: 'PBKDF2',
-        salt: salt,
+        salt,
         iterations: pbkdf2Iterations ?? this.pbkdf2Iterations,
         hash: 'SHA-256',
       },
       masterCryptoKey,
       { name: 'AES-GCM', length: 256 },
       false, // Non-extractable for better security
-      ['encrypt', 'decrypt'],
+      ['encrypt', 'decrypt']
     );
   }
 
@@ -77,7 +83,7 @@ export class EncryptionService {
    * Set a new master key
    * @param masterKey - The new master key to use
    */
-  setMasterKey(masterKey: ArrayBuffer): void {
+  setMasterKey(masterKey: BufferSource): void {
     this.masterKeyMaterial = masterKey;
   }
 
@@ -91,7 +97,7 @@ export class EncryptionService {
     const salt = generateRandomBuffer(this.saltLength);
 
     // Derive encryption key from master key and salt
-    const derivedKey = await this.deriveKey(salt.buffer);
+    const derivedKey = await this.deriveKey(salt);
 
     // Generate a random nonce for AES-GCM
     const nonce = generateRandomBuffer(this.nonceLength);
@@ -107,14 +113,14 @@ export class EncryptionService {
         tagLength: 128, // Authentication tag length (128 bits)
       },
       derivedKey,
-      dataToEncrypt,
+      dataToEncrypt
     );
 
     // Return encrypted data with all metadata needed for decryption
     return {
       data,
-      nonce: nonce.buffer,
-      salt: salt.buffer,
+      nonce: nonce.buffer.slice(nonce.byteOffset, nonce.byteOffset + nonce.byteLength),
+      salt: salt.buffer.slice(salt.byteOffset, salt.byteOffset + salt.byteLength),
       algorithm: {
         name: 'AES-GCM',
         pbkdf2Iterations: this.pbkdf2Iterations,
@@ -142,7 +148,7 @@ export class EncryptionService {
           tagLength: 128,
         },
         derivedKey,
-        data,
+        data
       );
 
       return arrayBufferToString(decryptedBuffer);
@@ -154,20 +160,21 @@ export class EncryptionService {
     }
   }
 
+
   async encryptStringified(value: string): Promise<string> {
     const encryptedData = await this.encrypt(value);
     return `#${encryptedData.algorithm.name}:${encryptedData.algorithm.pbkdf2Iterations}:${arrayBufferToBase64Url(encryptedData.data)}:${arrayBufferToBase64Url(encryptedData.nonce)}:${arrayBufferToBase64Url(encryptedData.salt)}`;
   }
 
   async decryptStringified(value: string): Promise<string> {
-    const regex = /^#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
+    const regex = /^\#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
 
-    const match = value.match(regex);
+    const match = regex.exec(value);
     if (!match) {
       throw new Error('Invalid encrypted data');
     }
 
-    const [algorithmName, pbkdf2Iterations, data, nonce, salt] = match.slice(1);
+    const [algorithmName, pbkdf2Iterations, data, nonce, salt] = match.slice(1) as [string, string, string, string, string];
     const encryptedData = await this.decrypt({
       data: base64UrlToArrayBuffer(data),
       nonce: base64UrlToArrayBuffer(nonce),
@@ -179,4 +186,4 @@ export class EncryptionService {
     });
     return encryptedData;
   }
-}
+} 
