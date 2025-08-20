@@ -1,4 +1,5 @@
-import { embedMany } from 'ai';
+import { embedMany, } from 'ai';
+import { EmbeddingModelV2 } from '@ai-sdk/provider';
 import { ContextualizedEmbedder, VoyageContextualizedEmbedder } from './contextualized-embedder';
 
 import type { AbstractVectorDatabase, VectorEntry } from '../vector/abstract-vector-database';
@@ -20,7 +21,7 @@ export interface Reranker<TMeta = RagChunkMetadataBase> {
 
 export interface RagServiceOptions<TMeta extends RagChunkMetadataBase = RagChunkMetadataBase> {
   vectorDb: AbstractVectorDatabase<TMeta, number[]>;
-  embeddingModel: unknown; // model from AI SDK provider (e.g. voyage.textEmbeddingModel('voyage-3'))
+  embeddingModel: EmbeddingModelV2<any>; // model from AI SDK provider (e.g. voyage.textEmbeddingModel('voyage-3'))
   chunker?: SimpleChunker;
   reranker?: Reranker<TMeta>;
   storeTextInMetadata?: boolean; // default: true (recommended for reranking)
@@ -52,7 +53,7 @@ export interface SearchOptions {
 
 export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBase> {
   private readonly vectorDb: AbstractVectorDatabase<TMeta, number[]>;
-  private readonly embeddingModel: any;
+  private readonly embeddingModel: EmbeddingModelV2<any>;
   private readonly chunker: SimpleChunker;
   private readonly reranker?: Reranker<TMeta>;
   private readonly storeTextInMetadata: boolean;
@@ -61,7 +62,7 @@ export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBas
 
   constructor(options: RagServiceOptions<TMeta>) {
     this.vectorDb = options.vectorDb;
-    this.embeddingModel = options.embeddingModel as any;
+    this.embeddingModel = options.embeddingModel;
     // Voyage contextualized embeddings recommend no overlap
     if (options.contextualized?.enabled && !options.chunker) {
       this.chunker = new SimpleChunker({ maxTokens: 300, overlapTokens: 0 });
@@ -129,8 +130,8 @@ export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBas
       queryVector = (embeddings as any)[0] as number[];
     }
     const results = await this.vectorDb.query(options.namespace, queryVector, topK, {
-      includeMetadata: (options.includeMetadata ?? true) as any,
-      includeVectors: (options.includeVectors ?? false) as any,
+      includeMetadata: (options.includeMetadata ?? true),
+      includeVectors: (options.includeVectors ?? false),
     });
 
     if (!options.rerank || !this.reranker) return results;

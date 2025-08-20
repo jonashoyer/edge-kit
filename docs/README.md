@@ -21,6 +21,7 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
   - [YouTube Integration](./services/youtube.md)
 - [Composers](./composers.md)
 - [Utilities](./utils.md)
+- [LLM](./services/llm.md)
 
 ## Project Structure
 

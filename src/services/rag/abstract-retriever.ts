@@ -1,4 +1,4 @@
-import { AbstractVectorDatabase, VectorEntry } from '../vector/abstract-vector-database';
+import { VectorEntry } from '../vector/abstract-vector-database';
 
 export interface ChunkedDocumentMeta {
   docId: string;
@@ -18,7 +18,7 @@ export interface EmbedderService {
 }
 
 export abstract class AbstractRetriever<TMetadata extends ChunkedDocumentMeta = ChunkedDocumentMeta> {
-  protected constructor(protected vectorDb: AbstractVectorDatabase<TMetadata, number[]>) { }
+  // protected constructor(protected vectorDb: AbstractVectorDatabase<TMetadata, number[]>) { }
 
   abstract upsert(namespace: string, chunks: Array<{ id: string; text: string; metadata: TMetadata }>): Promise<void>;
 
