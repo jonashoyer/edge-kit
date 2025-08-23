@@ -148,17 +148,154 @@ export interface GetRecordResponse<TValuesMap = AttioValuesMap> {
   data: AttioRecordData<TValuesMap>;
 }
 
+// Filter typings for query records
+/**
+ * Comparison operators supported by Attio API for filtering records.
+ * See: https://developers.attio.com/reference
+ */
+export type AttioComparisonOperator =
+  | '$eq'        // Equal to
+  | '$not_empty' // Has any value defined
+  | '$in'        // Value is in the given set
+  | '$contains'  // String contains (case-insensitive)
+  | '$starts_with' // String starts with
+  | '$ends_with'   // String ends with
+  | '$lt'        // Less than
+  | '$lte'       // Less than or equal
+  | '$gte'       // Greater than or equal
+  | '$gt';       // Greater than
+
+/**
+ * Logical operators for combining multiple filter conditions.
+ */
+export type AttioLogicalOperator = '$and' | '$or' | '$not';
+
+/**
+ * Basic filter condition using shorthand or verbose syntax.
+ * Supports both simple equality checks and complex comparison operations.
+ *
+ * Examples:
+ * - Shorthand: { "name": "John Smith", "email_addresses": "john@smith.com" }
+ * - Verbose: { "name": { "$eq": "John Smith" }, "email_addresses": { "$contains": "@company.com" } }
+ */
+export interface AttioFilterCondition {
+  [attribute: string]:
+  | string
+  | number
+  | boolean
+  | Array<string | number>
+  | Record<string, unknown>
+  | {
+    [K in AttioComparisonOperator]?: string | number | boolean | Array<string | number>;
+  };
+}
+
+/**
+ * Path-based filter for drilling down into related records.
+ * Used for filtering by parent record attributes or complex relationships.
+ *
+ * Example:
+ * {
+ *   path: [["candidates", "parent_record"], ["people", "email_addresses"]],
+ *   constraints: { "email_domain": "apple.com" }
+ * }
+ */
+export interface AttioPathFilter {
+  path: Array<[string, string]>;
+  constraints: Record<string, unknown>;
+}
+
+/**
+ * Logical filter for combining multiple conditions with AND, OR, NOT operators.
+ *
+ * Examples:
+ * - AND: { "$and": [{ "stage": "In Progress" }, { "name": { "$contains": "Apple" } }] }
+ * - OR: { "$or": [{ "stage": "One" }, { "stage": "Two" }] }
+ * - NOT: { "$not": { "stage": "In Progress" } }
+ */
+export interface AttioLogicalFilter {
+  $and?: AttioFilter[];
+  $or?: AttioFilter[];
+  $not?: AttioFilter;
+}
+
+/**
+ * Union type representing all possible filter structures supported by Attio API.
+ */
+export type AttioFilter = AttioFilterCondition | AttioLogicalFilter | AttioPathFilter;
+
+// Helper types for common filter patterns
+export interface AttioTextAttributeFilter {
+  $eq?: string;
+  $contains?: string;
+  $starts_with?: string;
+  $ends_with?: string;
+  $not_empty?: boolean;
+}
+
+export interface AttioNumericAttributeFilter {
+  $eq?: number;
+  $lt?: number;
+  $lte?: number;
+  $gte?: number;
+  $gt?: number;
+  $not_empty?: boolean;
+}
+
+export interface AttioDateAttributeFilter {
+  $eq?: string;
+  $lt?: string;
+  $lte?: string;
+  $gte?: string;
+  $gt?: string;
+  $not_empty?: boolean;
+}
+
+export interface AttioSelectAttributeFilter {
+  $eq?: string;
+  $in?: string[];
+  $not_empty?: boolean;
+}
+
+export interface AttioReferenceAttributeFilter {
+  target_object?: string;
+  target_record_id?: string;
+  $not_empty?: boolean;
+}
+
+export interface AttioEmailAttributeFilter {
+  email_address?: AttioTextAttributeFilter;
+  email_domain?: AttioTextAttributeFilter;
+  email_root_domain?: AttioTextAttributeFilter;
+  $not_empty?: boolean;
+}
+
+export interface AttioPhoneAttributeFilter {
+  phone_number?: AttioTextAttributeFilter;
+  country_code?: AttioTextAttributeFilter;
+  $not_empty?: boolean;
+}
+
+export interface AttioLocationAttributeFilter {
+  locality?: AttioTextAttributeFilter;
+  region?: AttioTextAttributeFilter;
+  postcode?: AttioTextAttributeFilter;
+  country_code?: AttioTextAttributeFilter;
+  $not_empty?: boolean;
+}
+
 // Query records typings
 export type AttioSortDirection = 'asc' | 'desc';
 
 export interface AttioQuerySort {
   direction: AttioSortDirection;
-  attribute: string;
+  attribute?: string;
   field?: string;
+  path?: Array<[string, string]>;
 }
 
 export interface QueryRecordsRequest {
-  filter?: unknown;
+  filter?: AttioFilter;
   sorts?: AttioQuerySort[];
   limit?: number;
   offset?: number;
@@ -362,5 +499,3 @@ export class AttioAPI {
     return await res.json();
   }
 }
-
-
