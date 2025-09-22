@@ -1,11 +1,19 @@
-import { arrayBufferToBase64Url } from './buffer-utils';
+import { arrayBufferToBase64Url } from "./buffer-utils";
 
 const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array => {
-  return typeof data === 'string' ? new TextEncoder().encode(data) : new Uint8Array(data);
+  return typeof data === "string"
+    ? new TextEncoder().encode(data)
+    : new Uint8Array(data);
 };
 
-export async function sha256(data: string | ArrayBuffer, salt?: Uint8Array): Promise<ArrayBuffer> {
-  const buff = await crypto.subtle.digest('SHA-256', new Uint8Array([...dataToUint8Array(data), ...(salt ?? [])]));
+export async function sha256(
+  data: string | ArrayBuffer,
+  salt?: Uint8Array
+): Promise<ArrayBuffer> {
+  const buff = await crypto.subtle.digest(
+    "SHA-256",
+    new Uint8Array([...dataToUint8Array(data), ...(salt ?? [])])
+  );
   return buff;
 }
 
@@ -15,7 +23,10 @@ export async function sha256(data: string | ArrayBuffer, salt?: Uint8Array): Pro
  * @param salt - An optional salt to add to the data
  * @returns The hashed data as a Base64URL string
  */
-export async function sha256Base64(data: string | ArrayBuffer, salt?: Uint8Array): Promise<string> {
+export async function sha256Base64(
+  data: string | ArrayBuffer,
+  salt?: Uint8Array
+): Promise<string> {
   const hashBuffer = await sha256(data, salt);
   return arrayBufferToBase64Url(hashBuffer);
 }
@@ -26,20 +37,25 @@ export async function sha256Base64(data: string | ArrayBuffer, salt?: Uint8Array
  * @param salt - An optional salt to add to the IP address
  * @returns The hashed IP address as a Base64URL string
  */
-export async function sha256IpBase64(ip: string, salt?: Uint8Array): Promise<string> {
-  const ipBytes = new Uint8Array(ip.split('.').map((e) => parseInt(e, 10)));
+export async function sha256IpBase64(
+  ip: string,
+  salt?: Uint8Array
+): Promise<string> {
+  const ipBytes = new Uint8Array(
+    ip.split(".").map((e) => Number.parseInt(e, 10))
+  );
   const hashBuffer = await sha256(ipBytes.buffer, salt);
   return arrayBufferToBase64Url(hashBuffer);
 }
 
-export function generateRandomBuffer(length: number = 16) {
+export function generateRandomBuffer(length = 16) {
   return crypto.getRandomValues(new Uint8Array(length));
 }
 
 /**
  * @deprecated Use generateRandomBuffer instead
  */
-export function generateSalt(length: number = 16): Uint8Array {
+export function generateSalt(length = 16): Uint8Array {
   return generateRandomBuffer(length);
 }
 
@@ -76,13 +92,14 @@ export function hashCode(str: string) {
   return hash;
 }
 
-const base64Digit = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
+const base64Digit =
+  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
 const toB64 = (x: number | bigint) =>
   x
     .toString(2)
     .split(/(?=(?:.{6})+(?!.))/g)
-    .map((v) => base64Digit[parseInt(v, 2)])
-    .join('');
+    .map((v) => base64Digit[Number.parseInt(v, 2)])
+    .join("");
 export function hashCodeB64(str: string) {
   return toB64(hashCode(str));
 }
@@ -118,7 +135,10 @@ export const fnv1a64B64 = (str: string) => toB64(fnv1a64(str));
 /**
  * Compares two ArrayBuffers in constant time.
  */
-export function constantTimeArrayBufferCompare(a: ArrayBuffer, b: ArrayBuffer): boolean {
+export function constantTimeArrayBufferCompare(
+  a: ArrayBuffer,
+  b: ArrayBuffer
+): boolean {
   if (a.byteLength !== b.byteLength) {
     return false;
   }

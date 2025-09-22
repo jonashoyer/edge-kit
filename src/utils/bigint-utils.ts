@@ -1,6 +1,6 @@
 export function minBigInt(...values: bigint[]): bigint {
   if (values.length === 0) {
-    throw new Error('Cannot find minimum of an empty array.');
+    throw new Error("Cannot find minimum of an empty array.");
   }
   let min = values[0];
   for (let i = 1; i < values.length; i++) {
@@ -13,7 +13,7 @@ export function minBigInt(...values: bigint[]): bigint {
 
 export function maxBigInt(...values: bigint[]): bigint {
   if (values.length === 0) {
-    throw new Error('Cannot find maximum of an empty array.');
+    throw new Error("Cannot find maximum of an empty array.");
   }
   let max = values[0];
   for (let i = 1; i < values.length; i++) {
@@ -25,5 +25,5 @@ export function maxBigInt(...values: bigint[]): bigint {
 }
 
 export function multiplyBps(value: bigint, bps: number): bigint {
-  return (value * BigInt(bps)) / 10000n;
+  return (value * BigInt(bps)) / 10_000n;
 }

@@ -1,106 +1,109 @@
-import { is } from 'drizzle-orm';
-import { MySqlDatabase, MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
-import { PgDatabase, PgTableWithColumns } from 'drizzle-orm/pg-core';
-import { BaseSQLiteDatabase, type SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
-
+import { is } from "drizzle-orm";
 import {
+  MySqlDatabase,
+  type MySqlTableWithColumns,
+} from "drizzle-orm/mysql-core";
+import { PgDatabase, type PgTableWithColumns } from "drizzle-orm/pg-core";
+import {
+  BaseSQLiteDatabase,
+  type SQLiteTableWithColumns,
+} from "drizzle-orm/sqlite-core";
+
+import type {
   AnyMySqlDatabase,
   CreateColumnConfig,
   CreateTableConfig,
-  DefaultSchema,
-  SqlFlavorOptions,
-} from '../../database/types';
-import { genId } from '../../utils/id-generator';
-import { AbstractLogger } from '../logging/abstract-logger';
+  SqlFlavors,
+  SqlFlavorToDialect,
+} from "../../database/types";
+import { genId } from "../../utils/id-generator";
+import type { AbstractLogger } from "../logging/abstract-logger";
 
-export type DataMigrationTable<Dialect extends 'mysql' | 'pg' | 'sqlite'> = CreateTableConfig<
-  {
-    id: CreateColumnConfig<
-      {
-        data: string;
-        dataType: 'string';
-        notNull: true;
-      },
-      Dialect
-    >;
-    name: CreateColumnConfig<
-      {
-        data: string;
-        dataType: 'string';
-        notNull: true;
-      },
-      Dialect
-    >;
-    startedAt: CreateColumnConfig<
-      {
-        data: Date;
-        dataType: 'date';
-        notNull: true;
-      },
-      Dialect
-    >;
-    completedAt: CreateColumnConfig<
-      {
-        data: Date;
-        dataType: 'date';
-        notNull: boolean;
-      },
-      Dialect
-    >;
-    error: CreateColumnConfig<
-      {
-        data: string;
-        dataType: 'string';
-        notNull: boolean;
-      },
-      Dialect
-    >;
-    meta: CreateColumnConfig<
-      {
-        // TODO: Add json type
-        data: string;
-        dataType: 'string';
-        notNull: boolean;
-      },
-      Dialect
-    >;
-  },
-  Dialect
+export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
+  CreateTableConfig<
+    Dialect,
+    {
+      id: CreateColumnConfig<
+        Dialect,
+        {
+          data: string;
+          dataType: "string";
+          notNull: true;
+        }
+      >;
+      name: CreateColumnConfig<
+        Dialect,
+        {
+          data: string;
+          dataType: "string";
+          notNull: true;
+        }
+      >;
+      startedAt: CreateColumnConfig<
+        Dialect,
+        {
+          data: Date;
+          dataType: "date";
+          notNull: true;
+        }
+      >;
+      completedAt: CreateColumnConfig<
+        Dialect,
+        {
+          data: Date;
+          dataType: "date";
+          notNull: boolean;
+        }
+      >;
+      error: CreateColumnConfig<
+        Dialect,
+        {
+          data: string;
+          dataType: "string";
+          notNull: boolean;
+        }
+      >;
+      meta: CreateColumnConfig<
+        Dialect,
+        {
+          // TODO: Add json type
+          data: string;
+          dataType: "string";
+          notNull: boolean;
+        }
+      >;
+    }
+  >;
+
+export type MySqlDataMigrationTable = MySqlTableWithColumns<
+  DataMigrationTable<"mysql">
+>;
+export type PostgresDataMigrationTable = PgTableWithColumns<
+  DataMigrationTable<"pg">
+>;
+export type SQLiteDataMigrationTable = SQLiteTableWithColumns<
+  DataMigrationTable<"sqlite">
 >;
 
-export type MySqlDataMigrationTable = MySqlTableWithColumns<DataMigrationTable<'mysql'>>;
-export type PostgresDataMigrationTable = PgTableWithColumns<DataMigrationTable<'pg'>>;
-export type SQLiteDataMigrationTable = SQLiteTableWithColumns<DataMigrationTable<'sqlite'>>;
-
-export interface DataMigrationScript {
+export type DataMigrationScript = {
   name: string;
   description?: string;
   fn: () => Promise<void>;
-}
+};
 
-export interface DrizzleDataMigrationServiceOptions<SqlFlavor extends SqlFlavorOptions> {
+export type DrizzleDataMigrationServiceOptions<SqlFlavor extends SqlFlavors> = {
   db: SqlFlavor;
-  table: DefaultSchema<
-    SqlFlavor,
-    { dm: MySqlDataMigrationTable },
-    { dm: PostgresDataMigrationTable },
-    { dm: SQLiteDataMigrationTable }
-  >['dm'];
+  table: DataMigrationTable<SqlFlavorToDialect<SqlFlavor>>;
   scripts: DataMigrationScript[];
   logger?: AbstractLogger;
-}
+};
 
-export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavorOptions> {
+export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavors> {
   // Force a flavor for semi type safety
-  private _db: SqlFlavor;
-  private _table: DefaultSchema<
-    SqlFlavor,
-    { dm: MySqlDataMigrationTable },
-    { dm: PostgresDataMigrationTable },
-    { dm: SQLiteDataMigrationTable }
-  >['dm'];
-  private _scripts: DataMigrationScript[];
-  private _logger: AbstractLogger | undefined;
+  private readonly _db: SqlFlavor;
+  private readonly _table: DataMigrationTable<SqlFlavorToDialect<SqlFlavor>>;
+  private readonly _scripts: DataMigrationScript[];
+  private readonly _logger: AbstractLogger | undefined;
 
   constructor(options: DrizzleDataMigrationServiceOptions<SqlFlavor>) {
     this._db = options.db;
@@ -111,12 +114,22 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavorOptions> {
 
   private async insert(
     migration: DataMigrationScript,
-    data: { startedAt: Date; completedAt: Date | null; error: string | null; meta: Record<string, unknown> },
-    set: { startedAt?: Date; completedAt?: Date; error?: string | null; meta?: Record<string, unknown> },
+    data: {
+      startedAt: Date;
+      completedAt: Date | null;
+      error: string | null;
+      meta: Record<string, unknown>;
+    },
+    set: {
+      startedAt?: Date;
+      completedAt?: Date;
+      error?: string | null;
+      meta?: Record<string, unknown>;
+    }
   ) {
     if (is(this._db, MySqlDatabase)) {
       await this._db
-        .insert(this._table as MySqlDataMigrationTable)
+        .insert(this._table as unknown as MySqlDataMigrationTable)
         .values({
           id: genId(),
           name: migration.name,
@@ -126,7 +139,7 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavorOptions> {
           set,
         });
     } else if (is(this._db, PgDatabase)) {
-      const table = this._table as PostgresDataMigrationTable;
+      const table = this._table as unknown as PostgresDataMigrationTable;
       await this._db
         .insert(table)
         .values({
@@ -139,7 +152,7 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavorOptions> {
           set,
         });
     } else if (is(this._db, BaseSQLiteDatabase)) {
-      const table = this._table as SQLiteDataMigrationTable;
+      const table = this._table as unknown as SQLiteDataMigrationTable;
       await this._db
         .insert(table)
         .values({
@@ -157,10 +170,12 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavorOptions> {
   async migrate() {
     const existingMigrations = await (this._db as AnyMySqlDatabase)
       .select()
-      .from(this._table as MySqlDataMigrationTable);
+      .from(this._table as unknown as MySqlDataMigrationTable);
 
     for (const migration of this._scripts) {
-      const existingMigration = existingMigrations.find((m) => m.name === migration.name);
+      const existingMigration = existingMigrations.find(
+        (m) => m.name === migration.name
+      );
       if (existingMigration) {
         continue;
       }
@@ -170,24 +185,37 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavorOptions> {
 
       try {
         this._logger?.info(`Starting migration: ${migration.name}`);
-        const script = this._scripts.find((e) => e.name == migration.name);
-        if (!script) throw new Error(`Migration function not found: ${migration.name}`);
+        const script = this._scripts.find((e) => e.name === migration.name);
+        if (!script) {
+          throw new Error(`Migration function not found: ${migration.name}`);
+        }
 
-        await this.insert(migration, { startedAt, completedAt: null, error: null, meta: {} }, { startedAt });
+        await this.insert(
+          migration,
+          { startedAt, completedAt: null, error: null, meta: {} },
+          { startedAt }
+        );
 
         await script.fn();
-        this._logger?.info(`Migration completed: ${migration.name} ${Date.now() - startedAt.getTime()}ms`);
+        this._logger?.info(
+          `Migration completed: ${migration.name} ${Date.now() - startedAt.getTime()}ms`
+        );
       } catch (e) {
         error = e instanceof Error ? e : new Error(String(e));
-        this._logger?.error(`Migration failed: ${migration.name} ${Date.now() - startedAt.getTime()}ms`, { error: e });
+        this._logger?.error(
+          `Migration failed: ${migration.name} ${Date.now() - startedAt.getTime()}ms`,
+          { error: e }
+        );
       } finally {
-        const errorMessage = error ? [error.message, error.stack].filter(Boolean).join('\n\n') : null;
+        const errorMessage = error
+          ? [error.message, error.stack].filter(Boolean).join("\n\n")
+          : null;
 
         const date = new Date();
         await this.insert(
           migration,
           { startedAt, completedAt: date, error: errorMessage, meta: {} },
-          { completedAt: date, error: errorMessage },
+          { completedAt: date, error: errorMessage }
         );
       }
     }

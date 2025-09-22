@@ -166,39 +166,48 @@ export class NotionClient {
     ];
   }
 
-  async getDatabaseEntryChanges(
+  async queryDatabase(
     databaseId: string,
-    options: {
+    options?: {
       startEditedTime?: string | Date | null;
       lastEditedTime?: string | Date | null;
       filter?: QueryDatabaseFilterAnd;
       cursor?: string;
     }
   ): Promise<QueryDataSourceResponse["results"]> {
-    const startEditedTime =
-      typeof options.startEditedTime === "string"
-        ? options.startEditedTime
-        : new Date(options.startEditedTime ?? new Date()).toISOString();
+    const startEditedTime = options?.startEditedTime
+      ? new Date(options.startEditedTime).toISOString()
+      : undefined;
+
+    const endEditedTime = options?.lastEditedTime
+      ? new Date(options.lastEditedTime).toISOString()
+      : undefined;
 
     const items = await collectPaginatedAPI(this.client.dataSources.query, {
       data_source_id: databaseId,
       sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
       filter: {
         and: [
-          {
-            timestamp: "last_edited_time",
-            last_edited_time: {
-              on_or_before: startEditedTime,
-              after:
-                options.lastEditedTime instanceof Date
-                  ? options.lastEditedTime.toISOString()
-                  : (options.lastEditedTime ?? undefined),
-            },
-          },
-          ...(options.filter ?? []),
+          ...(startEditedTime
+            ? [
+                {
+                  timestamp: "last_edited_time" as const,
+                  last_edited_time: { on_or_after: startEditedTime },
+                },
+              ]
+            : []),
+          ...(endEditedTime
+            ? [
+                {
+                  timestamp: "last_edited_time" as const,
+                  last_edited_time: { on_or_before: endEditedTime },
+                },
+              ]
+            : []),
+          ...(options?.filter ?? []),
         ],
       },
-      start_cursor: options.cursor,
+      start_cursor: options?.cursor,
     });
 
     return items;
