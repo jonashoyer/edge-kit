@@ -255,11 +255,11 @@ class BaseDrizzleKeyValueService<
     throw new Error("Unsupported operation");
   }
 
-  /**
-   * @deprecated Unsupported operation
-   */
-  mdelete(_keys: string[]): Promise<void> {
-    throw new Error("Unsupported operation");
+  async mdelete(_keys: string[]): Promise<void> {
+    if (_keys.length === 0) {
+      return;
+    }
+    await this._deleteManyByKeys(_keys);
   }
 }
 
