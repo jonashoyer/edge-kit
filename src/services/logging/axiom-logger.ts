@@ -1,10 +1,12 @@
-import { Axiom } from '@axiomhq/js';
+import { Axiom } from "@axiomhq/js";
 
-import { AbstractLogger } from './abstract-logger';
+import type { AbstractLogger } from "./abstract-logger";
+
+type LogMetadata = Record<string, string | number | boolean | null | undefined>;
 
 export class AxiomLogger implements AbstractLogger {
-  private client: Axiom;
-  private dataset: string;
+  private readonly client: Axiom;
+  private readonly dataset: string;
 
   /**
    * @param token Axiom token
@@ -17,7 +19,7 @@ export class AxiomLogger implements AbstractLogger {
     this.dataset = dataset;
   }
 
-  async log(message: string, level: string, metadata?: Record<string, any>) {
+  log(message: string, level: "info" | "warn" | "error", metadata?: LogMetadata) {
     this.client.ingest(this.dataset, [
       {
         level,
@@ -28,15 +30,15 @@ export class AxiomLogger implements AbstractLogger {
     ]);
   }
 
-  async info(message: string, metadata?: Record<string, any>): Promise<void> {
-    await this.log('info', message, metadata);
+  info(message: string, metadata?: LogMetadata) {
+    this.log(message, "info", metadata);
   }
 
-  async warn(message: string, metadata?: Record<string, any>): Promise<void> {
-    await this.log('warn', message, metadata);
+  warn(message: string, metadata?: LogMetadata) {
+    this.log(message, "warn", metadata);
   }
 
-  async error(message: string, metadata?: Record<string, any>): Promise<void> {
-    await this.log('error', message, metadata);
+  error(message: string, metadata?: LogMetadata) {
+    this.log(message, "error", metadata);
   }
 }
