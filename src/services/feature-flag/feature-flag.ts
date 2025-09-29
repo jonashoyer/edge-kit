@@ -1,4 +1,5 @@
 import { seedRandomNumberGenerator } from "../../utils/random-utils";
+import type { AbstractLogger } from "../logging/abstract-logger";
 
 export type BaseFeatureFlag = {
   disabled?: boolean;
@@ -45,13 +46,23 @@ export type FeatureFlag =
   | RolloutPercentageFeatureFlag
   | PhasedRolloutFeatureFla;
 
+export type FeatureFlagServiceOptions = {
+  logger?: AbstractLogger;
+};
+
 export class FeatureFlagService<T extends string = string> {
   protected flags: Map<T, FeatureFlag & { name: T }>;
-  constructor(flags: Partial<Record<T, FeatureFlag>> = {}) {
+  private readonly logger?: AbstractLogger;
+
+  constructor(
+    flags: Partial<Record<T, FeatureFlag>> = {},
+    options: FeatureFlagServiceOptions = {}
+  ) {
     const entries = Object.entries(flags) as [T, FeatureFlag][];
     this.flags = new Map(
       entries.map(([name, flag]) => [name, { ...flag, name }])
     );
+    this.logger = options.logger;
   }
 
   addFlag(name: T, flag: FeatureFlag) {
@@ -76,14 +87,22 @@ export class FeatureFlagService<T extends string = string> {
 
   isEnabled(name: T, identifier?: string) {
     const flag = this.flags.get(name);
-    if (!flag) return false;
-    if (flag.disabled) return false;
+    if (!flag) {
+      return false;
+    }
+    if (flag.disabled) {
+      return false;
+    }
 
-    if ("enabled" in flag) return flag.enabled;
-    if ("rolloutPercentage" in flag)
+    if ("enabled" in flag) {
+      return flag.enabled;
+    }
+    if ("rolloutPercentage" in flag) {
       return this.isEnabledRolloutPercentage(name, identifier, flag);
-    if ("rolloutInterval" in flag)
+    }
+    if ("rolloutInterval" in flag) {
       return this.isEnabledGradualRollout(name, identifier, flag);
+    }
 
     return false;
   }
@@ -93,11 +112,13 @@ export class FeatureFlagService<T extends string = string> {
     identifier: string | undefined,
     flag: RolloutPercentageFeatureFlag
   ) {
-    if (flag.rolloutPercentage >= 1) return true;
+    if (flag.rolloutPercentage >= 1) {
+      return true;
+    }
 
     if (!identifier) {
-      console.trace(
-        `[FeatureFlag] [WARN] Feature flag ${name} is enabled but no identifier was provided`
+      this.logger?.warn(
+        `Feature flag ${name} is enabled but no identifier was provided`
       );
       return false;
     }
@@ -120,11 +141,13 @@ export class FeatureFlagService<T extends string = string> {
       flag.maxRolloutPercentage ?? 1
     );
 
-    if (percentage >= 1) return true;
+    if (percentage >= 1) {
+      return true;
+    }
 
     if (!identifier) {
-      console.trace(
-        `[FeatureFlag] [WARN] Feature flag ${name} is enabled but no identifier was provided`
+      this.logger?.warn(
+        `Feature flag ${name} is enabled but no identifier was provided`
       );
       return false;
     }
