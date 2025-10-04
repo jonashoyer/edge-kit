@@ -1,9 +1,9 @@
-import { AbstractKeyValueService } from '../key-value/abstract-key-value';
-import { fnv1a64B64 } from '../../utils/crypto-utils';
-import { stableStringify } from '../../utils/object-utils';
-import { streamText, streamObject, LanguageModel } from 'ai';
-import { z } from 'zod';
-import { JSONSchema } from 'zod/v4/core/json-schema';
+import { type LanguageModel, streamObject, streamText } from "ai";
+import { z } from "zod";
+import type { JSONSchema } from "zod/v4/core/json-schema";
+import { fnv1a64B64 } from "../../utils/crypto-utils";
+import { stableStringify } from "../../utils/object-utils";
+import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
 
 export interface OptimisticLlmServiceOptions {
   /**
@@ -37,21 +37,26 @@ export class OptimisticLlmService {
 
   constructor(
     kv: AbstractKeyValueService,
-    options: OptimisticLlmServiceOptions,
+    options: OptimisticLlmServiceOptions
   ) {
     this.kv = kv;
     this.ttlSeconds = options.ttlSeconds ?? 300; // 5 minutes
-    this.keyNamespace = options.keyNamespace ?? 'llm:warm';
+    this.keyNamespace = options.keyNamespace ?? "llm:warm";
     this.minCachedTokens = options.minCachedTokens ?? 1024;
-    this.getTokenCount = options.getTokenCount ?? this.defaultEstimateTokenCount;
+    this.getTokenCount =
+      options.getTokenCount ?? this.defaultEstimateTokenCount;
   }
 
   /**
    * Returns true if the prompt-prefix has been warmed within the TTL window.
    */
-  async isExpectedWarm(prefix: string, model: LanguageModel, schema?: z.ZodType): Promise<boolean> {
+  async isExpectedWarm(
+    prefix: string,
+    model: LanguageModel,
+    schema?: z.ZodType
+  ): Promise<boolean> {
     const key = this.buildPrefixKey(prefix, model, schema);
-    return this.kv.exists(key);
+    return await this.kv.exists(key);
   }
 
   /**
@@ -61,7 +66,7 @@ export class OptimisticLlmService {
   async warmIfNeeded(
     prefix: string,
     model: LanguageModel,
-    schema?: z.ZodType,
+    schema?: z.ZodType
   ): Promise<void> {
     const key = this.buildPrefixKey(prefix, model, schema);
 
@@ -78,11 +83,22 @@ export class OptimisticLlmService {
     try {
       if (schema) {
         await this.warmByFirstChunk((signal) =>
-          streamObject<any>({ model, schema, system: prefix, maxOutputTokens: 1, abortSignal: signal })
+          streamObject<any>({
+            model,
+            schema,
+            system: prefix,
+            maxOutputTokens: 1,
+            abortSignal: signal,
+          })
         );
       } else {
         await this.warmByFirstChunk((signal) =>
-          streamText({ model, system: prefix, maxOutputTokens: 1, abortSignal: signal })
+          streamText({
+            model,
+            system: prefix,
+            maxOutputTokens: 1,
+            abortSignal: signal,
+          })
         );
       }
     } catch (err) {
@@ -99,13 +115,15 @@ export class OptimisticLlmService {
   private buildPrefixKey(
     prefix: string,
     model: LanguageModel,
-    schema?: z.ZodType,
+    schema?: z.ZodType
   ): string {
     const hash = fnv1a64B64(prefix);
     const modelId = this.identifyModel(model);
-    const modelPart = modelId ? `:${modelId}` : '';
-    const schemaHash = schema ? this.hashSchema(z.toJSONSchema(schema)) : undefined;
-    const schemaPart = schemaHash ? `:s:${schemaHash}` : '';
+    const modelPart = modelId ? `:${modelId}` : "";
+    const schemaHash = schema
+      ? this.hashSchema(z.toJSONSchema(schema))
+      : undefined;
+    const schemaPart = schemaHash ? `:s:${schemaHash}` : "";
     return `${this.keyNamespace}${modelPart}${schemaPart}:${hash}`;
   }
 
@@ -119,7 +137,7 @@ export class OptimisticLlmService {
    * Runs a streaming call and aborts after the first chunk on the `fullStream` (or after a small timeout).
    */
   private async warmByFirstChunk<T extends { fullStream: AsyncIterable<any> }>(
-    createStream: (signal: AbortSignal) => T,
+    createStream: (signal: AbortSignal) => T
   ): Promise<void> {
     const abortController = new AbortController();
     try {
@@ -153,9 +171,8 @@ export class OptimisticLlmService {
    * Attempts to derive a deterministic identifier for an AI SDK LanguageModel.
    */
   private identifyModel(model: LanguageModel): string | undefined {
-    if (!model) return undefined;
-    if (typeof model === 'string') return model;
-    return [model.provider, model.modelId].filter(Boolean).join(':');
+    if (!model) return;
+    if (typeof model === "string") return model;
+    return [model.provider, model.modelId].filter(Boolean).join(":");
   }
 }
-

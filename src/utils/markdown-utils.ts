@@ -1,5 +1,3 @@
-import { PromptComposer } from "../composers/prompt-composer";
-
 // ============================================================================
 // Type Definitions
 // ============================================================================
@@ -55,8 +53,8 @@ export type MdSchemaConfig<T> = {
  */
 export type MdSchema<T> = {
   readonly config: MdSchemaConfig<T>;
-  build: (data: T) => string;
-  buildXml: (data: T, rootName?: string) => string;
+  build: (data: T | T[]) => string;
+  buildXml: (data: T | T[], rootName?: string) => string;
 };
 
 // ============================================================================
@@ -67,23 +65,16 @@ export type MdSchema<T> = {
  * Format a label according to the specified style
  */
 function formatLabel(label: string, format: FieldFormat = "plain"): string {
-  switch (format) {
-    case "bold": {
-      return `**${label}**`;
-    }
-    case "italic": {
-      return `*${label}*`;
-    }
-    case "code": {
-      return `\`${label}\``;
-    }
-    case "plain": {
-      return label;
-    }
-    default: {
-      return label;
-    }
+  if (format === "bold") {
+    return `**${label}**`;
   }
+  if (format === "italic") {
+    return `*${label}*`;
+  }
+  if (format === "code") {
+    return `\`${label}\``;
+  }
+  return label;
 }
 
 /**
@@ -286,6 +277,60 @@ function renderFieldValueAsMarkdown(
   return formatValue(value);
 }
 
+/**
+ * Converts a JSON object to an XML string.
+ * @param json - The JSON object to convert.
+ * @param rootName - The name of the root element.
+ * @returns The XML string.
+ * @example
+ * const json = { name: 'John', age: 30 };
+ * const result = PromptBuilder.jsonToXml(json);
+ * console.log(result);
+ * // <root>
+ * //   <name>John</name>
+ * //   <age>30</age>
+ * // </root>
+ */
+function jsonToXml(json: unknown, rootName = "root"): string {
+  const convert = (obj: unknown, name: string): string => {
+    if (obj === null || obj === undefined) {
+      return `<${name}/>`;
+    }
+
+    if (typeof obj !== "object") {
+      return `<${name}>${escapeXml(obj.toString())}</${name}>`;
+    }
+
+    if (Array.isArray(obj)) {
+      return obj.map((item) => convert(item, name)).join("\n");
+    }
+
+    const children = Object.entries(obj)
+      .map(([key, value]) => convert(value, key))
+      .join("\n");
+
+    return `<${name}>\n${indent(children)}\n</${name}>`;
+  };
+
+  return convert(json, rootName);
+}
+
+function indent(str: string): string {
+  return str
+    .split("\n")
+    .map((line) => `  ${line}`)
+    .join("\n");
+}
+
+function escapeXml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
 // ============================================================================
 // Core Build Functions
 // ============================================================================
@@ -294,9 +339,20 @@ function renderFieldValueAsMarkdown(
  * Build markdown representation of data according to schema
  */
 function mdBuild<T extends Record<string, unknown>>(
-  data: T,
+  data: T | T[],
   config: MdSchemaConfig<T>
 ): string {
+  if (Array.isArray(data)) {
+    return data
+      .map((item) =>
+        renderObject(
+          item as Record<string, unknown>,
+          config as MdSchemaConfig<Record<string, unknown>>,
+          0
+        )
+      )
+      .join("\n\n");
+  }
   return renderObject(
     data,
     config as MdSchemaConfig<Record<string, unknown>>,
@@ -308,17 +364,27 @@ function mdBuild<T extends Record<string, unknown>>(
  * Build XML representation of data according to schema
  */
 function mdBuildXml<T extends Record<string, unknown>>(
-  data: T,
+  data: T | T[],
   config: MdSchemaConfig<T>,
   rootName = "root"
 ): string {
+  if (Array.isArray(data)) {
+    const transformed = data.map((item) =>
+      transformDataForXml(
+        item as unknown as Record<string, unknown>,
+        config as unknown as MdSchemaConfig<Record<string, unknown>>
+      )
+    );
+    return jsonToXml({ items: transformed }, rootName);
+  }
+
   const transformed = transformDataForXml(
     data as unknown as Record<string, unknown>,
     config as unknown as MdSchemaConfig<Record<string, unknown>>
   );
 
   // Use PromptComposer's jsonToXml
-  return PromptComposer.jsonToXml(transformed, rootName);
+  return jsonToXml(transformed, rootName);
 }
 
 /**
@@ -404,8 +470,8 @@ export function mdSchema<T extends Record<string, unknown>>(
 ): MdSchema<T> {
   return {
     config,
-    build: (data: T) => mdBuild(data, config),
-    buildXml: (data: T, rootName?: string) =>
+    build: (data: T | T[]) => mdBuild(data, config),
+    buildXml: (data: T | T[], rootName?: string) =>
       mdBuildXml(data, config, rootName),
   };
 }
@@ -418,7 +484,7 @@ export function mdSchema<T extends Record<string, unknown>>(
  * Build markdown from data and schema config (standalone function)
  */
 export function buildMarkdown<T extends Record<string, unknown>>(
-  data: T,
+  data: T | T[],
   config: MdSchemaConfig<T>
 ): string {
   return mdBuild(data, config);
@@ -428,7 +494,7 @@ export function buildMarkdown<T extends Record<string, unknown>>(
  * Build XML from data and schema config (standalone function)
  */
 export function buildXml<T extends Record<string, unknown>>(
-  data: T,
+  data: T | T[],
   config: MdSchemaConfig<T>,
   rootName = "root"
 ): string {

@@ -1,9 +1,14 @@
-import { embedMany, } from 'ai';
-import { EmbeddingModelV2 } from '@ai-sdk/provider';
-import { ContextualizedEmbedder, VoyageContextualizedEmbedder } from './contextualized-embedder';
-
-import type { AbstractVectorDatabase, VectorEntry } from '../vector/abstract-vector-database';
-import { SimpleChunker, type Chunk } from './simple-chunker';
+import type { EmbeddingModelV2 } from "@ai-sdk/provider";
+import { embedMany } from "ai";
+import type {
+  AbstractVectorDatabase,
+  VectorEntry,
+} from "../vector/abstract-vector-database";
+import {
+  type ContextualizedEmbedder,
+  VoyageContextualizedEmbedder,
+} from "./contextualized-embedder";
+import { type Chunk, SimpleChunker } from "./simple-chunker";
 
 export interface RagChunkMetadataBase {
   docId: string;
@@ -14,12 +19,18 @@ export interface RagChunkMetadataBase {
 }
 
 export interface Reranker<TMeta = RagChunkMetadataBase> {
-  rerank(query: string, items: Array<{ id: string; text: string; metadata?: TMeta }>, topK?: number): Promise<
+  rerank(
+    query: string,
+    items: Array<{ id: string; text: string; metadata?: TMeta }>,
+    topK?: number
+  ): Promise<
     Array<{ id: string; text: string; metadata?: TMeta; score?: number }>
   >;
 }
 
-export interface RagServiceOptions<TMeta extends RagChunkMetadataBase = RagChunkMetadataBase> {
+export interface RagServiceOptions<
+  TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
+> {
   vectorDb: AbstractVectorDatabase<TMeta, number[]>;
   embeddingModel: EmbeddingModelV2<any>; // model from AI SDK provider (e.g. voyage.textEmbeddingModel('voyage-3'))
   chunker?: SimpleChunker;
@@ -31,15 +42,17 @@ export interface RagServiceOptions<TMeta extends RagChunkMetadataBase = RagChunk
     model: string; // e.g. 'voyage-context-3'
     baseUrl?: string; // default: https://api.voyageai.com/v1
     outputDimension?: 256 | 512 | 1024 | 2048;
-    outputDtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary';
+    outputDtype?: "float" | "int8" | "uint8" | "binary" | "ubinary";
   };
 }
 
-export interface IndexDocumentOptions<TMeta extends RagChunkMetadataBase = RagChunkMetadataBase> {
+export interface IndexDocumentOptions<
+  TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
+> {
   namespace: string;
   docId: string;
   text: string;
-  baseMetadata?: Omit<TMeta, 'docId' | 'text'>;
+  baseMetadata?: Omit<TMeta, "docId" | "text">;
 }
 
 export interface SearchOptions {
@@ -51,13 +64,17 @@ export interface SearchOptions {
   rerank?: boolean; // default false
 }
 
-export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBase> {
+export class RagService<
+  TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
+> {
   private readonly vectorDb: AbstractVectorDatabase<TMeta, number[]>;
   private readonly embeddingModel: EmbeddingModelV2<any>;
   private readonly chunker: SimpleChunker;
   private readonly reranker?: Reranker<TMeta>;
   private readonly storeTextInMetadata: boolean;
-  private readonly contextualized?: NonNullable<RagServiceOptions<TMeta>['contextualized']>;
+  private readonly contextualized?: NonNullable<
+    RagServiceOptions<TMeta>["contextualized"]
+  >;
   private readonly contextualizedEmbedder?: ContextualizedEmbedder;
 
   constructor(options: RagServiceOptions<TMeta>) {
@@ -67,11 +84,15 @@ export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBas
     if (options.contextualized?.enabled && !options.chunker) {
       this.chunker = new SimpleChunker({ maxTokens: 300, overlapTokens: 0 });
     } else {
-      this.chunker = options.chunker ?? new SimpleChunker({ maxTokens: 300, overlapTokens: 30 });
+      this.chunker =
+        options.chunker ??
+        new SimpleChunker({ maxTokens: 300, overlapTokens: 30 });
     }
     this.reranker = options.reranker;
     this.storeTextInMetadata = options.storeTextInMetadata ?? true;
-    this.contextualized = options.contextualized?.enabled ? options.contextualized : undefined;
+    this.contextualized = options.contextualized?.enabled
+      ? options.contextualized
+      : undefined;
     if (this.contextualized) {
       this.contextualizedEmbedder = new VoyageContextualizedEmbedder({
         apiKey: this.contextualized.apiKey,
@@ -83,16 +104,21 @@ export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBas
     }
   }
 
-  async indexDocument({ namespace, docId, text, baseMetadata }: IndexDocumentOptions<TMeta>): Promise<void> {
+  async indexDocument({
+    namespace,
+    docId,
+    text,
+    baseMetadata,
+  }: IndexDocumentOptions<TMeta>): Promise<void> {
     const chunks = this.chunker.chunk(text, (i) => `${docId}#${i}`);
-    await this.indexChunks(namespace, docId, chunks, baseMetadata as any);
+    await this.indexChunks(namespace, docId, chunks, baseMetadata);
   }
 
   async indexChunks(
     namespace: string,
     docId: string,
     chunks: Chunk[],
-    baseMetadata?: Omit<TMeta, 'docId' | 'text'>,
+    baseMetadata?: Omit<TMeta, "docId" | "text">
   ): Promise<void> {
     if (chunks.length === 0) return;
     const texts = chunks.map((c) => c.text);
@@ -100,10 +126,16 @@ export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBas
     let vectors: number[][];
     if (this.contextualized && this.contextualizedEmbedder) {
       // Use contextualized chunk embeddings: one document per request, inputs = [chunks]
-      vectors = await this.contextualizedEmbedder.embed([[...texts]], 'document');
+      vectors = await this.contextualizedEmbedder.embed(
+        [[...texts]],
+        "document"
+      );
     } else {
-      const { embeddings } = await embedMany({ model: this.embeddingModel, values: texts });
-      vectors = (embeddings as any) as number[][];
+      const { embeddings } = await embedMany({
+        model: this.embeddingModel,
+        values: texts,
+      });
+      vectors = embeddings as any as number[][];
     }
 
     const entries = chunks.map((c, i) => ({
@@ -119,26 +151,39 @@ export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBas
     await this.vectorDb.upsert(namespace, entries as any);
   }
 
-  async search(options: SearchOptions): Promise<VectorEntry<number[], TMeta, any>[]> {
+  async search(
+    options: SearchOptions
+  ): Promise<VectorEntry<number[], TMeta, any>[]> {
     const topK = options.topK ?? 8;
     let queryVector: number[];
     if (this.contextualized && this.contextualizedEmbedder) {
-      const [vec] = await this.contextualizedEmbedder.embed([[options.query]], 'query');
+      const [vec] = await this.contextualizedEmbedder.embed(
+        [[options.query]],
+        "query"
+      );
       queryVector = vec;
     } else {
-      const { embeddings } = await embedMany({ model: this.embeddingModel, values: [options.query] });
+      const { embeddings } = await embedMany({
+        model: this.embeddingModel,
+        values: [options.query],
+      });
       queryVector = (embeddings as any)[0] as number[];
     }
-    const results = await this.vectorDb.query(options.namespace, queryVector, topK, {
-      includeMetadata: (options.includeMetadata ?? true),
-      includeVectors: (options.includeVectors ?? false),
-    });
+    const results = await this.vectorDb.query(
+      options.namespace,
+      queryVector,
+      topK,
+      {
+        includeMetadata: options.includeMetadata ?? true,
+        includeVectors: options.includeVectors ?? false,
+      }
+    );
 
-    if (!options.rerank || !this.reranker) return results;
+    if (!(options.rerank && this.reranker)) return results;
 
     const items = results.map((r) => ({
       id: r.id,
-      text: (r as any).metadata?.text ?? '',
+      text: (r as any).metadata?.text ?? "",
       metadata: r.metadata,
     }));
     const reranked = await this.reranker.rerank(options.query, items, topK);
@@ -150,5 +195,3 @@ export class RagService<TMeta extends RagChunkMetadataBase = RagChunkMetadataBas
 
   // contextualized embedding handled by contextualizedEmbedder
 }
-
-
