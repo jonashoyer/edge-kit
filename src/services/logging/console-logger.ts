@@ -1,6 +1,4 @@
-import { AbstractLogger } from "./abstract-logger";
-
-type LogMetadata = Record<string, string | number | boolean | null | undefined>;
+import { AbstractLogger, type LogMetadata } from "./abstract-logger";
 
 export class ConsoleLogger extends AbstractLogger {
   log(

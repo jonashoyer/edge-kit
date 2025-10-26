@@ -1,8 +1,6 @@
 import { Axiom } from "@axiomhq/js";
 
-import type { AbstractLogger } from "./abstract-logger";
-
-type LogMetadata = Record<string, string | number | boolean | null | undefined>;
+import type { AbstractLogger, LogMetadata } from "./abstract-logger";
 
 export class AxiomLogger implements AbstractLogger {
   private readonly client: Axiom;
@@ -19,7 +17,11 @@ export class AxiomLogger implements AbstractLogger {
     this.dataset = dataset;
   }
 
-  log(message: string, level: "info" | "warn" | "error", metadata?: LogMetadata) {
+  log(
+    message: string,
+    level: "info" | "warn" | "error",
+    metadata?: LogMetadata
+  ) {
     this.client.ingest(this.dataset, [
       {
         level,

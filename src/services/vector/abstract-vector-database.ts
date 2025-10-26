@@ -15,8 +15,8 @@ export interface VectorQueryOptions<
   TIncludeVectors extends boolean,
   TIncludeMetadata extends boolean,
 > {
-  includeVectors: TIncludeVectors;
-  includeMetadata: TIncludeMetadata;
+  includeVectors?: TIncludeVectors;
+  includeMetadata?: TIncludeMetadata;
 }
 
 export abstract class AbstractVectorDatabase<

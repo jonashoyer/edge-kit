@@ -1,4 +1,3 @@
-
 export interface FetchExtOptions {
   url: string;
   init?: RequestInit;
@@ -11,12 +10,11 @@ export interface FetchExtOptions {
 export const fetchExt = async ({
   url,
   init,
-  timeout = 10000,
+  timeout = 10_000,
   retries = 0,
   retryDelay = 500,
   backoff = "exponential",
 }: FetchExtOptions) => {
-
   for (let i = 0; i <= retries; i++) {
     const controller = new AbortController();
     const signal = controller.signal;
@@ -26,13 +24,14 @@ export const fetchExt = async ({
     try {
       return await fetch(url, { signal, ...init });
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Fetch request timed out');
+      if (error instanceof Error && error.name === "AbortError") {
+        throw new Error("Fetch request timed out");
       }
 
       if (i < retries) {
-        const delay = backoff === "exponential" ? retryDelay * Math.pow(2, i) : retryDelay;
-        await new Promise(resolve => setTimeout(resolve, delay));
+        const delay =
+          backoff === "exponential" ? retryDelay * 2 ** i : retryDelay;
+        await new Promise((resolve) => setTimeout(resolve, delay));
       } else {
         throw error;
       }
@@ -40,5 +39,5 @@ export const fetchExt = async ({
       clearTimeout(timeoutId);
     }
   }
-  throw new Error('Failed after multiple retries');
+  throw new Error("Failed after multiple retries");
 };

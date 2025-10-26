@@ -1,17 +1,28 @@
 type TemplateLiteralFn = (...args: never[]) => string;
 
-export class NamespaceComposer<T extends Record<string, string | TemplateLiteralFn>> {
-  constructor(private definitions: T) {}
+export class NamespaceComposer<
+  T extends Record<string, string | TemplateLiteralFn>,
+> {
+  private readonly definitions: T;
+  constructor(definitions: T) {
+    this.definitions = definitions;
+  }
 
-  key<K extends keyof T>(key: K, ...params: T[K] extends TemplateLiteralFn ? Parameters<T[K]> : []): string {
+  key<K extends keyof T>(
+    key: K,
+    ...params: T[K] extends TemplateLiteralFn ? Parameters<T[K]> : []
+  ): string {
     const definition = this.definitions[key];
-    if (typeof definition === 'string') {
+    if (typeof definition === "string") {
       return definition;
     }
     return this.resolveTemplateLiteral(definition, params);
   }
 
-  private resolveTemplateLiteral(template: TemplateLiteralFn, params: never[]): string {
+  private resolveTemplateLiteral(
+    template: TemplateLiteralFn,
+    params: never[]
+  ): string {
     return template(...params);
   }
 }

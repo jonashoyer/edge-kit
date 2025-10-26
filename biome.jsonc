@@ -15,7 +15,8 @@
       "suspicious": {
         "noUnknownAtRules": "off",
         "noArrayIndexKey": "off",
-        "noEmptyBlockStatements": "off"
+        "noEmptyBlockStatements": "off",
+        "noExplicitAny": "off"
       },
       "correctness": {
         "noUnusedFunctionParameters": "off"

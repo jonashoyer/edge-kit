@@ -1,8 +1,6 @@
 import pino from "pino";
 
-import { AbstractLogger } from "./abstract-logger";
-
-type LogMetadata = Record<string, string | number | boolean | null | undefined>;
+import { AbstractLogger, type LogMetadata } from "./abstract-logger";
 
 export class AxiomPinoLogger extends AbstractLogger {
   private readonly logger: pino.Logger;

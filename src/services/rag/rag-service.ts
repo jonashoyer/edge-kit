@@ -4,11 +4,11 @@ import type {
   AbstractVectorDatabase,
   VectorEntry,
 } from "../vector/abstract-vector-database";
+import type { AbstractChunker, Chunk } from "./abstract-chunker";
 import {
   type ContextualizedEmbedder,
   VoyageContextualizedEmbedder,
 } from "./contextualized-embedder";
-import { type Chunk, SimpleChunker } from "./simple-chunker";
 
 export interface RagChunkMetadataBase {
   docId: string;
@@ -33,7 +33,7 @@ export interface RagServiceOptions<
 > {
   vectorDb: AbstractVectorDatabase<TMeta, number[]>;
   embeddingModel: EmbeddingModelV2<any>; // model from AI SDK provider (e.g. voyage.textEmbeddingModel('voyage-3'))
-  chunker?: SimpleChunker;
+  chunker?: AbstractChunker;
   reranker?: Reranker<TMeta>;
   storeTextInMetadata?: boolean; // default: true (recommended for reranking)
   contextualized?: {
@@ -64,12 +64,14 @@ export interface SearchOptions {
   rerank?: boolean; // default false
 }
 
+// Voyage contextualized embeddings recommend no overlap
+// this.chunker = new SimpleChunker({ maxTokens: 300, overlapTokens: 0 });
 export class RagService<
   TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
 > {
   private readonly vectorDb: AbstractVectorDatabase<TMeta, number[]>;
   private readonly embeddingModel: EmbeddingModelV2<any>;
-  private readonly chunker: SimpleChunker;
+  private readonly chunker: AbstractChunker | undefined;
   private readonly reranker?: Reranker<TMeta>;
   private readonly storeTextInMetadata: boolean;
   private readonly contextualized?: NonNullable<
@@ -80,14 +82,7 @@ export class RagService<
   constructor(options: RagServiceOptions<TMeta>) {
     this.vectorDb = options.vectorDb;
     this.embeddingModel = options.embeddingModel;
-    // Voyage contextualized embeddings recommend no overlap
-    if (options.contextualized?.enabled && !options.chunker) {
-      this.chunker = new SimpleChunker({ maxTokens: 300, overlapTokens: 0 });
-    } else {
-      this.chunker =
-        options.chunker ??
-        new SimpleChunker({ maxTokens: 300, overlapTokens: 30 });
-    }
+    this.chunker = options.chunker;
     this.reranker = options.reranker;
     this.storeTextInMetadata = options.storeTextInMetadata ?? true;
     this.contextualized = options.contextualized?.enabled
@@ -110,7 +105,9 @@ export class RagService<
     text,
     baseMetadata,
   }: IndexDocumentOptions<TMeta>): Promise<void> {
-    const chunks = this.chunker.chunk(text, (i) => `${docId}#${i}`);
+    const chunks = this.chunker
+      ? this.chunker.chunk(text, (i) => `${docId}#${i}`)
+      : [{ id: docId, text }];
     await this.indexChunks(namespace, docId, chunks, baseMetadata);
   }
 
