@@ -1,14 +1,17 @@
-import { Redis } from '@upstash/redis';
+import { Redis } from "@upstash/redis";
 
-import { Nullable } from '../../utils/type-utils';
-import { AbstractKeyValueService } from './abstract-key-value';
+import type { Nullable } from "../../utils/type-utils";
+import { AbstractKeyValueService } from "./abstract-key-value";
 
 export class UpstashRedisKeyValueService extends AbstractKeyValueService {
-  private client: Redis;
+  private readonly client: Redis;
 
-  constructor(url: string, token: string) {
+  constructor(redis: { url: string; token: string } | Redis) {
     super();
-    this.client = new Redis({ url, token });
+    this.client =
+      "url" in redis
+        ? new Redis({ url: redis.url, token: redis.token })
+        : redis;
   }
 
   async get<T>(key: string): Promise<Nullable<T>> {
@@ -33,11 +36,11 @@ export class UpstashRedisKeyValueService extends AbstractKeyValueService {
     return result === 1;
   }
 
-  async increment(key: string, amount: number = 1): Promise<number> {
+  async increment(key: string, amount = 1): Promise<number> {
     return await this.client.incrby(key, amount);
   }
 
-  async decrement(key: string, amount: number = 1): Promise<number> {
+  async decrement(key: string, amount = 1): Promise<number> {
     return await this.client.decrby(key, amount);
   }
 

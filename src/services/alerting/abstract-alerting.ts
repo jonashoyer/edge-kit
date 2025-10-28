@@ -1,18 +1,30 @@
-import { AbstractLogger } from '../logging/abstract-logger';
+import type { AbstractLogger } from "../logging/abstract-logger";
 
+export type AlertSeverity = "info" | "warning" | "error" | "critical";
 export interface AlertOptions {
-  severity: 'info' | 'warning' | 'error' | 'critical';
+  severity: AlertSeverity;
   source?: string;
   tags?: Record<string, string>;
 }
 
 export abstract class AbstractAlertingService {
-  constructor(protected logger: AbstractLogger) {}
+  protected readonly logger: AbstractLogger;
+  constructor(logger: AbstractLogger) {
+    this.logger = logger;
+  }
 
   abstract alert(message: string, options: AlertOptions): Promise<void>;
 
+  private getLogLevel(
+    severity: AlertOptions["severity"]
+  ): "info" | "warn" | "error" {
+    if (severity === "info") return "info";
+    if (severity === "warning") return "warn";
+    return "error";
+  }
+
   protected logAlert(message: string, options: AlertOptions): void {
-    const logLevel = options.severity === 'info' ? 'info' : options.severity === 'warning' ? 'warn' : 'error';
+    const logLevel = this.getLogLevel(options.severity);
     this.logger.log(message, logLevel, {
       alertSeverity: options.severity,
       alertSource: options.source,

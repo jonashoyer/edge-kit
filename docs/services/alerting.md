@@ -11,6 +11,16 @@ The alerting services allow you to:
 - Include contextual information with alerts
 - Automatically log alerts
 
+### Error Escalation (KV-backed rules)
+
+See `src/services/escalation/error-escalation-service.ts` for a rules-based error notification helper supporting:
+
+- always: notify every occurrence
+- threshold: notify on N errors within a window (deduped per window)
+- cooldown: notify at most once per interval
+
+It requires a `AbstractKeyValueService` and an `AbstractNotificationService` (e.g., Slack). Keys are namespaced under `err:` and grouped by an optional `groupId`.
+
 ## Abstract Alerting Service
 
 The `AbstractAlertingService` class defines the interface that all alerting implementations must follow:
