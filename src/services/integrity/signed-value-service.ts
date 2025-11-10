@@ -75,4 +75,3 @@ export class SignedValueService extends AbstractSignedValue {
     }
   }
 }
-

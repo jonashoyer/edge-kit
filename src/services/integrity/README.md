@@ -274,3 +274,8 @@ Possible additions:
 - Asymmetric signatures (RSA/ECDSA) if non-repudiation needed
 - Compression for large values
 
+
+
+
+
+

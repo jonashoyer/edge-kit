@@ -1,3 +1,4 @@
+import { CustomError } from "../../utils/custom-error";
 import { genId } from "../../utils/id-generator";
 import { timeout } from "../../utils/misc-utils";
 import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
@@ -5,7 +6,19 @@ import type { AbstractLogger } from "../logging/abstract-logger";
 
 export type BackoffStrategy = "exponential" | "none";
 
-const DEFAULT_PREFIX = "mutex:";
+/**
+ * Error thrown when mutex acquisition times out after all retries
+ */
+export class MutexAcquireTimeoutError extends CustomError<"MUTEX_ACQUIRE_TIMEOUT"> {
+  constructor(name: string, retries: number) {
+    super(
+      `Failed to acquire mutex '${name}' after ${retries} retries`,
+      "MUTEX_ACQUIRE_TIMEOUT"
+    );
+  }
+}
+
+const DEFAULT_PREFIX = "mtx:";
 const DEFAULT_TTL_SECONDS = 30;
 const DEFAULT_RETRIES = 5;
 const DEFAULT_RETRY_DELAY_MS = 50;
@@ -33,7 +46,7 @@ function buildCountKey(prefix: string, name: string): string {
   return `${prefix}${name}:count`;
 }
 
-export class KvMutex {
+export class KvMutex<TNamespace extends string = string> {
   private readonly kv: AbstractKeyValueService;
   private readonly prefix: string;
   private readonly ttlSeconds: number;
@@ -54,7 +67,7 @@ export class KvMutex {
     this.logger = options?.logger;
   }
 
-  async acquire(name: string): Promise<AcquireResult> {
+  async acquire(name: TNamespace): Promise<AcquireResult> {
     const ownerKey = buildOwnerKey(this.prefix, name);
     const countKey = buildCountKey(this.prefix, name);
     const token = genId();
@@ -82,10 +95,10 @@ export class KvMutex {
     }
 
     this.logger?.warn("mutex acquire timeout", { name, retries: this.retries });
-    throw new Error("Failed to acquire mutex");
+    throw new MutexAcquireTimeoutError(name, this.retries);
   }
 
-  async release(name: string, token: string): Promise<boolean> {
+  async release(name: TNamespace, token: string): Promise<boolean> {
     const ownerKey = buildOwnerKey(this.prefix, name);
     const countKey = buildCountKey(this.prefix, name);
     const currentToken = await this.kv.get<string>(ownerKey);
@@ -100,7 +113,7 @@ export class KvMutex {
     return true;
   }
 
-  async refresh(name: string, token: string): Promise<boolean> {
+  async refresh(name: TNamespace, token: string): Promise<boolean> {
     const ownerKey = buildOwnerKey(this.prefix, name);
     const countKey = buildCountKey(this.prefix, name);
     const currentToken = await this.kv.get<string>(ownerKey);
@@ -122,7 +135,7 @@ export class KvMutex {
   }
 
   async withLock<T>(
-    name: string,
+    name: TNamespace,
     runExclusive: (refresher: () => Promise<boolean>) => Promise<T>
   ): Promise<T> {
     const { token } = await this.acquire(name);
