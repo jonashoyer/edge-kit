@@ -1,15 +1,10 @@
 import { fetchExt } from "../../utils/fetch-utils";
+import { AbstractReranker, type RerankItem } from "./abstract-reranker";
+
 export interface VoyageRerankerOptions {
   apiKey: string;
   model: "rerank-2.5" | "rerank-2.5-lite" | (string & {}); // e.g. 'rerank-1', 'rerank-2'
   baseUrl?: string; // default: https://api.voyageai.com/v1
-}
-
-export interface RerankItem<TMeta = any> {
-  id: string;
-  text: string;
-  metadata?: TMeta;
-  score?: number;
 }
 
 type VoyageRerankResponse = {
@@ -18,12 +13,13 @@ type VoyageRerankResponse = {
 
 const TRAILING_SLASH_REGEX = /\/$/;
 
-export class VoyageReranker<TMeta = any> {
+export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly model: string;
 
   constructor(options: VoyageRerankerOptions) {
+    super();
     this.baseUrl = (options.baseUrl ?? "https://api.voyageai.com/v1").replace(
       TRAILING_SLASH_REGEX,
       ""
