@@ -1,10 +1,10 @@
-import IORedis, { RedisOptions } from 'ioredis';
+import IORedis, { type RedisOptions } from "ioredis";
 
-import { Nullable } from '../../utils/type-utils';
-import { AbstractKeyValueService } from './abstract-key-value';
+import type { Nullable } from "../../utils/type-utils";
+import { AbstractKeyValueService } from "./abstract-key-value";
 
 export class IoredisKeyValueService extends AbstractKeyValueService {
-  private client: IORedis;
+  private readonly client: IORedis;
 
   constructor(options: RedisOptions) {
     super();
@@ -22,9 +22,10 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
-    const serializedValue = typeof value === 'string' ? value : JSON.stringify(value);
+    const serializedValue =
+      typeof value === "string" ? value : JSON.stringify(value);
     if (ttlSeconds !== undefined) {
-      await this.client.set(key, serializedValue, 'EX', ttlSeconds);
+      await this.client.set(key, serializedValue, "EX", ttlSeconds);
     } else {
       await this.client.set(key, serializedValue);
     }
@@ -39,11 +40,11 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
     return result === 1;
   }
 
-  async increment(key: string, amount: number = 1): Promise<number> {
+  async increment(key: string, amount = 1): Promise<number> {
     return await this.client.incrby(key, amount);
   }
 
-  async decrement(key: string, amount: number = 1): Promise<number> {
+  async decrement(key: string, amount = 1): Promise<number> {
     return await this.client.decrby(key, amount);
   }
 
@@ -62,6 +63,26 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
         return value as unknown as T;
       }
     });
+  }
+
+  async mset<T>(keyValues: [string, T][], ttlSeconds?: number): Promise<void> {
+    if (keyValues.length === 0) {
+      return;
+    }
+
+    const pipeline = this.client.pipeline();
+
+    for (const [key, value] of keyValues) {
+      const serializedValue =
+        typeof value === "string" ? value : JSON.stringify(value);
+      if (ttlSeconds !== undefined) {
+        pipeline.set(key, serializedValue, "EX", ttlSeconds);
+      } else {
+        pipeline.set(key, serializedValue);
+      }
+    }
+
+    await pipeline.exec();
   }
 
   async zadd(key: string, score: number, member: string): Promise<void> {

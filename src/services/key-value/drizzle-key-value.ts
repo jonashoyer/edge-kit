@@ -1,4 +1,4 @@
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, sql } from "drizzle-orm";
 import type { MySqlTableWithColumns } from "drizzle-orm/mysql-core";
 import type { PgTableWithColumns } from "drizzle-orm/pg-core";
 import type { SQLiteTableWithColumns } from "drizzle-orm/sqlite-core";
@@ -169,6 +169,10 @@ class BaseDrizzleKeyValueService<
     throw new Error("Not implemented");
   }
 
+  mset<T>(_keyValues: [string, T][], _ttlSeconds?: number): Promise<void> {
+    throw new Error("Not implemented");
+  }
+
   async delete(key: string): Promise<void> {
     await this._deleteManyByKeys([key]);
   }
@@ -291,6 +295,34 @@ class MySqlKeyValueService extends BaseDrizzleKeyValueService<
       })
       .execute();
   }
+
+  override async mset<T>(
+    keyValues: [string, T][],
+    ttlSeconds?: number
+  ): Promise<void> {
+    if (keyValues.length === 0) return;
+
+    const expiresAt = ttlSeconds
+      ? Math.floor(Date.now() / MS_TO_SECONDS) + ttlSeconds
+      : null;
+
+    await this._db
+      .insert(this._table)
+      .values(
+        keyValues.map(([key, value]) => ({
+          key,
+          value,
+          expiresAt,
+        }))
+      )
+      .onDuplicateKeyUpdate({
+        set: {
+          value: sql`VALUES(${this._table.value})`,
+          expiresAt: sql`VALUES(${this._table.expiresAt})`,
+        },
+      })
+      .execute();
+  }
 }
 
 class PostgresKeyValueService extends BaseDrizzleKeyValueService<
@@ -319,6 +351,32 @@ class PostgresKeyValueService extends BaseDrizzleKeyValueService<
       })
       .execute();
   }
+
+  async mset<T>(keyValues: [string, T][], ttlSeconds?: number): Promise<void> {
+    if (keyValues.length === 0) return;
+
+    const expiresAt = ttlSeconds
+      ? Math.floor(Date.now() / MS_TO_SECONDS) + ttlSeconds
+      : null;
+
+    await this._db
+      .insert(this._table)
+      .values(
+        keyValues.map(([key, value]) => ({
+          key,
+          value,
+          expiresAt,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: this._table.key,
+        set: {
+          value: sql`excluded.value`,
+          expiresAt: sql`excluded.expiresAt`,
+        },
+      })
+      .execute();
+  }
 }
 
 class SQLiteKeyValueService extends BaseDrizzleKeyValueService<
@@ -342,6 +400,32 @@ class SQLiteKeyValueService extends BaseDrizzleKeyValueService<
         set: {
           value,
           expiresAt,
+        },
+      })
+      .run();
+  }
+
+  async mset<T>(keyValues: [string, T][], ttlSeconds?: number): Promise<void> {
+    if (keyValues.length === 0) return;
+
+    const expiresAt = ttlSeconds
+      ? Math.floor(Date.now() / MS_TO_SECONDS) + ttlSeconds
+      : null;
+
+    await this._db
+      .insert(this._table)
+      .values(
+        keyValues.map(([key, value]) => ({
+          key,
+          value,
+          expiresAt,
+        }))
+      )
+      .onConflictDoUpdate({
+        target: this._table.key,
+        set: {
+          value: sql`excluded.value`,
+          expiresAt: sql`excluded.expiresAt`,
         },
       })
       .run();

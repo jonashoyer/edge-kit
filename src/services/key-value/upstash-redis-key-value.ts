@@ -53,6 +53,24 @@ export class UpstashRedisKeyValueService extends AbstractKeyValueService {
     return await this.client.mget<Nullable<T>[]>(...keys);
   }
 
+  async mset<T>(keyValues: [string, T][], ttlSeconds?: number): Promise<void> {
+    if (keyValues.length === 0) {
+      return;
+    }
+
+    const pipeline = this.client.pipeline();
+
+    for (const [key, value] of keyValues) {
+      if (ttlSeconds !== undefined) {
+        pipeline.set(key, value, { ex: ttlSeconds });
+      } else {
+        pipeline.set(key, value);
+      }
+    }
+
+    await pipeline.exec();
+  }
+
   async zadd(key: string, score: number, member: string): Promise<void> {
     await this.client.zadd(key, { score, member });
   }
