@@ -10,17 +10,22 @@ export class SlackAlertingService extends AbstractAlertingService {
   private readonly notification: AbstractNotificationService;
   private readonly channel: string | undefined;
   private readonly fields?: { title: string; value: string; short?: boolean }[];
+  private readonly environment?: string;
 
   constructor(
     notification: AbstractNotificationService,
     channel: string | undefined,
     logger?: AbstractLogger,
-    fields?: { title: string; value: string; short?: boolean }[]
+    config?: {
+      fields?: { title: string; value: string; short?: boolean }[];
+      environment?: string;
+    }
   ) {
     super(logger as AbstractLogger);
     this.notification = notification;
     this.channel = channel;
-    this.fields = fields;
+    this.fields = config?.fields;
+    this.environment = config?.environment;
   }
 
   async alert(message: string, options: AlertOptions): Promise<void> {
@@ -30,8 +35,11 @@ export class SlackAlertingService extends AbstractAlertingService {
   }
 
   private buildBlocks(message: string, options: AlertOptions): SlackBlock[] {
+    const envPrefix = this.environment
+      ? `[${this.environment.toUpperCase()}] `
+      : "";
     const header = this.createSection(
-      `${this.getSeverityEmoji(options.severity)} ${message}`
+      `${envPrefix}${this.getSeverityEmoji(options.severity)} ${message}`
     );
     const fields = this.collectFields(options);
     const fieldsMrkdwn = fields
@@ -60,7 +68,7 @@ export class SlackAlertingService extends AbstractAlertingService {
       case "warning":
         return ":warning:";
       case "error":
-        return ":x:";
+        return ":interrobang:";
       case "critical":
         return ":rotating_light:";
       default:

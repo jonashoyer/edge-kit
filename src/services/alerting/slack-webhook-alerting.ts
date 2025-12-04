@@ -12,27 +12,35 @@ export class SlackWebhookAlertingService extends AbstractAlertingService {
   private readonly webhookUrl: string;
   private readonly channel: string;
   private readonly fields?: { title: string; value: string; short?: boolean }[];
+  private readonly environment?: string;
 
   constructor(
     webhookUrl: string,
     channel: string,
     logger: AbstractLogger,
-    fields?: { title: string; value: string; short?: boolean }[]
+    config?: {
+      fields?: { title: string; value: string; short?: boolean }[];
+      environment?: string;
+    }
   ) {
     super(logger);
     this.webhookUrl = webhookUrl;
     this.channel = channel;
-    this.fields = fields;
+    this.fields = config?.fields;
+    this.environment = config?.environment;
   }
 
   async alert(message: string, options: AlertOptions): Promise<void> {
     const color = this.getSeverityColor(options.severity);
+    const envPrefix = this.environment
+      ? `[${this.environment.toUpperCase()}] `
+      : "";
     const payload = {
       channel: this.channel,
       attachments: [
         {
           color,
-          text: message,
+          text: `${envPrefix}${message}`,
           fields: [
             ...(this.fields ?? []),
             { title: "Severity", value: options.severity, short: true },

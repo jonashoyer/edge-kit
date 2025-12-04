@@ -1,11 +1,14 @@
-import { Axiom } from '@axiomhq/js';
+import { Axiom } from "@axiomhq/js";
 
-import { AbstractLogger } from '../logging/abstract-logger';
-import { AbstractAlertingService, AlertOptions } from './abstract-alerting';
+import type { AbstractLogger } from "../logging/abstract-logger";
+import {
+  AbstractAlertingService,
+  type AlertOptions,
+} from "./abstract-alerting";
 
 export class AxiomAlertingService extends AbstractAlertingService {
-  private client: Axiom;
-  private dataset: string;
+  private readonly client: Axiom;
+  private readonly dataset: string;
 
   constructor(token: string, dataset: string, logger: AbstractLogger) {
     super(logger);
@@ -13,8 +16,9 @@ export class AxiomAlertingService extends AbstractAlertingService {
     this.dataset = dataset;
   }
 
-  async alert(message: string, options: AlertOptions): Promise<void> {
-    await this.client.ingest(this.dataset, [
+  // biome-ignore lint/suspicious/useAwait: Axiom ingest is not async
+  async alert(message: string, options: AlertOptions) {
+    this.client.ingest(this.dataset, [
       {
         severity: options.severity,
         message,
