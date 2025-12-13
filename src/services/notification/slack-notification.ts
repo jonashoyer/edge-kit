@@ -12,6 +12,11 @@ import {
 
 export type SlackBlock = Record<string, unknown>;
 export type SlackBlockElement = Record<string, unknown>;
+type SlackApiOk = { ok: true };
+type SlackApiErr = { ok: false; error?: string };
+type SlackApiResponse<
+  T extends Record<string, unknown> = Record<string, unknown>,
+> = (T & SlackApiOk) | SlackApiErr;
 
 export type SlackNotificationOptions = {
   timeoutMs?: number;
@@ -43,42 +48,42 @@ export class SlackNotificationService extends AbstractNotificationService {
   async send(payload: NotificationPayload): Promise<NotificationResponse> {
     const body = this.buildBody(payload);
 
-    const res = await fetchExt({
-      url: "https://slack.com/api/chat.postMessage",
-      timeout: this.timeoutMs,
-      retries: this.retries,
-      retryDelay: this.retryDelay,
-      init: {
-        method: "POST",
-        headers: {
-          "Content-type": "application/json; charset=utf-8",
-          Authorization: `Bearer ${this.botToken}`,
-        },
-        body: JSON.stringify(body),
-      },
-    });
-
-    if (!res.ok) {
-      const message = `Slack postMessage HTTP ${res.status}`;
-      this.logger?.error(message, { status: res.status });
-      throw new Error(message);
-    }
-
-    const data = (await res.json()) as NotificationResponse & {
-      ok: boolean;
-      error?: string;
-    };
-    if (!data.ok) {
-      const message = `Slack API error: ${data.error ?? "unknown"}`;
-      this.logger?.error(message);
-      throw new Error(message);
-    }
+    const data = await this.slackApi<NotificationResponse>(
+      "chat.postMessage",
+      body
+    );
 
     this.logger?.info("Slack message sent", {
       channel: data.channel,
       ts: data.ts,
     });
     return data;
+  }
+
+  async update(
+    channelId: string,
+    ts: string,
+    payload: { blocks?: unknown[]; text?: string }
+  ): Promise<void> {
+    await this.slackApi("chat.update", {
+      channel: channelId,
+      ts,
+      blocks: payload.blocks,
+      text: payload.text ?? " ",
+    });
+  }
+
+  async postEphemeral(
+    channelId: string,
+    userId: string,
+    payload: { text?: string; blocks?: unknown[] }
+  ): Promise<void> {
+    await this.slackApi("chat.postEphemeral", {
+      channel: channelId,
+      user: userId,
+      text: payload.text ?? " ",
+      blocks: payload.blocks,
+    });
   }
 
   async sendText(
@@ -95,6 +100,19 @@ export class SlackNotificationService extends AbstractNotificationService {
       type: "button",
       text: { type: "plain_text", text },
       url,
+    };
+  }
+
+  createActionButton(
+    text: string,
+    actionId: string,
+    value: string
+  ): SlackBlockElement {
+    return {
+      type: "button",
+      text: { type: "plain_text", text },
+      action_id: actionId,
+      value,
     };
   }
 
@@ -115,6 +133,42 @@ export class SlackNotificationService extends AbstractNotificationService {
       return { channel, text: payload.text };
     }
     return { channel, blocks: payload.blocks };
+  }
+
+  private async slackApi<
+    T extends Record<string, unknown> = Record<string, unknown>,
+  >(
+    method: "chat.postMessage" | "chat.update" | "chat.postEphemeral",
+    body: Record<string, unknown>
+  ): Promise<T> {
+    const res = await fetchExt({
+      url: `https://slack.com/api/${method}`,
+      timeout: this.timeoutMs,
+      retries: this.retries,
+      retryDelay: this.retryDelay,
+      init: {
+        method: "POST",
+        headers: {
+          "Content-type": "application/json; charset=utf-8",
+          Authorization: `Bearer ${this.botToken}`,
+        },
+        body: JSON.stringify(body),
+      },
+    });
+
+    if (!res.ok) {
+      const message = `Slack ${method} HTTP ${res.status}`;
+      this.logger?.error(message, { status: res.status });
+      throw new Error(message);
+    }
+
+    const data = (await res.json()) as SlackApiResponse<T>;
+    if (!data.ok) {
+      const message = `Slack API error (${method}): ${data.error ?? "unknown"}`;
+      this.logger?.error(message);
+      throw new Error(message);
+    }
+    return data;
   }
 }
 

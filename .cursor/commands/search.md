@@ -1,1 +1,0 @@
-our task is to write a one-paragraph search query as if you were telling a human researcher what to find, including all the relevant context. Format the paragraph as clear instructions commanding a researcher to find what we're looking for. Ask for code snippets or technical details when relevant.

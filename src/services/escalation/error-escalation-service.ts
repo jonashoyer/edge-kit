@@ -73,10 +73,17 @@ export class ErrorEscalationService {
     this.prefix = options?.prefix ?? DEFAULT_PREFIX;
   }
 
-  async capture(error: unknown, config: CaptureConfig): Promise<void> {
+  async capture(error: unknown, config: CaptureConfig): Promise<boolean> {
     const { name, severity, groupId, rules } = config;
     const meta = this.toMeta(error);
-    await this.applyRules({ name, severity, groupId, rules, meta, config });
+    return await this.applyRules({
+      name,
+      severity,
+      groupId,
+      rules,
+      meta,
+      config,
+    });
   }
 
   private toMeta(error: unknown): ErrorMetadata {
@@ -91,7 +98,7 @@ export class ErrorEscalationService {
     rules: EscalationRule[];
     meta: ErrorMetadata;
     config: CaptureConfig;
-  }): Promise<void> {
+  }): Promise<boolean> {
     const { name, severity, groupId, rules, meta, config } = args;
 
     const conditions = await Promise.all(
@@ -126,7 +133,7 @@ export class ErrorEscalationService {
     );
 
     if (triggeredRules.length === 0) {
-      return;
+      return false;
     }
 
     try {
@@ -139,12 +146,13 @@ export class ErrorEscalationService {
         config,
       });
     } catch (e) {
-      this.logger?.error("error escalation capture rule failure", {
+      this.logger?.error("Error escalation capture rule failure", {
         name,
         groupId,
         error: (e as Error)?.message ?? String(e),
       });
     }
+    return true;
   }
 
   private async handleThreshold(args: {

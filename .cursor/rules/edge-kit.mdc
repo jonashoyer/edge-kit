@@ -1,0 +1,242 @@
+---
+alwaysApply: true
+---
+
+# Edge Kit Coding Standards
+
+Edge Kit is a TypeScript-first, copy-paste-ready toolkit for serverless applications (NextJS, Vercel, Cloudflare Workers). Prioritize type safety, minimal dependencies, and self-contained modules.
+
+## Architecture Patterns
+
+### Abstract Base Class Pattern (Required for Services)
+
+Every service should preferably follow the abstract base class pattern:
+
+```typescript
+// ✅ CORRECT: Abstract contract first
+export abstract class AbstractStorageService {
+  abstract upload(key: string, data: Buffer): Promise<void>;
+  abstract download(key: string): Promise<Buffer>;
+  abstract delete(key: string): Promise<void>;
+}
+
+// ✅ CORRECT: Concrete implementation extends abstract
+export class S3StorageService extends AbstractStorageService {
+  private readonly client: S3Client;
+
+  constructor(config: S3Config) {
+    super();
+    this.client = new S3Client(config);
+  }
+
+  async upload(key: string, data: Buffer): Promise<void> {
+    // Implementation
+  }
+}
+
+// ❌ WRONG: Standalone service without abstract base
+export class StorageService {
+  upload(key: string, data: Buffer) {
+    /* ... */
+  }
+}
+```
+
+### Service File Structure
+
+```
+services/[service-name]/
+├── abstract-[service-name].ts    # Abstract base class (REQUIRED)
+├── [provider]-[service-name].ts  # Provider implementations
+├── [service-name].ts             # Main service if needed
+├── types.ts                      # Service-specific types
+├── errors.ts                     # Service-specific errors
+└── index.ts                      # Barrel exports
+```
+
+### Dependency Injection Pattern
+
+Services receive dependencies via constructor:
+
+```typescript
+// ✅ CORRECT
+export class MyService {
+  constructor(
+    private readonly kv: AbstractKeyValueService,
+    private readonly logger: AbstractLogger,
+    private readonly options: MyServiceOptions
+  ) {}
+}
+
+// ❌ WRONG: Hardcoded dependencies
+export class MyService {
+  private kv = new UpstashRedisKeyValueService(process.env.REDIS_URL!);
+}
+```
+
+## Type Safety Requirements
+
+### Use Project Type Utilities
+
+Import from `utils/type-utils.ts`:
+
+```typescript
+import type { Nullable, Optional, AsyncFunction } from "../utils/type-utils";
+
+// ✅ CORRECT
+async get<T>(key: string): Promise<Nullable<T>>
+
+// ❌ WRONG
+async get<T>(key: string): Promise<T | null | undefined>
+```
+
+### Generic Constraints
+
+Use generics with meaningful constraints:
+
+```typescript
+// ✅ CORRECT: Constrained generic
+export class FeatureFlagService<T extends string = string> {
+  protected flags: Map<T, FeatureFlag & { name: T }>;
+}
+
+// ✅ CORRECT: Template literal types for compile-time safety
+type ExtractVariables<T extends string> =
+  T extends `${string}{{${infer Var}}}${infer Rest}`
+    ? Var | ExtractVariables<Rest>
+    : never;
+```
+
+### Error Handling
+
+Use `CustomError` for typed errors:
+
+```typescript
+import { CustomError } from "../utils/custom-error";
+
+// ✅ CORRECT
+export class CommandNotFoundError extends CustomError<"COMMAND_NOT_FOUND"> {
+  constructor(commandName: string) {
+    super(`Command "${commandName}" not found`, "COMMAND_NOT_FOUND");
+  }
+}
+
+// ❌ WRONG: Generic Error
+throw new Error("Command not found");
+```
+
+## Naming Conventions
+
+| Type                | Convention        | Example                   |
+| ------------------- | ----------------- | ------------------------- |
+| Classes/Types       | PascalCase        | `AbstractKeyValueService` |
+| Variables/Functions | camelCase         | `getUserData`             |
+| Constants           | UPPER_SNAKE_CASE  | `DEFAULT_TTL`             |
+| Files               | kebab-case        | `abstract-key-value.ts`   |
+| Abstract classes    | `Abstract` prefix | `AbstractLogger`          |
+
+## Import/Export Patterns
+
+```typescript
+// ✅ CORRECT: Named exports, type imports
+export { AbstractKeyValueService } from "./abstract-key-value";
+import type { Nullable } from "../utils/type-utils";
+
+// ✅ CORRECT: Object as const for namespaced utilities
+export const PromptComposer = {
+  build,
+  composer,
+  arrayToList,
+} as const;
+
+// ❌ WRONG: Default exports
+export default class MyService {}
+```
+
+## Common Utilities (Reuse These)
+
+Before creating new utilities, check existing ones:
+
+- `utils/type-utils.ts`: `Nullable`, `Optional`, `DeepPartial`, `XOR`
+- `utils/custom-error.ts`: `CustomError` for typed errors
+- `utils/singleton.ts`: `singleton()` for service instances
+- `utils/id-generator.ts`: `genId()` for unique IDs
+- `utils/try-catch-utils.ts`: `tryCatch()` for Result pattern
+- `utils/fetch-utils.ts`: `fetchExt()` for resilient HTTP calls
+- `composers/namespace-composer.ts`: Type-safe KV key generation
+
+## Method Patterns
+
+### Async Methods
+
+Always use async/await, return explicit types:
+
+```typescript
+// ✅ CORRECT
+async get<T>(key: string): Promise<Nullable<T>> {
+  const value = await this.client.get<T>(key);
+  return value ?? null;
+}
+
+// ❌ WRONG: Implicit any, no null coalescing
+async get(key) {
+  return this.client.get(key);
+}
+```
+
+### Optional Parameters
+
+Use optional chaining and nullish coalescing:
+
+```typescript
+// ✅ CORRECT
+async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
+  if (ttlSeconds !== undefined) {
+    await this.client.set(key, value, { ex: ttlSeconds });
+  } else {
+    await this.client.set(key, value);
+  }
+}
+```
+
+## Testing Patterns
+
+- Abstract base classes enable easy mocking
+- Use Vitest for testing
+- Test files: `[name].test.ts` adjacent to source
+
+## Biome Linting
+
+Extends `ultracite` preset. Key allowed patterns:
+
+- Non-null assertions (`!`) where logically safe
+- Magic numbers in domain contexts
+- Explicit `any` only when truly necessary
+
+## Documentation Style
+
+Use JSDoc for public APIs:
+
+```typescript
+/**
+ * Converts an array to a list string.
+ * @param arr - The array to convert.
+ * @returns The list string.
+ * @example
+ * const result = arrayToList(['a', 'b']);
+ * // - a
+ * // - b
+ */
+function arrayToList(arr: unknown[]): string {
+  return arr.map((item) => `- ${item}`).join("\n");
+}
+```
+
+## Anti-Patterns to Avoid
+
+2. **No standalone services** - Prefer extend abstract base class
+3. **No default exports** - Use named exports only
+4. **No implicit any** - Always type parameters and returns when possible
+5. **No bare Error throws** - Use `CustomError` with codes
+6. **No duplicate utilities** - Check `utils/` first
+7. **No complex constructors** - Use factory functions if needed
