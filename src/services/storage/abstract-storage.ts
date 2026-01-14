@@ -9,7 +9,11 @@ export abstract class AbstractStorage {
     this.options = options;
   }
 
-  abstract write(key: string, data: Buffer): Promise<void>;
+  abstract write(
+    key: string,
+    data: Buffer,
+    opts?: { metadata?: Record<string, unknown> }
+  ): Promise<void>;
   abstract read(key: string): Promise<Buffer>;
   abstract delete(key: string): Promise<void>;
   abstract list(prefix?: string): Promise<string[]>;

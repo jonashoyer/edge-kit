@@ -6,15 +6,22 @@ export type LogMetadata = Record<
   unknown | LoggablePrimitive | Record<string, LoggablePrimitive>
 >;
 
+export type LogLevel = "debug" | "info" | "warn" | "error";
+
 export abstract class AbstractLogger {
-  abstract log(
-    message: string,
-    level: "info" | "warn" | "error",
-    metadata?: LogMetadata
-  ): void;
-  abstract info(message: string, metadata?: LogMetadata): void;
-  abstract warn(message: string, metadata?: LogMetadata): void;
-  abstract error(message: string, metadata?: LogMetadata): void;
+  abstract log(message: string, level: LogLevel, metadata?: LogMetadata): void;
+  debug(message: string, metadata?: LogMetadata) {
+    this.log(message, "debug", metadata);
+  }
+  info(message: string, metadata?: LogMetadata) {
+    this.log(message, "info", metadata);
+  }
+  warn(message: string, metadata?: LogMetadata) {
+    this.log(message, "warn", metadata);
+  }
+  error(message: string, metadata?: LogMetadata) {
+    this.log(message, "error", metadata);
+  }
 
   static serializeLogValue(value: unknown) {
     if (value instanceof Error) {
