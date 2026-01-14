@@ -8,7 +8,12 @@ export type LogMetadata = Record<
 
 export type LogLevel = "debug" | "info" | "warn" | "error";
 
-export abstract class AbstractLogger {
+export type StandardLogger = Record<
+  LogLevel,
+  (message: string, metadata?: LogMetadata) => void
+>;
+
+export abstract class AbstractLogger implements StandardLogger {
   abstract log(message: string, level: LogLevel, metadata?: LogMetadata): void;
   debug(message: string, metadata?: LogMetadata) {
     this.log(message, "debug", metadata);
