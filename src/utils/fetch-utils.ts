@@ -3,6 +3,11 @@ import type { ZodIssue, ZodType } from "zod";
 import { CustomError } from "./custom-error";
 import { genId } from "./id-generator";
 
+/**
+ * Extended fetch wrapper (`fetchExt`) with built-in resilience and convenience features.
+ * Supports retries (with backoff/jitter), timeouts, typed JSON responses (via Zod),
+ * idempotency keys, and detailed error types.
+ */
 export class FetchExtTimeoutError extends CustomError<"FETCH_TIMEOUT"> {
   readonly url: string;
   readonly timeoutMs: number;

@@ -19,6 +19,11 @@ export interface VectorQueryOptions<
   includeMetadata?: TIncludeMetadata;
 }
 
+/**
+ * Abstract base class for Vector Databases.
+ * Defines the contract for storing and querying high-dimensional vectors.
+ * Supports namespace isolation, metadata storage, and top-k similarity search.
+ */
 export abstract class AbstractVectorDatabase<
   TMetadata = Record<string, any>,
   TVector = number[],

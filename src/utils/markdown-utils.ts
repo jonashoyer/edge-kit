@@ -1,7 +1,3 @@
-// ============================================================================
-// Type Definitions
-// ============================================================================
-
 /**
  * How to format a field label in markdown
  */
@@ -291,14 +287,14 @@ function renderFieldValueAsMarkdown(
  * //   <age>30</age>
  * // </root>
  */
-function jsonToXml(json: unknown, rootName = "root"): string {
+export function jsonToXml(json: unknown, rootName = "root", options: { disableIndentation?: boolean, disableEscape?: boolean } = {}): string {
   const convert = (obj: unknown, name: string): string => {
     if (obj === null || obj === undefined) {
       return `<${name}/>`;
     }
 
     if (typeof obj !== "object") {
-      return `<${name}>${escapeXml(obj.toString())}</${name}>`;
+      return `<${name}>${options.disableEscape ? obj.toString() : escapeXml(obj.toString())}</${name}>`;
     }
 
     if (Array.isArray(obj)) {
@@ -309,7 +305,7 @@ function jsonToXml(json: unknown, rootName = "root"): string {
       .map(([key, value]) => convert(value, key))
       .join("\n");
 
-    return `<${name}>\n${indent(children)}\n</${name}>`;
+    return `<${name}>\n${options.disableIndentation ? children : indent(children)}\n</${name}>`;
   };
 
   return convert(json, rootName);
@@ -318,7 +314,7 @@ function jsonToXml(json: unknown, rootName = "root"): string {
 function indent(str: string): string {
   return str
     .split("\n")
-    .map((line) => `  ${line}`)
+    .map((line) => ` ${line}`)
     .join("\n");
 }
 

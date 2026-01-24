@@ -17,6 +17,11 @@ export interface EmbedderService {
   embed(texts: string[]): Promise<number[][]>;
 }
 
+/**
+ * Abstract base class for document retrieval.
+ * Defines methods for upserting, deleting, and querying chunks in a vector store.
+ * Supports metadata filtering and vector inclusion options.
+ */
 export abstract class AbstractRetriever<
   TMetadata extends ChunkedDocumentMeta = ChunkedDocumentMeta,
 > {

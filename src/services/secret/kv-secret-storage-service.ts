@@ -7,6 +7,11 @@ import { type EncryptedData, EncryptionService } from "./encryption-service";
 /**
  * Implements secure storage of secrets using the BasicEncryptionService and a key-value store
  */
+/**
+ * Key-Value backed implementation of AbstractSecretStorageService.
+ * Encrypts secrets using EncryptionService before storing them in an AbstractKeyValueService.
+ * Ensures secrets are never stored in plaintext.
+ */
 export class KvSecretStorageService implements AbstractSecretStorageService {
   private readonly keyValueService: AbstractKeyValueService;
   private readonly encryptionService: EncryptionService;

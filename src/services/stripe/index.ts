@@ -48,6 +48,11 @@ export interface StripeServiceOptions {
 /**
  * Main Stripe service that coordinates all Stripe functionality
  */
+/**
+ * Main Stripe service that coordinates all Stripe functionality.
+ * Bundles Checkout, Webhook, Sync, and Subscription services into a single interface.
+ * Requires an AbstractStripeStore for persisting customer/subscription data.
+ */
 export class StripeService {
   private store: AbstractStripeStore;
   private syncService: StripeSyncService;

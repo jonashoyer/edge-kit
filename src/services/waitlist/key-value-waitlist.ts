@@ -2,6 +2,11 @@ import { NamespaceComposer } from '../../composers/namespace-composer';
 import { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import { AbstractWaitlistService, WaitlistEntry } from './abstract-waitlist';
 
+/**
+ * Key-Value backed implementation of AbstractWaitlistService.
+ * Uses a Sorted Set for ordering/ranking and a Hash/Key for entry details.
+ * Scalable and suitable for high-traffic waitlists.
+ */
 export class KeyValueWaitlistService extends AbstractWaitlistService {
   namespace = new NamespaceComposer({
     sortedSet: 'waitlist:sorted',

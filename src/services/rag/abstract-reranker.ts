@@ -5,6 +5,10 @@ export interface RerankItem<TMeta = any> {
   score?: number;
 }
 
+/**
+ * Abstract base class for reranking search results.
+ * Re-scores a list of items based on their semantic relevance to a query.
+ */
 export abstract class AbstractReranker<TMeta = any> {
   /**
    * Rerank items based on relevance to the query.

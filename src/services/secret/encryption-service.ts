@@ -21,6 +21,11 @@ export interface EncryptedData {
 /**
  * Basic encryption service using AES-256-GCM
  */
+/**
+ * Low-level encryption service using Web Crypto API (AES-256-GCM).
+ * Handles key derivation (PBKDF2), encryption, and decryption of raw data.
+ * Used internally by KvSecretStorageService.
+ */
 export class EncryptionService {
   private masterKeyMaterial: BufferSource;
   private pbkdf2Iterations: number;

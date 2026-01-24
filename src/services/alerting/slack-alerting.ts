@@ -6,6 +6,11 @@ import {
   type AlertOptions,
 } from "./abstract-alerting";
 
+/**
+ * Slack implementation of the AbstractAlertingService.
+ * Sends formatted alerts (with severity emojis and metadata fields) to a Slack channel
+ * using an injected AbstractNotificationService.
+ */
 export class SlackAlertingService extends AbstractAlertingService {
   private readonly notification: AbstractNotificationService;
   private readonly channel: string | undefined;

@@ -66,6 +66,11 @@ export interface SearchOptions {
 
 // Voyage contextualized embeddings recommend no overlap
 // this.chunker = new SimpleChunker({ maxTokens: 300, overlapTokens: 0 });
+/**
+ * Comprehensive RAG (Retrieval-Augmented Generation) service.
+ * Orchestrates chunking, embedding, indexing, retrieval, and optional reranking.
+ * Supports standard and contextualized embeddings via provider abstractions.
+ */
 export class RagService<
   TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
 > {

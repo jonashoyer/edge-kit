@@ -1,5 +1,10 @@
 import type { Nullable } from "../../utils/type-utils";
 
+/**
+ * Abstract base class for Key-Value storage services.
+ * Defines standard methods for getting, setting, deleting, and managing expiry of keys.
+ * Also supports sorted sets (zadd, zrange, etc.) and batch operations (mget, mset).
+ */
 export abstract class AbstractKeyValueService {
   abstract get<T>(key: string): Promise<Nullable<T>>;
   abstract set<T>(key: string, value: T, ttlSeconds?: number): Promise<void>;

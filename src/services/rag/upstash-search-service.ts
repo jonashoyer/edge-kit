@@ -35,6 +35,11 @@ export type UpstashSearchQueryOptions = {
   reranking?: boolean; // enable semantic + fulltext reranking server-side
 };
 
+/**
+ * Upstash Search implementation of AbstractRetriever.
+ * Uses Upstash's serverless search/vector database for high-performance retrieval.
+ * Supports full-text search and metadata filtering.
+ */
 export class UpstashSearchService<
   TContent extends UpstashSearchContent = UpstashSearchContent,
   TMeta extends ChunkedDocumentMeta = ChunkedDocumentMeta,

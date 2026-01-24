@@ -19,6 +19,10 @@ export type NotificationResponse = {
   message?: unknown;
 };
 
+/**
+ * Abstract base class for notification services.
+ * Defines the contract for sending text or block-based notifications (e.g. Slack, Email).
+ */
 export abstract class AbstractNotificationService {
   protected readonly logger?: AbstractLogger;
 

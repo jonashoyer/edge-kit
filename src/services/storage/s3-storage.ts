@@ -16,6 +16,11 @@ interface S3StorageOptions extends StorageOptions {
   secretAccessKey: string;
 }
 
+/**
+ * AWS S3 implementation of AbstractStorage.
+ * Uses the `@aws-sdk/client-s3` to interact with S3-compatible storage services.
+ * Supports presigned URLs for secure client-side uploads/downloads.
+ */
 export class S3Storage extends AbstractStorage {
   private readonly client: S3Client;
   private readonly bucket: string;

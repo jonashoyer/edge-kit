@@ -6,6 +6,10 @@ import {
   type AlertOptions,
 } from "./abstract-alerting";
 
+/**
+ * Axiom implementation of the AbstractAlertingService.
+ * Ingests alerts directly into an Axiom dataset and logs them via the injected logger.
+ */
 export class AxiomAlertingService extends AbstractAlertingService {
   private readonly client: Axiom;
   private readonly dataset: string;

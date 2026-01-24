@@ -1,3 +1,7 @@
+/**
+ * Utility functions for working with arrays.
+ * Includes helpers for chunking, deduplication, grouping, and ensuring array types.
+ */
 export const asArray = <T>(value: T | T[]): T[] => {
   if (Array.isArray(value)) {
     return value;

@@ -1,6 +1,11 @@
 /**
  * Abstract interface for a secure secret storage service
  */
+/**
+ * Abstract base class for secure secret storage services.
+ * Defines the contract for storing, retrieving, deleting, and rotating encrypted secrets.
+ * Supports namespacing for better organization.
+ */
 export abstract class AbstractSecretStorageService {
   /**
    * Store an encrypted secret

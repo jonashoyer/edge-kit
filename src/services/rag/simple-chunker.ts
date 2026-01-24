@@ -11,6 +11,11 @@ const estimateTokens = (text: string) =>
 
 const WHITESPACE_REGEX = /\s+/;
 
+/**
+ * Simple whitespace-based text chunker.
+ * Splits text into chunks based on token estimation (whitespace splitting) with overlap support.
+ * Useful for basic RAG pipelines where precise tokenization isn't critical.
+ */
 export class SimpleChunker implements AbstractChunker {
   private readonly maxTokens: number;
   private readonly overlapTokens: number;

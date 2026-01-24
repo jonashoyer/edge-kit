@@ -5,6 +5,10 @@ import {
   type AlertOptions,
 } from "./abstract-alerting";
 
+/**
+ * PagerDuty implementation of the AbstractAlertingService.
+ * Triggers events in PagerDuty via the Events API v2 using a routing key.
+ */
 export class PagerDutyAlertingService extends AbstractAlertingService {
   private readonly routingKey: string;
   private readonly apiUrl = "https://events.pagerduty.com/v2/enqueue";

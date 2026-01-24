@@ -12,6 +12,10 @@ interface UpstashVectorOptions extends VectorDatabaseOptions {
   token: string;
 }
 
+/**
+ * Upstash Vector implementation of AbstractVectorDatabase.
+ * Uses the `@upstash/vector` client for serverless vector storage and retrieval.
+ */
 export class UpstashVectorDatabase<
   TMetadata = Record<string, any>,
 > extends AbstractVectorDatabase<TMetadata, number[]> {

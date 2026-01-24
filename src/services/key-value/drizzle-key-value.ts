@@ -56,6 +56,11 @@ export type SQLiteKeyValueTable = SQLiteTableWithColumns<
 
 const MS_TO_SECONDS = 1000;
 
+/**
+ * Drizzle ORM implementation of AbstractKeyValueService.
+ * Supports MySQL, PostgreSQL, and SQLite backends via Drizzle.
+ * Stores values as JSON in a dedicated table structure.
+ */
 class BaseDrizzleKeyValueService<
   TDb extends AnyMySqlDatabase | AnyPostgresDatabase | AnySQLiteDatabase,
   TTable extends

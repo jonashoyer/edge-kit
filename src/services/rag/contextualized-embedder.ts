@@ -19,6 +19,10 @@ export interface VoyageContextualizedEmbedderOptions {
 
 const TRAILING_SLASH_REGEX = /\/$/;
 
+/**
+ * Interface and implementation for contextualized embeddings (e.g. Voyage AI).
+ * Generates embeddings that are aware of the input type (document vs query) to improve retrieval quality.
+ */
 export class VoyageContextualizedEmbedder implements ContextualizedEmbedder {
   private readonly baseUrl: string;
   private readonly apiKey: string;

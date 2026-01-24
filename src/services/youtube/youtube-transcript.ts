@@ -22,6 +22,11 @@ export interface YoutubeTranscriptSegment {
   text: string;
 }
 
+/**
+ * Service for fetching and processing YouTube video transcripts.
+ * Retrieves transcripts via `youtubei.js` and optionally punctuates them using a local ML model.
+ * Extracts metadata like title, channel, and duration.
+ */
 export class YoutubeTranscriptHandler {
   private readonly OVERLAP_WORDS = 1;
 

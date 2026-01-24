@@ -2,6 +2,10 @@ import pino from "pino";
 
 import { AbstractLogger, type LogMetadata } from "./abstract-logger";
 
+/**
+ * Pino implementation of AbstractLogger with Axiom transport.
+ * Uses `pino` for structured logging and forwards logs to Axiom via `@axiomhq/pino`.
+ */
 export class AxiomPinoLogger extends AbstractLogger {
   private readonly logger: pino.Logger;
 

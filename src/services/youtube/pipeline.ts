@@ -3,6 +3,11 @@ import {
   type TextGenerationPipeline,
 } from "@huggingface/transformers";
 
+/**
+ * Singleton wrapper for HuggingFace Transformers pipelines.
+ * Lazily initializes pipelines for text generation, fill-mask, and punctuation.
+ * Ensures models are loaded only once.
+ */
 export class PipelineSingleton {
   pipeline: TextGenerationPipeline | null = null;
 

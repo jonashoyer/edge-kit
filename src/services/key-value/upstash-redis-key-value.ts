@@ -3,6 +3,10 @@ import { Redis } from "@upstash/redis";
 import type { Nullable } from "../../utils/type-utils";
 import { AbstractKeyValueService } from "./abstract-key-value";
 
+/**
+ * Upstash Redis implementation of AbstractKeyValueService.
+ * Uses the `@upstash/redis` HTTP client, making it suitable for serverless/edge environments.
+ */
 export class UpstashRedisKeyValueService extends AbstractKeyValueService {
   private readonly client: Redis;
 

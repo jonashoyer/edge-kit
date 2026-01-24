@@ -1,5 +1,9 @@
 import { z } from 'zod';
 
+/**
+ * Utilities for handling FormData and File validation with Zod.
+ * Includes helpers for parsing FormData into objects and validating File constraints (size, type).
+ */
 export const zfd = <T extends z.ZodObject<any>>(schema: T) => {
   return (value: unknown) => {
     if (!(value instanceof FormData)) {

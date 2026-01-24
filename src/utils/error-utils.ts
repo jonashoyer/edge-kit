@@ -1,3 +1,7 @@
+/**
+ * Utility for serializing Error objects into a plain object structure.
+ * Useful for logging or sending error details over the network.
+ */
 export type SerializeError = {
   name?: string;
   message?: string;

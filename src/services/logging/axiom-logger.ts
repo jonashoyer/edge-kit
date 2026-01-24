@@ -2,6 +2,10 @@ import { Axiom } from "@axiomhq/js";
 
 import type { AbstractLogger, LogMetadata } from "./abstract-logger";
 
+/**
+ * Axiom implementation of AbstractLogger.
+ * Ingests logs directly into an Axiom dataset using the `@axiomhq/js` client.
+ */
 export class AxiomLogger implements AbstractLogger {
   private readonly client: Axiom;
   private readonly dataset: string;

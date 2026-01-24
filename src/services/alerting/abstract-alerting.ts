@@ -7,6 +7,11 @@ export interface AlertOptions {
   tags?: Record<string, string>;
 }
 
+/**
+ * Abstract base class for alerting services.
+ * Defines the contract for sending alerts with varying severity levels (info, warning, error, critical).
+ * Delegates logging to an injected AbstractLogger.
+ */
 export abstract class AbstractAlertingService {
   protected readonly logger: AbstractLogger;
   constructor(logger: AbstractLogger) {

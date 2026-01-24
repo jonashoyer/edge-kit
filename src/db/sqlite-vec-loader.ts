@@ -5,6 +5,11 @@ export interface SqliteVecLoaderOptions {
   trustedSchema?: boolean;
 }
 
+/**
+ * Loader for the `sqlite-vec` extension in `better-sqlite3`.
+ * Handles platform-specific extension paths and loading logic.
+ * Enables vector search capabilities in SQLite.
+ */
 export function loadSqliteVec(
   db: Database.Database,
   options: SqliteVecLoaderOptions = {}

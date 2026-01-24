@@ -1,5 +1,10 @@
 import { AbstractLogger, type LogMetadata } from "./abstract-logger";
 
+/**
+ * Simple console implementation of AbstractLogger.
+ * Outputs logs to `console.info`, `console.warn`, and `console.error`.
+ * Useful for local development.
+ */
 export class ConsoleLogger extends AbstractLogger {
   log(
     message: string,

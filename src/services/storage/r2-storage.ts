@@ -8,6 +8,10 @@ interface R2StorageOptions extends StorageOptions {
   bucket: string;
 }
 
+/**
+ * Cloudflare R2 implementation of AbstractStorage.
+ * Configures the S3Storage client to work with Cloudflare R2 endpoints.
+ */
 export class R2Storage extends S3Storage {
   constructor(options: R2StorageOptions) {
     super({

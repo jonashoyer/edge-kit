@@ -1,3 +1,7 @@
+/**
+ * Collection of utility types for TypeScript.
+ * Includes helpers for Nullable, Optional, DeepPartial, XOR, and advanced type manipulation.
+ */
 export type Nullable<T> = T | null;
 
 export type Optional<T> = T | undefined;

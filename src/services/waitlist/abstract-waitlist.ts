@@ -4,6 +4,10 @@ export interface WaitlistEntry {
   metadata?: Record<string, any>;
 }
 
+/**
+ * Abstract base class for Waitlist management.
+ * Defines standard methods for joining, checking status, and retrieving waitlist entries.
+ */
 export abstract class AbstractWaitlistService {
   abstract join(email: string, metadata?: Record<string, any>): Promise<number>;
   abstract getPosition(email: string): Promise<number | null>;

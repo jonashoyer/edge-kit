@@ -3,6 +3,11 @@ export interface StorageOptions {
   endpoint?: string;
 }
 
+/**
+ * Abstract base class for object storage services.
+ * Defines standard methods for reading, writing, deleting, and listing objects.
+ * Also supports generating presigned URLs for direct client access.
+ */
 export abstract class AbstractStorage {
   protected options: StorageOptions;
   constructor(options: StorageOptions) {

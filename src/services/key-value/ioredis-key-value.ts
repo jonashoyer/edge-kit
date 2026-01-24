@@ -3,6 +3,11 @@ import IORedis, { type RedisOptions } from "ioredis";
 import type { Nullable } from "../../utils/type-utils";
 import { AbstractKeyValueService } from "./abstract-key-value";
 
+/**
+ * IORedis implementation of AbstractKeyValueService.
+ * Uses the `ioredis` library to connect to a Redis instance.
+ * Supports full range of KV operations including sorted sets and pipelines.
+ */
 export class IoredisKeyValueService extends AbstractKeyValueService {
   private readonly client: IORedis;
 

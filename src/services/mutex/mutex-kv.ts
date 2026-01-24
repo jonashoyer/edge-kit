@@ -24,6 +24,11 @@ function buildCountKey(prefix: string, name: string): string {
   return `${prefix}${name}:count`;
 }
 
+/**
+ * Distributed Mutex implementation using a Key-Value store.
+ * Provides locking mechanisms with TTL, retries, and exponential backoff.
+ * Useful for coordinating access to shared resources in a distributed system.
+ */
 export class KvMutex<
   TNamespace extends string = string,
 > extends AbstractMutex<TNamespace> {

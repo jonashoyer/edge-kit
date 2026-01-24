@@ -8,7 +8,11 @@ interface R2StorageOptions extends StorageOptions {
   bucket: string;
 }
 
-export class R2Storage extends S3Storage {
+/**
+ * Backblaze B2 implementation of AbstractStorage (via S3 compatibility).
+ * Configures the S3Storage client to work with Backblaze B2 endpoints.
+ */
+export class BackblazeStorage extends S3Storage {
   constructor(options: R2StorageOptions) {
     // FIXME: Configure for backblaze
     super({

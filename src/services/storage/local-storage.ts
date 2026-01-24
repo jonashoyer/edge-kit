@@ -8,6 +8,11 @@ interface LocalStorageOptions extends StorageOptions {
   basePath: string;
 }
 
+/**
+ * Local filesystem implementation of AbstractStorage.
+ * Stores objects as files in a local directory.
+ * Useful for development and testing environments.
+ */
 export class LocalStorage extends AbstractStorage {
   private readonly basePath: string;
 

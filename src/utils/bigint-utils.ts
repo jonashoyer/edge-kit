@@ -1,3 +1,7 @@
+/**
+ * Utility functions for BigInt operations.
+ * Includes min/max comparisons and safe basis point multiplication.
+ */
 export function minBigInt(...values: bigint[]): bigint {
   if (values.length === 0) {
     throw new Error("Cannot find minimum of an empty array.");

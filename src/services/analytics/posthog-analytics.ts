@@ -3,6 +3,10 @@ import type { PostHogConfig, Properties } from 'posthog-js';
 
 import { AbstractAnalytics } from './abstract-analytics';
 
+/**
+ * PostHog implementation of AbstractAnalytics for client-side usage (browser).
+ * Wraps the `posthog-js` library to provide type-safe event capturing and user identification.
+ */
 export class PosthogAnalytics<T extends Record<string, Record<string, unknown>>> implements AbstractAnalytics<T> {
   constructor(token: string, config?: Partial<PostHogConfig>, name?: string) {
     posthog.init(token, { api_host: config?.api_host ?? 'https://eu.i.posthog.com', ...config }, name);

@@ -13,6 +13,11 @@ export type StandardLogger = Record<
   (message: string, metadata?: LogMetadata) => void
 >;
 
+/**
+ * Abstract base class for logging services.
+ * Defines standard log levels (debug, info, warn, error) and metadata handling.
+ * Includes helpers for serializing log values and errors.
+ */
 export abstract class AbstractLogger implements StandardLogger {
   abstract log(message: string, level: LogLevel, metadata?: LogMetadata): void;
   debug(message: string, metadata?: LogMetadata) {

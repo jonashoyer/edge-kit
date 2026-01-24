@@ -1,5 +1,9 @@
 import dayjs from "dayjs";
 
+/**
+ * Utility functions for date manipulation and formatting.
+ * Includes helpers for parsing, min/max dates, adding days, and humanizing time differences.
+ */
 export const tryParseDate = (date: string | null | undefined) => {
   if (!date) return null;
   const parsed = new Date(date);

@@ -55,6 +55,11 @@ function ruleKey({
   return [prefix, name, safeGroup, type, ruleIndex].filter(Boolean).join(":");
 }
 
+/**
+ * Error Escalation Service.
+ * Tracks error occurrences and triggers alerts based on configured rules (threshold or always).
+ * Uses a Key-Value store to maintain state (counts, cooldowns) and an Alerting service for notifications.
+ */
 export class ErrorEscalationService {
   private readonly kv: AbstractKeyValueService;
   private readonly alerting: AbstractAlertingService;

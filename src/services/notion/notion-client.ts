@@ -52,6 +52,11 @@ type QueryDatabaseFilterAnd = Extract<
   { and: unknown }
 >["and"];
 
+/**
+ * Notion API Client wrapper.
+ * Provides helper methods for querying databases, creating pages, and converting Notion blocks to Markdown.
+ * Includes utilities for handling rich text and property extraction.
+ */
 export class NotionClient {
   client: Client;
 

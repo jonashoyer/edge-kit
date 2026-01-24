@@ -13,6 +13,11 @@ type VoyageRerankResponse = {
 
 const TRAILING_SLASH_REGEX = /\/$/;
 
+/**
+ * Voyage AI implementation of AbstractReranker.
+ * Uses Voyage's rerank API to re-order search results for better relevance.
+ * Supports various Voyage reranking models.
+ */
 export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
   private readonly baseUrl: string;
   private readonly apiKey: string;
