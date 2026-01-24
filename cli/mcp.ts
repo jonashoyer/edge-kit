@@ -3,7 +3,9 @@ import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
   CallToolRequestSchema,
+  ListResourcesRequestSchema,
   ListToolsRequestSchema,
+  ReadResourceRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import {
@@ -12,6 +14,7 @@ import {
   featureBundleToXml,
   featureListToXml,
 } from "./mcp-utils.js";
+import { USAGE_GUIDELINES } from "./resources/usage-guidelines.js";
 
 // Initialize registry
 const registry = new FeatureRegistry();
@@ -26,10 +29,12 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
 
+// Tools
 server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
@@ -103,6 +108,36 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   }
 
   throw new Error("Tool not found");
+});
+
+// Resources
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  return {
+    resources: [
+      {
+        uri: "edge-kit://guidelines/usage",
+        name: "Usage Guidelines",
+        mimeType: "text/markdown",
+        description: "Instructions on how to integrate Edge Kit features into your codebase",
+      },
+    ],
+  };
+});
+
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  if (request.params.uri === "edge-kit://guidelines/usage") {
+    return {
+      contents: [
+        {
+          uri: "edge-kit://guidelines/usage",
+          mimeType: "text/markdown",
+          text: USAGE_GUIDELINES,
+        },
+      ],
+    };
+  }
+
+  throw new Error("Resource not found");
 });
 
 async function main() {
