@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/code-yeongyu/oh-my-opencode/master/assets/oh-my-opencode.schema.json",
+
+  // Enable Google Gemini via Antigravity OAuth
+  "google_auth": false,
+
+  /* Agent overrides - customize models for specific tasks */
+  "agents": {
+    "Sisyphus": {
+      "model": "azure/gpt-5.2"
+    },
+    "oracle": {
+      "model": "azure/gpt-5.2"
+    },
+    "librarian": {
+      "model": "azure/gpt-5.2-codex"
+    },
+    "explore": {
+      "model": "azure/gpt-5.2-codex"
+    },
+    "frontend-ui-ux-engineer": {
+      "model": "google/antigravity-gemini-3-pro-high"
+    },
+    "document-writer": {
+      "model": "google/antigravity-gemini-3-pro-high"
+    },
+    "multimodal-looker": {
+      "model": "google/antigravity-gemini-3-pro-high"
+    }
+  }
+}
