@@ -1,4 +1,7 @@
-import { pipeline, type TextGenerationPipeline } from '@huggingface/transformers';
+import {
+  pipeline,
+  type TextGenerationPipeline,
+} from "@huggingface/transformers";
 
 export class PipelineSingleton {
   pipeline: TextGenerationPipeline | null = null;
@@ -15,20 +18,29 @@ export class PipelineSingleton {
   async getTextGenerationPipeline() {
     if (!this.pipeline) {
       // @ts-expect-error, pipeline function is not typed correctly
-      this.pipeline = await pipeline('text-generation', 'HuggingFaceTB/SmolLM2-135M-Instruct');
+      this.pipeline = await pipeline(
+        "text-generation",
+        "HuggingFaceTB/SmolLM2-135M-Instruct"
+      );
       // this.pipeline = await pipeline('text-generation', 'onnx-community/MobileLLM-125M', { dtype: 'fp32' });
     }
     return this.pipeline;
   }
 
   async getFillMaskPipeline() {
-    const unmasker = await pipeline('fill-mask', 'Xenova/distilbert-base-uncased');
+    const unmasker = await pipeline(
+      "fill-mask",
+      "Xenova/distilbert-base-uncased"
+    );
     return unmasker;
   }
 
   // https://huggingface.co/unikei/distilbert-base-re-punctuate
   async getPunctuationPipeline() {
-    const punctuator = await pipeline('token-classification', 'ldenoue/distilbert-base-re-punctuate');
+    const punctuator = await pipeline(
+      "token-classification",
+      "ldenoue/distilbert-base-re-punctuate"
+    );
     return punctuator;
   }
 }
