@@ -299,6 +299,7 @@ import { YouTubeService } from '../services/youtube/youtube-service';
 
 // Create services
 const youtubeService = new YouTubeService();
+const segmentStore = new Map<string, string>();
 const vectorDb = new UpstashVectorDatabase<{
   videoId: string;
   title: string;
@@ -309,6 +310,10 @@ const vectorDb = new UpstashVectorDatabase<{
 }>({
   url: process.env.UPSTASH_VECTOR_URL!,
   token: process.env.UPSTASH_VECTOR_TOKEN!,
+  getContent: (namespace, ids) =>
+    Promise.resolve(
+      ids.map((id) => segmentStore.get(`${namespace}:${id}`) ?? null)
+    ),
 });
 
 // Function to get embeddings (implementation depends on your model)
@@ -340,6 +345,7 @@ async function indexVideoTranscript(videoId: string) {
     const embedding = await getEmbedding(segment.text);
 
     // Store in vector database
+    segmentStore.set(`video-segments:${videoId}-${segment.start}`, segment.text);
     await vectorDb.upsert('video-segments', [
       {
         id: `${videoId}-${segment.start}`,

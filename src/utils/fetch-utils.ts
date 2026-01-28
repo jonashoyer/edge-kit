@@ -47,69 +47,63 @@ export class FetchExtHttpError extends CustomError<"FETCH_HTTP_ERROR"> {
 }
 
 export class FetchExtNetworkError extends CustomError<"FETCH_NETWORK_ERROR"> {
-  readonly url: string;
   readonly cause: unknown;
+  readonly response: Response | undefined;
 
-  constructor(args: { url: string; cause: unknown }) {
+  constructor(args: { cause: unknown, response: Response | undefined }) {
     super("Fetch failed due to a network error", "FETCH_NETWORK_ERROR");
-    this.url = args.url;
     this.cause = args.cause;
+    this.response = args.response;
   }
 }
 
 export class FetchExtRetriesExhaustedError extends CustomError<"FETCH_RETRIES_EXHAUSTED"> {
-  readonly url: string;
   readonly retries: number;
   readonly cause: unknown;
+  readonly response: Response | undefined;
 
-  constructor(args: { url: string; retries: number; cause: unknown }) {
+  constructor(args: { retries: number; cause: unknown, response: Response | undefined }) {
     super(
       `Fetch failed after ${args.retries + 1} attempt(s)`,
       "FETCH_RETRIES_EXHAUSTED"
     );
-    this.url = args.url;
     this.retries = args.retries;
     this.cause = args.cause;
+    this.response = args.response;
   }
 }
 
 export class FetchExtInvalidJsonError extends CustomError<"FETCH_INVALID_JSON"> {
-  readonly url: string;
-  readonly status: number;
   readonly bodyTextSnippet: string;
   readonly cause: unknown;
+  readonly response: Response;
 
   constructor(args: {
-    url: string;
-    status: number;
     bodyTextSnippet: string;
     cause: unknown;
+    response: Response;
   }) {
     super("Fetch response was not valid JSON", "FETCH_INVALID_JSON");
-    this.url = args.url;
-    this.status = args.status;
     this.bodyTextSnippet = args.bodyTextSnippet;
     this.cause = args.cause;
+    this.response = args.response;
   }
 }
 
 export class FetchExtSchemaValidationError extends CustomError<"FETCH_SCHEMA_VALIDATION"> {
-  readonly url: string;
-  readonly status: number;
   readonly issues: readonly ZodIssue[];
+  readonly response: Response;
 
   constructor(args: {
-    url: string;
-    status: number;
     issues: readonly ZodIssue[];
+    response: Response;
   }) {
     super(
       "Fetch JSON response failed schema validation",
       "FETCH_SCHEMA_VALIDATION"
     );
-    this.url = args.url;
-    this.status = args.status;
     this.issues = args.issues;
+    this.response = args.response;
   }
 }
 
@@ -191,17 +185,17 @@ export interface FetchExtOptionsBase {
   }) => void | Promise<void>;
 }
 
-export interface FetchExtExpectJsonOptions<T> extends FetchExtOptionsBase {
+export interface FetchExtExpectJsonOptions<T> {
   expectJson: {
     schema: ZodType<T>;
   };
 }
 
-export interface FetchExtExpectTextOptions extends FetchExtOptionsBase {
+export interface FetchExtExpectTextOptions {
   expectText: true;
 }
 
-export interface FetchExtExpectBlobOptions extends FetchExtOptionsBase {
+export interface FetchExtExpectBlobOptions {
   expectBlob: true;
 }
 
@@ -293,19 +287,17 @@ const parseJsonWithSchema = async <T>(
   } catch (cause) {
     const snippet = text.slice(0, 500);
     throw new FetchExtInvalidJsonError({
-      url,
-      status: response.status,
       bodyTextSnippet: snippet,
       cause,
+      response,
     });
   }
 
   const validated = schema.safeParse(json);
   if (!validated.success) {
     throw new FetchExtSchemaValidationError({
-      url,
-      status: response.status,
       issues: validated.error.issues,
+      response,
     });
   }
 
@@ -385,9 +377,9 @@ const fetchWithTimeout = async (
   }
 };
 
-const normalizeAttemptError = (url: string, error: unknown): unknown => {
+const normalizeAttemptError = (response: Response | undefined, error: unknown): unknown => {
   if (error instanceof CustomError) return error;
-  return new FetchExtNetworkError({ url, cause: error });
+  return new FetchExtNetworkError({ cause: error, response });
 };
 
 const getErrorDelayMs = (args: {
@@ -521,7 +513,8 @@ const fetchWithRetries = async (args: {
   const handleAttemptError = async (
     attemptIndex: number,
     attempt: number,
-    error: unknown
+    error: unknown,
+    lastResponse?: Response
   ): Promise<void> => {
     if (error instanceof CustomError && error.code === "FETCH_HTTP_ERROR") {
       throw error;
@@ -552,9 +545,9 @@ const fetchWithRetries = async (args: {
 
     if (!canRetry(attemptIndex, args.retries)) {
       throw new FetchExtRetriesExhaustedError({
-        url: args.url,
         retries: args.retries,
         cause: error,
+        response: lastResponse,
       });
     }
 
@@ -577,6 +570,8 @@ const fetchWithRetries = async (args: {
     });
   };
 
+  let lastResponse: Response | undefined;
+
   for (let i = 0; i <= args.retries; i++) {
     const attempt = i + 1;
 
@@ -588,6 +583,7 @@ const fetchWithRetries = async (args: {
         attempt
       );
 
+      lastResponse = response;
       if (await handleHttpStatusRetry(i, attempt, response)) continue;
 
       if (args.throwOnHttpError && !response.ok) {
@@ -600,9 +596,9 @@ const fetchWithRetries = async (args: {
 
       return response;
     } catch (error) {
-      const normalized = normalizeAttemptError(args.url, error);
+      const normalized = normalizeAttemptError(lastResponse, error);
       lastError = normalized;
-      await handleAttemptError(i, attempt, normalized);
+      await handleAttemptError(i, attempt, normalized, lastResponse);
     }
   }
 
@@ -611,7 +607,7 @@ const fetchWithRetries = async (args: {
   }
 
   throw new FetchExtRetriesExhaustedError({
-    url: args.url,
+    response: lastResponse,
     retries: args.retries,
     cause: lastError,
   });
@@ -651,22 +647,25 @@ const getAcceptHeader = <T>(
   return;
 };
 
+export type FetchExtOptions<T> = FetchExtOptionsBase & (
+  | FetchExtExpectJsonOptions<T>
+  | FetchExtExpectTextOptions
+  | FetchExtExpectBlobOptions
+  | {}
+);
+
 export async function fetchExt(options: FetchExtOptionsBase): Promise<Response>;
 export async function fetchExt<T>(
-  options: FetchExtExpectJsonOptions<T>
+  options: FetchExtOptionsBase & FetchExtExpectJsonOptions<T>
 ): Promise<FetchExtJsonResult<T>>;
 export async function fetchExt(
-  options: FetchExtExpectTextOptions
+  options: FetchExtOptionsBase & FetchExtExpectTextOptions
 ): Promise<{ response: Response; data: string }>;
 export async function fetchExt(
-  options: FetchExtExpectBlobOptions
+  options: FetchExtOptionsBase & FetchExtExpectBlobOptions
 ): Promise<{ response: Response; data: Blob }>;
 export async function fetchExt<T>(
-  options:
-    | FetchExtOptionsBase
-    | FetchExtExpectJsonOptions<T>
-    | FetchExtExpectTextOptions
-    | FetchExtExpectBlobOptions
+  options: FetchExtOptions<T>
 ): Promise<
   Response | FetchExtJsonResult<T> | { response: Response; data: unknown }
 > {

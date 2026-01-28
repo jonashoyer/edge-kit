@@ -26,6 +26,7 @@ Edge Kit is a copy-paste-first TypeScript toolkit. Keep modules self-contained, 
 
 - TypeScript (ESM). Favor dependency injection and clear interfaces/abstract classes.
 - Use kebab-case filenames (for example, `src/services/storage/s3-storage.ts`).
+- For services, add JSDoc on exported APIs (purpose, config, inputs/outputs, example) so external stakeholders and MCP list descriptions stay accurate.
 - Let Prettier enforce formatting; avoid manual style drift.
 
 ## Testing Guidelines

@@ -27,6 +27,9 @@ export interface DrizzleSqliteVectorOptions extends VectorDatabaseOptions {
   extensionPath?: string;
 }
 
+/**
+ * @deprecated Use `LibSQLVector` from `@mastra/core/vector/libsql` instead
+ */
 export class DrizzleSqliteVectorDatabase<
   TMetadata = Record<string, any>,
 > extends AbstractVectorDatabase<TMetadata, number[]> {

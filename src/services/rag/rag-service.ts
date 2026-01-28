@@ -1,14 +1,16 @@
-import type { EmbeddingModelV2 } from "@ai-sdk/provider";
-import { embedMany } from "ai";
+import type { EmbeddingModelV3 } from '@ai-sdk/provider';
+import { embedMany } from 'ai';
 import type {
   AbstractVectorDatabase,
+  VectorDatabaseWithContent,
   VectorEntry,
-} from "../vector/abstract-vector-database";
-import type { AbstractChunker, Chunk } from "./abstract-chunker";
+} from '../vector/abstract-vector-database';
+import type { AbstractChunker, Chunk } from './abstract-chunker';
 import {
   type ContextualizedEmbedder,
+  ContextualizedInputType,
   VoyageContextualizedEmbedder,
-} from "./contextualized-embedder";
+} from './contextualized-embedder';
 
 export interface RagChunkMetadataBase {
   docId: string;
@@ -30,9 +32,14 @@ export interface Reranker<TMeta = RagChunkMetadataBase> {
 
 export interface RagServiceOptions<
   TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
+  TVectorDb extends AbstractVectorDatabase<TMeta, number[], true> = AbstractVectorDatabase<
+    TMeta,
+    number[],
+    true
+  >,
 > {
-  vectorDb: AbstractVectorDatabase<TMeta, number[]>;
-  embeddingModel: EmbeddingModelV2<any>; // model from AI SDK provider (e.g. voyage.textEmbeddingModel('voyage-3'))
+  vectorDb: TVectorDb;
+  embeddingModel: EmbeddingModelV3; // model from AI SDK provider (e.g. voyage.embeddingModel('voyage-3'))
   chunker?: AbstractChunker;
   reranker?: Reranker<TMeta>;
   storeTextInMetadata?: boolean; // default: true (recommended for reranking)
@@ -42,7 +49,7 @@ export interface RagServiceOptions<
     model: string; // e.g. 'voyage-context-3'
     baseUrl?: string; // default: https://api.voyageai.com/v1
     outputDimension?: 256 | 512 | 1024 | 2048;
-    outputDtype?: "float" | "int8" | "uint8" | "binary" | "ubinary";
+    outputDtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary';
   };
 }
 
@@ -52,13 +59,14 @@ export interface IndexDocumentOptions<
   namespace: string;
   docId: string;
   text: string;
-  baseMetadata?: Omit<TMeta, "docId" | "text">;
+  baseMetadata?: Omit<TMeta, 'docId' | 'text'>;
 }
 
 export interface SearchOptions {
   namespace: string;
   query: string;
   topK?: number;
+  candidateTopK?: number;
   includeVectors?: boolean;
   includeMetadata?: boolean;
   rerank?: boolean; // default false
@@ -73,18 +81,23 @@ export interface SearchOptions {
  */
 export class RagService<
   TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
+  TVectorDb extends AbstractVectorDatabase<TMeta, number[], true> = AbstractVectorDatabase<
+    TMeta,
+    number[],
+    true
+  >,
 > {
-  private readonly vectorDb: AbstractVectorDatabase<TMeta, number[]>;
-  private readonly embeddingModel: EmbeddingModelV2<any>;
+  private readonly vectorDb: TVectorDb;
+  private readonly embeddingModel: EmbeddingModelV3;
   private readonly chunker: AbstractChunker | undefined;
   private readonly reranker?: Reranker<TMeta>;
   private readonly storeTextInMetadata: boolean;
   private readonly contextualized?: NonNullable<
-    RagServiceOptions<TMeta>["contextualized"]
+    RagServiceOptions<TMeta, TVectorDb>['contextualized']
   >;
   private readonly contextualizedEmbedder?: ContextualizedEmbedder;
 
-  constructor(options: RagServiceOptions<TMeta>) {
+  constructor(options: RagServiceOptions<TMeta, TVectorDb>) {
     this.vectorDb = options.vectorDb;
     this.embeddingModel = options.embeddingModel;
     this.chunker = options.chunker;
@@ -116,33 +129,39 @@ export class RagService<
     await this.indexChunks(namespace, docId, chunks, baseMetadata);
   }
 
-  async indexChunks(
-    namespace: string,
-    docId: string,
-    chunks: Chunk[],
-    baseMetadata?: Omit<TMeta, "docId" | "text">
-  ): Promise<void> {
-    if (chunks.length === 0) return;
-    const texts = chunks.map((c) => c.text);
-
-    let vectors: number[][];
+  async getVectors(
+    texts: string[],
+    inputType: ContextualizedInputType
+  ) {
     if (this.contextualized && this.contextualizedEmbedder) {
       // Use contextualized chunk embeddings: one document per request, inputs = [chunks]
-      vectors = await this.contextualizedEmbedder.embed(
+      return await this.contextualizedEmbedder.embed(
         [[...texts]],
-        "document"
+        inputType
       );
     } else {
       const { embeddings } = await embedMany({
         model: this.embeddingModel,
         values: texts,
       });
-      vectors = embeddings as any as number[][];
+      return embeddings;
     }
+  }
+
+  async indexChunks(
+    namespace: string,
+    docId: string,
+    chunks: Chunk[],
+    baseMetadata?: Omit<TMeta, 'docId' | 'text'>
+  ): Promise<void> {
+    if (chunks.length === 0) return;
+    const texts = chunks.map((c) => c.text);
+
+    const vectors = await this.getVectors(texts, 'document');
 
     const entries = chunks.map((c, i) => ({
       id: c.id,
-      vector: vectors[i] as number[],
+      vector: vectors[i],
       metadata: {
         ...(baseMetadata ?? {}),
         docId,
@@ -153,46 +172,75 @@ export class RagService<
     await this.vectorDb.upsert(namespace, entries as any);
   }
 
+  withContent(): RagService<
+    TMeta,
+    VectorDatabaseWithContent<TMeta, number[]>
+  > {
+    if (!this.vectorDb.getContent) {
+      throw new Error(
+        'vectorDb.getContent is required to enable reranking.'
+      );
+    }
+    return this as RagService<
+      TMeta,
+      VectorDatabaseWithContent<TMeta, number[]>
+    >;
+  }
+
+  async search(
+    this: RagService<TMeta, VectorDatabaseWithContent<TMeta, number[]>>,
+    options: SearchOptions & { rerank: true }
+  ): Promise<VectorEntry<number[], TMeta, any>[]>;
   async search(
     options: SearchOptions
   ): Promise<VectorEntry<number[], TMeta, any>[]> {
     const topK = options.topK ?? 8;
-    let queryVector: number[];
-    if (this.contextualized && this.contextualizedEmbedder) {
-      const [vec] = await this.contextualizedEmbedder.embed(
-        [[options.query]],
-        "query"
-      );
-      queryVector = vec;
-    } else {
-      const { embeddings } = await embedMany({
-        model: this.embeddingModel,
-        values: [options.query],
-      });
-      queryVector = (embeddings as any)[0] as number[];
-    }
+    const shouldRerank =
+      options.rerank === true && this.reranker !== undefined;
+    const candidateTopKDefault = shouldRerank ? topK * 4 : topK;
+    const candidateTopK = Math.max(
+      options.candidateTopK ?? candidateTopKDefault,
+      topK
+    );
+
+    const [queryVector] = await this.getVectors([options.query], 'query');
+
     const results = await this.vectorDb.query(
       options.namespace,
       queryVector,
-      topK,
+      candidateTopK,
       {
         includeMetadata: options.includeMetadata ?? true,
         includeVectors: options.includeVectors ?? false,
       }
     );
 
-    if (!(options.rerank && this.reranker)) return results;
+    if (!shouldRerank) return results;
+    const reranker = this.reranker;
+    if (!reranker) return results;
+    const getContent = this.vectorDb.getContent;
+    if (!getContent) {
+      throw new Error(
+        'Reranking requires vectorDb.getContent to be provided.'
+      );
+    }
 
-    const items = results.map((r) => ({
-      id: r.id,
-      text: (r as any).metadata?.text ?? "",
-      metadata: r.metadata,
+    const ids = results.map((result) => result.id);
+    const contents = await getContent(options.namespace, ids);
+    const items = results.map((result, index) => ({
+      id: result.id,
+      text: contents[index] ?? '',
+      metadata: result.metadata,
     }));
-    const reranked = await this.reranker.rerank(options.query, items, topK);
+    const reranked = await reranker.rerank(options.query, items, topK);
 
     // Map reranked order back to results
-    const byId = new Map(results.map((r) => [r.id, r] as const));
-    return reranked.map((it) => byId.get(it.id)!).filter(Boolean);
+    return reranked
+      .map((it) => results.find((entry) => entry.id === it.id))
+      .filter(
+        (entry): entry is VectorEntry<number[], TMeta, boolean, false> =>
+          Boolean(entry)
+      );
   }
 
   // contextualized embedding handled by contextualizedEmbedder

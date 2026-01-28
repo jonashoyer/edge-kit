@@ -85,6 +85,7 @@ const sqlite = new Database("app.db");
 const db = drizzle(sqlite);
 
 // Create vector database
+const contentStore = new Map<string, string>();
 const vectorDb = new DrizzleSqliteVectorDatabase({
   db,
   table: embeddings,
@@ -95,6 +96,10 @@ const vectorDb = new DrizzleSqliteVectorDatabase({
     metadata: embeddings.metadata,
   },
   dim: EMBED_DIM,
+  getContent: (namespace, ids) =>
+    Promise.resolve(
+      ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
+    ),
 });
 
 // Ensure indexes exist

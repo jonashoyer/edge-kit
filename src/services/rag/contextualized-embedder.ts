@@ -4,14 +4,16 @@ export type ContextualizedInputType = "document" | "query" | null;
 
 export interface ContextualizedEmbedder {
   embed(
-    inputs: string[][],
+    documents: string[][],
     inputType: ContextualizedInputType
   ): Promise<number[][]>;
 }
 
+export type VoyageContextualizedEmbedderModel = "voyage-context-3" | (string & {});
+
 export interface VoyageContextualizedEmbedderOptions {
   apiKey: string;
-  model: string; // e.g. 'voyage-context-3'
+  model: VoyageContextualizedEmbedderModel;
   baseUrl?: string; // default: https://api.voyageai.com/v1
   outputDimension?: 256 | 512 | 1024 | 2048;
   outputDtype?: "float" | "int8" | "uint8" | "binary" | "ubinary";
@@ -26,14 +28,9 @@ const TRAILING_SLASH_REGEX = /\/$/;
 export class VoyageContextualizedEmbedder implements ContextualizedEmbedder {
   private readonly baseUrl: string;
   private readonly apiKey: string;
-  private readonly model: string;
-  private readonly outputDimension?: 256 | 512 | 1024 | 2048;
-  private readonly outputDtype?:
-    | "float"
-    | "int8"
-    | "uint8"
-    | "binary"
-    | "ubinary";
+  private readonly model: VoyageContextualizedEmbedderModel;
+  private readonly outputDimension?: VoyageContextualizedEmbedderOptions['outputDimension'];
+  private readonly outputDtype?: VoyageContextualizedEmbedderOptions['outputDtype'];
 
   constructor(options: VoyageContextualizedEmbedderOptions) {
     this.baseUrl = (options.baseUrl ?? "https://api.voyageai.com/v1").replace(
@@ -47,12 +44,12 @@ export class VoyageContextualizedEmbedder implements ContextualizedEmbedder {
   }
 
   async embed(
-    inputs: string[][],
+    documents: string[][],
     inputType: ContextualizedInputType
   ): Promise<number[][]> {
     const body: any = {
       model: this.model,
-      inputs,
+      inputs: documents,
     };
     if (inputType) body.input_type = inputType;
     if (this.outputDimension) body.output_dimension = this.outputDimension;

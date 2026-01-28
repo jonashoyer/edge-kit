@@ -47,10 +47,12 @@ vi.mock("../../db/sqlite-vec-loader", () => ({
 
 describe("DrizzleSqliteVectorDatabase", () => {
   let vectorDb: DrizzleSqliteVectorDatabase<{ title: string; chunk: number }>;
+  const contentStore = new Map<string, string>();
 
   beforeEach(() => {
     // Reset mocks
     vi.clearAllMocks();
+    contentStore.clear();
 
     vectorDb = new DrizzleSqliteVectorDatabase({
       db: mockDrizzleDb as any,
@@ -62,6 +64,10 @@ describe("DrizzleSqliteVectorDatabase", () => {
         metadata: embeddings.metadata,
       },
       dim: EMBED_DIM,
+      getContent: (namespace, ids) =>
+        Promise.resolve(
+          ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
+        ),
     });
   });
 
@@ -277,6 +283,10 @@ describe("DrizzleSqliteVectorDatabase", () => {
             metadata: embeddings.metadata,
           },
           dim: EMBED_DIM,
+          getContent: (namespace, ids) =>
+            Promise.resolve(
+              ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
+            ),
         });
       }).toThrow("requires better-sqlite3 driver");
     });
@@ -288,6 +298,7 @@ describe("DrizzleSqliteVectorDatabase", () => {
       expect(vectorDb).toHaveProperty("upsert");
       expect(vectorDb).toHaveProperty("query");
       expect(vectorDb).toHaveProperty("list");
+      expect(vectorDb).toHaveProperty("getContent");
       expect(vectorDb).toHaveProperty("delete");
       expect(vectorDb).toHaveProperty("ensureIndexes");
     });

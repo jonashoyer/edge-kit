@@ -15,6 +15,7 @@ interface UpstashVectorOptions extends VectorDatabaseOptions {
 /**
  * Upstash Vector implementation of AbstractVectorDatabase.
  * Uses the `@upstash/vector` client for serverless vector storage and retrieval.
+ * @deprecated Use `UpstashVector` from `@mastra/upstash` instead
  */
 export class UpstashVectorDatabase<
   TMetadata = Record<string, any>,

@@ -1,4 +1,11 @@
-export type VectorDatabaseOptions = object;
+export type VectorContentProvider = (
+  namespace: string,
+  ids: string[]
+) => Promise<(string | null)[]>;
+
+export type VectorDatabaseOptions<TContentCabability extends boolean = false> = {
+  getContent: TContentCabability extends true ? VectorContentProvider : never;
+};
 
 export interface VectorEntry<
   TVector = number[],
@@ -27,9 +34,10 @@ export interface VectorQueryOptions<
 export abstract class AbstractVectorDatabase<
   TMetadata = Record<string, any>,
   TVector = number[],
+  TContentCabability extends boolean = false
 > {
-  protected options: VectorDatabaseOptions;
-  constructor(options: VectorDatabaseOptions) {
+  protected options: VectorDatabaseOptions<TContentCabability>;
+  constructor(options: VectorDatabaseOptions<TContentCabability>) {
     this.options = options;
   }
 

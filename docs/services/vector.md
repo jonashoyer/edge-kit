@@ -24,7 +24,16 @@ import { VoyageReranker } from '@/services/rag/voyage-reranker';
 import { UpstashVectorDatabase } from '@/services/vector/upstash-vector-database';
 
 // Vector DB
-const vectorDb = new UpstashVectorDatabase({ url: process.env.VECTOR_URL!, token: process.env.VECTOR_TOKEN! });
+// Provide content from your primary store for reranking.
+const contentStore = new Map<string, string>();
+const vectorDb = new UpstashVectorDatabase({
+  url: process.env.VECTOR_URL!,
+  token: process.env.VECTOR_TOKEN!,
+  getContent: (namespace, ids) =>
+    Promise.resolve(
+      ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
+    ),
+});
 
 const embeddingModel = voyage.textEmbeddingModel('voyage-3');
 
@@ -67,8 +76,19 @@ The vector database services allow you to:
 The `AbstractVectorDatabase` class defines the interface that all vector database implementations must follow:
 
 ```typescript
+export type VectorContentProvider = (
+  namespace: string,
+  ids: string[],
+) => Promise<(string | null)[]>;
+
+export type VectorDatabaseOptions = {
+  getContent?: VectorContentProvider;
+};
+
 export abstract class AbstractVectorDatabase<TMetadata = Record<string, any>, TVector = number[]> {
   constructor(protected options: VectorDatabaseOptions) {}
+
+  readonly getContent?: VectorContentProvider;
 
   abstract upsert(namespace: string, entries: VectorEntry<TVector, TMetadata, true>[]): Promise<void>;
   abstract delete(namespace: string, ids: string[]): Promise<void>;
@@ -87,6 +107,7 @@ export abstract class AbstractVectorDatabase<TMetadata = Record<string, any>, TV
   ): Promise<(VectorEntry<TVector, TMetadata, TIncludeVectors, TIncludeMetadata> | null)[]>;
 }
 ```
+Provide `getContent` when you plan to use reranking. The provider should return items in the same order as `ids`, using `null` for missing content.
 
 ## Available Implementations
 
@@ -111,9 +132,14 @@ type DocumentMetadata = {
   timestamp: string;
 };
 
+const contentStore = new Map<string, string>();
 const vectorDb = new UpstashVectorDatabase<DocumentMetadata>({
   url: process.env.UPSTASH_VECTOR_URL!,
   token: process.env.UPSTASH_VECTOR_TOKEN!,
+  getContent: (namespace, ids) =>
+    Promise.resolve(
+      ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
+    ),
 });
 
 // Store vectors
@@ -337,6 +363,7 @@ await vectorDb.upsert('documents', [
   },
 ]);
 ```
+Use `getContent` to retrieve full text from your primary store when reranking.
 
 4. **Error Handling**: Always handle potential errors:
 
@@ -352,7 +379,7 @@ try {
 
 ## Custom Implementations
 
-You can create your own vector database implementation by extending the `AbstractVectorDatabase` class:
+You can create your own vector database implementation by extending the `AbstractVectorDatabase` class. Pass `getContent` in `VectorDatabaseOptions` to connect your content store for reranking:
 
 ```typescript
 import {

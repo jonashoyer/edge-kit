@@ -5,5 +5,5 @@ export type Chunk = { id: string; text: string };
  * Splits large text into smaller chunks suitable for embedding and indexing.
  */
 export abstract class AbstractChunker {
-  abstract chunk(text: string, makeId: (index: number) => string): Chunk[];
+  abstract chunk(text: string, idFn: (index: number) => string): Chunk[];
 }

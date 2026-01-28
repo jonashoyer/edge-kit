@@ -24,11 +24,13 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
   let sqlite: Database.Database;
   let db: ReturnType<typeof drizzle>;
   let vectorDb: DrizzleSqliteVectorDatabase<{ title: string; chunk: number }>;
+  const contentStore = new Map<string, string>();
 
   beforeEach(() => {
     // Create in-memory database for testing
     sqlite = new Database(":memory:");
     db = drizzle(sqlite);
+    contentStore.clear();
 
     // Create the embeddings table
     sqlite.exec(`
@@ -69,6 +71,10 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       dim: EMBED_DIM,
       extensionPath:
         "./node_modules/.pnpm/sqlite-vec-darwin-arm64@0.1.7-alpha.2/node_modules/sqlite-vec-darwin-arm64/vec0.dylib",
+      getContent: (namespace, ids) =>
+        Promise.resolve(
+          ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
+        ),
     });
 
     // Ensure indexes exist
