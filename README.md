@@ -78,6 +78,7 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 
 ### LLM
 
+- [AI cache middleware](./src/services/llm/ai-cache-middleware.ts)
 - [Optimistic LLM warm-up](./src/services/llm/optimistic-llm.ts)
 
 ### Feature Flags & Waitlist
