@@ -5,13 +5,27 @@
     "ultracite/biome/core",
     "ultracite/biome/react"
   ],
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "single"
+    }
+  },
   "linter": {
     "rules": {
       "style": {
+        "useConsistentTypeDefinitions": "off",
         "noMagicNumbers": "off",
         "useFilenamingConvention": "off",
         "noNonNullAssertion": "off",
-        "useBlockStatements": "off"
+        "useBlockStatements": "off",
+        "useFragmentSyntax": "off",
+        "useUnifiedTypeSignatures": "off"
       },
       "performance": {
         "noImgElement": "off"
@@ -20,14 +34,19 @@
         "noUnknownAtRules": "off",
         "noArrayIndexKey": "off",
         "noEmptyBlockStatements": "off",
-        "noExplicitAny": "off"
+        "useAwait": "off"
       },
+
       "correctness": {
-        "noUnusedFunctionParameters": "off"
+        "noUnusedFunctionParameters": "off",
+        "noUnusedImports": "warn",
+        "noUnusedVariables": "warn",
+        "useImageSize": "off"
       },
       "nursery": {
-        "useConsistentTypeDefinitions": "off",
-        "noShadow": "off"
+        "noShadow": "off",
+        "useSortedClasses": "warn",
+        "noLeakedRender": "off"
       }
     }
   }
