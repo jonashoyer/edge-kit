@@ -76,6 +76,14 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 
 - [PostHog](./src/services/analytics/posthog-analytics.ts)
 
+### CRM
+
+- [Apollo API](./src/services/crm/apollo-api.ts)
+
+### Email Verification
+
+- [ZeroBounce](./src/services/zerobounce/zerobounce-client.ts)
+
 ### LLM
 
 - [AI cache middleware](./src/services/llm/ai-cache-middleware.ts)

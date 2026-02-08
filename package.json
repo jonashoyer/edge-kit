@@ -11,10 +11,14 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check": "ultracite check",
+    "fix": "ultracite fix"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.3.13",
+    "@azure/arm-compute": "^23.3.0",
+    "@azure/identity": "^4.13.0",
+    "@biomejs/biome": "2.3.12",
     "@types/node": "^22.7.5",
     "@vitest/ui": "^3.2.4",
     "next": "^15.4.5",
