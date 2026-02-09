@@ -56,6 +56,7 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 
 - [Upstash Redis](./src/services/key-value/upstash-redis-key-value.ts)
 - [Ioredis](./src/services/key-value/ioredis-key-value.ts)
+- [In-Memory](./src/services/key-value/in-memory-key-value.ts)
 
 ### Vector Database
 
