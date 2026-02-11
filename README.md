@@ -95,6 +95,10 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 - [Client-side Feature Flag](./src/services/feature-flag/feature-flag.ts)
 - [Key-Value Waitlist](./src/services/waitlist/key-value-waitlist.ts)
 
+### Infrastructure
+
+- [CodeAgentController](./src/services/code-agent-controller/): Workspace manager using Azure RunCommand to orchestrate repo-defined runtimes via `.agent-runrc.json`.
+
 ## 🎼 Composers
 
 Composers help structure complex logic in a type-safe way.
