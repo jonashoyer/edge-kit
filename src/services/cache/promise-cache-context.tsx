@@ -1,5 +1,5 @@
-import React, { type ReactNode } from "react";
-import { CacheStateContext } from "./use-cached-promise";
+import React, { type ReactNode } from 'react';
+import { CacheStateContext } from './use-cached-promise';
 
 /**
  * Represents a cached value with optional expiration
@@ -135,7 +135,7 @@ export function PromiseCacheProvider({ children }: PromiseCacheProviderProps) {
       let actualValue: T;
       let expiresAt: number | null = null;
 
-      if (rawResult && typeof rawResult === "object" && "data" in rawResult) {
+      if (rawResult && typeof rawResult === 'object' && 'data' in rawResult) {
         // Result is CacheableResult<T>
         const cacheableResult = rawResult as { data: T; expiresAt?: number };
         actualValue = cacheableResult.data;
@@ -226,7 +226,7 @@ export function useCacheContext(): CacheContextValue {
 
   if (!context) {
     throw new Error(
-      "useCacheContext must be used within a PromiseCacheProvider"
+      'useCacheContext must be used within a PromiseCacheProvider'
     );
   }
 
@@ -240,10 +240,10 @@ export function useCacheState(): CacheState {
   const context = React.useContext(PromiseCacheContext);
 
   if (!context) {
-    throw new Error("useCacheState must be used within a PromiseCacheProvider");
+    throw new Error('useCacheState must be used within a PromiseCacheProvider');
   }
 
   // Access the ref through a private symbol or context extension
   // For now, we'll expose via a separate internal context if needed
-  throw new Error("Not yet implemented - use useCacheContext instead");
+  throw new Error('Not yet implemented - use useCacheContext instead');
 }

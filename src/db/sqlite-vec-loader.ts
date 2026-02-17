@@ -1,4 +1,4 @@
-import type Database from "better-sqlite3";
+import type Database from 'better-sqlite3';
 
 export interface SqliteVecLoaderOptions {
   extensionPath?: string;
@@ -18,7 +18,7 @@ export function loadSqliteVec(
 
   try {
     if (trustedSchema) {
-      db.pragma("trusted_schema=ON");
+      db.pragma('trusted_schema=ON');
     }
 
     if (extensionPath) {
@@ -39,14 +39,14 @@ export function loadSqliteVec(
 
       if (!loaded) {
         throw new Error(
-          "Failed to load sqlite-vec extension. Please provide explicit extensionPath."
+          'Failed to load sqlite-vec extension. Please provide explicit extensionPath.'
         );
       }
     }
   } catch (error) {
     throw new Error(
       `Failed to load sqlite-vec extension: ${
-        error instanceof Error ? error.message : "Unknown error"
+        error instanceof Error ? error.message : 'Unknown error'
       }`
     );
   }
@@ -56,26 +56,21 @@ function getDefaultExtensionPaths(): string[] {
   const platform = process.platform;
 
   switch (platform) {
-    case "darwin":
+    case 'darwin':
       return [
-        "/usr/local/lib/sqlite-vec.dylib",
-        "/opt/homebrew/lib/sqlite-vec.dylib",
-        "./sqlite-vec.dylib",
+        '/usr/local/lib/sqlite-vec.dylib',
+        '/opt/homebrew/lib/sqlite-vec.dylib',
+        './sqlite-vec.dylib',
       ];
-    case "linux":
+    case 'linux':
       return [
-        "/usr/local/lib/sqlite-vec.so",
-        "/usr/lib/sqlite-vec.so",
-        "./sqlite-vec.so",
+        '/usr/local/lib/sqlite-vec.so',
+        '/usr/lib/sqlite-vec.so',
+        './sqlite-vec.so',
       ];
-    case "win32":
-      return ["C:\\sqlite-vec\\sqlite-vec.dll", ".\\sqlite-vec.dll"];
+    case 'win32':
+      return ['C:\\sqlite-vec\\sqlite-vec.dll', '.\\sqlite-vec.dll'];
     default:
-      return ["./sqlite-vec"];
+      return ['./sqlite-vec'];
   }
 }
-
-
-
-
-

@@ -1,13 +1,13 @@
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import type { AbstractLogger } from '../logging/abstract-logger';
 import type {
   SlackBlock,
   SlackBlockElement,
   SlackNotificationService,
-} from "../notification/slack-notification";
+} from '../notification/slack-notification';
 
-import { AbstractSlashCommandService } from "./abstract-slash-command";
-import type { CommandState, Progress } from "./types";
+import { AbstractSlashCommandService } from './abstract-slash-command';
+import type { CommandState, Progress } from './types';
 
 export type SlackCommandContext = {
   raw?: unknown;
@@ -34,9 +34,9 @@ export class SlackSlashCommandService extends AbstractSlashCommandService<SlackC
     super(kv, logger);
     this.slack = notification;
     this.ttlSeconds = options?.ttlSeconds ?? 3600;
-    this.loadingEmoji = options?.loadingEmoji ?? ":loading:";
+    this.loadingEmoji = options?.loadingEmoji ?? ':loading:';
     this.ephemeralAcknowledgeText =
-      options?.ephemeralAcknowledgeText ?? "Processing your request…";
+      options?.ephemeralAcknowledgeText ?? 'Processing your request…';
   }
 
   protected async acknowledge(state: CommandState): Promise<void> {
@@ -64,7 +64,7 @@ export class SlackSlashCommandService extends AbstractSlashCommandService<SlackC
     if (!state.message) return;
     await this.slack.update(state.message.channelId, state.message.ts, {
       blocks,
-      text: " ",
+      text: ' ',
     });
   }
 

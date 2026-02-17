@@ -1,4 +1,4 @@
-import type { AbstractLogger } from "../logging/abstract-logger";
+import type { AbstractLogger } from '../logging/abstract-logger';
 
 export type TextNotification = {
   text: string;

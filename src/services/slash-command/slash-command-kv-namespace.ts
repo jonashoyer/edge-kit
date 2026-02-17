@@ -1,4 +1,4 @@
-import { NamespaceComposer } from "../../composers/namespace-composer";
+import { NamespaceComposer } from '../../composers/namespace-composer';
 
 export const slashCommandKvNamespace = new NamespaceComposer({
   command: (commandId: string) => `cmd:${commandId}`,

@@ -1,8 +1,8 @@
-import { Nullable } from '../../utils/type-utils';
-import { AbstractKeyValueService } from '../key-value/abstract-key-value';
-import { AbstractStripeStore } from './abstract-stripe-store';
+import type { Nullable } from '../../utils/type-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import type { AbstractStripeStore } from './abstract-stripe-store';
 import { stripeKeyNamespace } from './stripe-keys';
-import { StripeSubscription } from './types';
+import type { StripeSubscription } from './types';
 
 /**
  * Handles key-value storage operations for the Stripe service
@@ -17,7 +17,10 @@ export class StripeKVStore implements AbstractStripeStore {
   /**
    * Store the relationship between userId and stripeCustomerId
    */
-  async setUserToCustomerMapping(userId: string, stripeCustomerId: string): Promise<void> {
+  async setUserToCustomerMapping(
+    userId: string,
+    stripeCustomerId: string
+  ): Promise<void> {
     const key = stripeKeyNamespace.key('userToCustomer', userId);
     await this.kvService.set(key, stripeCustomerId);
   }
@@ -33,23 +36,36 @@ export class StripeKVStore implements AbstractStripeStore {
   /**
    * Store subscription data for a customer
    */
-  async setCustomerSubscriptionData(stripeCustomerId: string, subscriptionData: StripeSubscription): Promise<void> {
-    const key = stripeKeyNamespace.key('customerSubscription', stripeCustomerId);
+  async setCustomerSubscriptionData(
+    stripeCustomerId: string,
+    subscriptionData: StripeSubscription
+  ): Promise<void> {
+    const key = stripeKeyNamespace.key(
+      'customerSubscription',
+      stripeCustomerId
+    );
     await this.kvService.set(key, subscriptionData);
   }
 
   /**
    * Get subscription data for a customer
    */
-  async getCustomerSubscriptionData(stripeCustomerId: string): Promise<Nullable<StripeSubscription>> {
-    const key = stripeKeyNamespace.key('customerSubscription', stripeCustomerId);
+  async getCustomerSubscriptionData(
+    stripeCustomerId: string
+  ): Promise<Nullable<StripeSubscription>> {
+    const key = stripeKeyNamespace.key(
+      'customerSubscription',
+      stripeCustomerId
+    );
     return this.kvService.get<StripeSubscription>(key);
   }
 
   /**
    * Get subscription data for a user (combines the two operations above)
    */
-  async getUserSubscriptionData(userId: string): Promise<Nullable<StripeSubscription>> {
+  async getUserSubscriptionData(
+    userId: string
+  ): Promise<Nullable<StripeSubscription>> {
     const stripeCustomerId = await this.getStripeCustomerId(userId);
     if (!stripeCustomerId) {
       return null;

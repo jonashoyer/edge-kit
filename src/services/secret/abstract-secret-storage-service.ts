@@ -13,7 +13,11 @@ export abstract class AbstractSecretStorageService {
    * @param value - The secret value to encrypt and store
    * @param namespace - Optional namespace for organizing secrets
    */
-  abstract storeSecret<T>(key: string, value: T, namespace?: string): Promise<void>;
+  abstract storeSecret<T>(
+    key: string,
+    value: T,
+    namespace?: string
+  ): Promise<void>;
 
   /**
    * Retrieve and decrypt a secret
@@ -44,5 +48,9 @@ export abstract class AbstractSecretStorageService {
    * @param namespace - Optional namespace the secret was stored under
    * @param newEncryptionKey - Optional new encryption key to use (if not provided, a new default one will be used)
    */
-  abstract rotateSecretKey(key: string, namespace?: string, newEncryptionKey?: string): Promise<void>;
+  abstract rotateSecretKey(
+    key: string,
+    namespace?: string,
+    newEncryptionKey?: string
+  ): Promise<void>;
 }

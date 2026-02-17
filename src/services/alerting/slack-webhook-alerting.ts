@@ -1,9 +1,9 @@
-import { fetchExt } from "../../utils/fetch-utils";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import { fetchExt } from '../../utils/fetch-utils';
+import type { AbstractLogger } from '../logging/abstract-logger';
 import {
   AbstractAlertingService,
   type AlertOptions,
-} from "./abstract-alerting";
+} from './abstract-alerting';
 
 /**
  * @deprecated Prefer using `SlackAlertingService` which delegates to the Notification abstraction.
@@ -34,7 +34,7 @@ export class SlackWebhookAlertingService extends AbstractAlertingService {
     const color = this.getSeverityColor(options.severity);
     const envPrefix = this.environment
       ? `[${this.environment.toUpperCase()}] `
-      : "";
+      : '';
     const payload = {
       channel: this.channel,
       attachments: [
@@ -43,8 +43,8 @@ export class SlackWebhookAlertingService extends AbstractAlertingService {
           text: `${envPrefix}${message}`,
           fields: [
             ...(this.fields ?? []),
-            { title: "Severity", value: options.severity, short: true },
-            { title: "Source", value: options.source || "N/A", short: true },
+            { title: 'Severity', value: options.severity, short: true },
+            { title: 'Source', value: options.source || 'N/A', short: true },
             ...Object.entries(options.tags || {}).map(([key, value]) => ({
               title: key,
               value,
@@ -58,8 +58,8 @@ export class SlackWebhookAlertingService extends AbstractAlertingService {
     await fetchExt({
       url: this.webhookUrl,
       init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
     });
@@ -67,22 +67,22 @@ export class SlackWebhookAlertingService extends AbstractAlertingService {
     this.logAlert(message, options);
   }
 
-  private getSeverityColor(severity: AlertOptions["severity"]): string {
+  private getSeverityColor(severity: AlertOptions['severity']): string {
     switch (severity) {
-      case "info":
-        return "#2196F3";
-      case "warning":
-        return "#FFC107";
-      case "error":
-        return "#F44336";
-      case "critical":
-        return "#9C27B0";
+      case 'info':
+        return '#2196F3';
+      case 'warning':
+        return '#FFC107';
+      case 'error':
+        return '#F44336';
+      case 'critical':
+        return '#9C27B0';
       default:
-        return "#9E9E9E";
+        return '#9E9E9E';
     }
   }
 
   formatCodeblock(code: string | object): string {
-    return `\`\`\`${typeof code === "string" ? code : JSON.stringify(code, null, 2)}\`\`\``;
+    return `\`\`\`${typeof code === 'string' ? code : JSON.stringify(code, null, 2)}\`\`\``;
   }
 }

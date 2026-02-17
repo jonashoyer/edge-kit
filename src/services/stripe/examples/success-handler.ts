@@ -6,10 +6,10 @@
  */
 
 import { redirect } from 'next/navigation';
-import { NextRequest } from 'next/server';
+import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 
-import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
+import type { AbstractKeyValueService } from '../../key-value/abstract-key-value';
 import { StripeService } from '../../stripe';
 import { StripeKVStore } from '../kv-store';
 

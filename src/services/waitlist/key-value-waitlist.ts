@@ -1,6 +1,9 @@
 import { NamespaceComposer } from '../../composers/namespace-composer';
-import { AbstractKeyValueService } from '../key-value/abstract-key-value';
-import { AbstractWaitlistService, WaitlistEntry } from './abstract-waitlist';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import {
+  AbstractWaitlistService,
+  type WaitlistEntry,
+} from './abstract-waitlist';
 
 /**
  * Key-Value backed implementation of AbstractWaitlistService.
@@ -59,12 +62,18 @@ export class KeyValueWaitlistService extends AbstractWaitlistService {
 
   async getEntries(limit: number, offset: number): Promise<WaitlistEntry[]> {
     // Get paginated emails from sorted set
-    const emails = await this.kv.zrange(this.namespace.key('sortedSet'), offset, offset + limit - 1);
+    const emails = await this.kv.zrange(
+      this.namespace.key('sortedSet'),
+      offset,
+      offset + limit - 1
+    );
 
     if (!emails.length) return [];
 
     // Get entries in bulk using mget
-    const entries = await this.kv.mget<WaitlistEntry>(emails.map((email) => this.namespace.key('entry', email)));
+    const entries = await this.kv.mget<WaitlistEntry>(
+      emails.map((email) => this.namespace.key('entry', email))
+    );
 
     // Filter out any null entries and cast to WaitlistEntry[]
     return entries.filter((entry): entry is WaitlistEntry => entry !== null);
@@ -87,7 +96,9 @@ export class KeyValueWaitlistService extends AbstractWaitlistService {
     // Remove from both sorted set and entry storage in parallel
     await Promise.all([
       this.kv.zrem(this.namespace.key('sortedSet'), emails),
-      this.kv.mdelete(emails.map((email) => this.namespace.key('entry', email))),
+      this.kv.mdelete(
+        emails.map((email) => this.namespace.key('entry', email))
+      ),
     ]);
   }
 }

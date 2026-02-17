@@ -1,8 +1,8 @@
-import { promises as fs } from "node:fs";
-import os from "node:os";
-import path from "node:path";
+import { promises as fs } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
-import { AbstractStorage, type StorageOptions } from "./abstract-storage";
+import { AbstractStorage, type StorageOptions } from './abstract-storage';
 
 interface LocalStorageOptions extends StorageOptions {
   basePath: string;
@@ -37,37 +37,37 @@ export class LocalStorage extends AbstractStorage {
 
     if (systemWide) {
       // System-wide storage paths (may require elevated permissions)
-      if (process.platform === "win32") {
-        basePath = path.join("C:\\ProgramData", appName, "storage");
-      } else if (process.platform === "darwin") {
+      if (process.platform === 'win32') {
+        basePath = path.join('C:\\ProgramData', appName, 'storage');
+      } else if (process.platform === 'darwin') {
         basePath = path.join(
-          "/Library/Application Support",
+          '/Library/Application Support',
           appName,
-          "storage"
+          'storage'
         );
       } else {
         // Linux/Unix
-        basePath = path.join("/var/lib", appName, "storage");
+        basePath = path.join('/var/lib', appName, 'storage');
       }
-    } else if (process.platform === "win32") {
+    } else if (process.platform === 'win32') {
       basePath = path.join(
         os.homedir(),
-        "AppData",
-        "Local",
+        'AppData',
+        'Local',
         appName,
-        "storage"
+        'storage'
       );
-    } else if (process.platform === "darwin") {
+    } else if (process.platform === 'darwin') {
       basePath = path.join(
         os.homedir(),
-        "Library",
-        "Application Support",
+        'Library',
+        'Application Support',
         appName,
-        "storage"
+        'storage'
       );
     } else {
       // Linux/Unix
-      basePath = path.join(os.homedir(), ".local", "share", appName, "storage");
+      basePath = path.join(os.homedir(), '.local', 'share', appName, 'storage');
     }
 
     return subfolder ? path.join(basePath, subfolder) : basePath;
@@ -117,7 +117,7 @@ export class LocalStorage extends AbstractStorage {
   createWritePresignedUrl(key: string) {
     return Promise.resolve({
       url: `file://${this.getFilePath(key)}`,
-      method: "POST" as const,
+      method: 'POST' as const,
       expiresAt: Number.POSITIVE_INFINITY,
     });
   }
@@ -127,7 +127,7 @@ export class LocalStorage extends AbstractStorage {
 
     return {
       contentLength: meta.size,
-      contentType: "file/bin",
+      contentType: 'file/bin',
       etag: String(meta.ino), // TODO: Is this a etag?!
       lastModified: meta.mtime.getTime(),
       meta: {} as TMeta,
@@ -163,7 +163,7 @@ export class LocalStorage extends AbstractStorage {
         // Convert absolute path to relative path from basePath
         const relativePath = path.relative(basePath, fullPath);
         // Normalize path separators to forward slashes like S3
-        result.push(relativePath.replace(/\\/g, "/"));
+        result.push(relativePath.replace(/\\/g, '/'));
       }
     }
   }

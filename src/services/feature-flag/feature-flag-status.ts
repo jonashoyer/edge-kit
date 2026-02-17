@@ -1,14 +1,14 @@
-import { clamp } from "../../utils/number-utils";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import { clamp } from '../../utils/number-utils';
+import type { AbstractLogger } from '../logging/abstract-logger';
 import type {
   FeatureFlag,
   FeatureFlagService,
   PhasedRolloutFeatureFla,
-} from "./feature-flag";
+} from './feature-flag';
 
 export type EnabledFlagStatus<T extends string> = {
   name: T;
-  kind: "enabled";
+  kind: 'enabled';
   disabled?: boolean;
   effective: boolean;
   details: { value: boolean };
@@ -16,7 +16,7 @@ export type EnabledFlagStatus<T extends string> = {
 
 export type PercentageFlagStatus<T extends string> = {
   name: T;
-  kind: "percentage";
+  kind: 'percentage';
   disabled?: boolean;
   effective: boolean;
   details: { rolloutPercentage: number };
@@ -24,7 +24,7 @@ export type PercentageFlagStatus<T extends string> = {
 
 export type PhasedFlagStatus<T extends string> = {
   name: T;
-  kind: "phased";
+  kind: 'phased';
   disabled?: boolean;
   effective: boolean;
   details: {
@@ -76,19 +76,19 @@ function computeSingleFlagStatus<T extends string>(
   const flag = flagWithName;
 
   if (flag.disabled) {
-    if ("enabled" in flag) {
+    if ('enabled' in flag) {
       return {
         name,
-        kind: "enabled",
+        kind: 'enabled',
         disabled: true,
         effective: false,
         details: { value: flag.enabled },
       };
     }
-    if ("rolloutPercentage" in flag) {
+    if ('rolloutPercentage' in flag) {
       return {
         name,
-        kind: "percentage",
+        kind: 'percentage',
         disabled: true,
         effective: false,
         details: {
@@ -100,11 +100,11 @@ function computeSingleFlagStatus<T extends string>(
         },
       };
     }
-    if ("rolloutInterval" in flag) {
+    if ('rolloutInterval' in flag) {
       const phased = computePhasedRolloutStats(flag, now, logger, name);
       return {
         name,
-        kind: "phased",
+        kind: 'phased',
         disabled: true,
         effective: false,
         details: phased,
@@ -112,16 +112,16 @@ function computeSingleFlagStatus<T extends string>(
     }
   }
 
-  if ("enabled" in flag) {
+  if ('enabled' in flag) {
     return {
       name,
-      kind: "enabled",
+      kind: 'enabled',
       effective: flag.enabled === true,
       details: { value: flag.enabled === true },
     };
   }
 
-  if ("rolloutPercentage" in flag) {
+  if ('rolloutPercentage' in flag) {
     const rolloutPercentage = normalizePercentage(
       flag.rolloutPercentage,
       logger,
@@ -129,24 +129,24 @@ function computeSingleFlagStatus<T extends string>(
     );
     return {
       name,
-      kind: "percentage",
+      kind: 'percentage',
       effective: rolloutPercentage >= 1,
       details: { rolloutPercentage },
     };
   }
 
-  if ("rolloutInterval" in flag) {
+  if ('rolloutInterval' in flag) {
     const phased = computePhasedRolloutStats(flag, now, logger, name);
     return {
       name,
-      kind: "phased",
+      kind: 'phased',
       effective: phased.currentPercentage >= 1,
       details: phased,
     };
   }
 
-  logger?.warn("Unknown feature flag shape", { name });
-  return { name, kind: "enabled", effective: false, details: { value: false } };
+  logger?.warn('Unknown feature flag shape', { name });
+  return { name, kind: 'enabled', effective: false, details: { value: false } };
 }
 
 function normalizePercentage(
@@ -155,7 +155,7 @@ function normalizePercentage(
   name: string
 ) {
   if (!Number.isFinite(percentage)) {
-    logger?.warn("Invalid rolloutPercentage: not finite", { name, percentage });
+    logger?.warn('Invalid rolloutPercentage: not finite', { name, percentage });
     return 0;
   }
   return clamp(percentage, 0, 1);
@@ -166,7 +166,7 @@ export function computePhasedRolloutStats(
   now: number,
   logger?: AbstractLogger,
   name?: string
-): PhasedFlagStatus<string>["details"] {
+): PhasedFlagStatus<string>['details'] {
   const origin = flag.originTimestamp;
   const interval = flag.rolloutInterval;
   const increment = flag.incrementalRolloutPercentage;
@@ -175,10 +175,10 @@ export function computePhasedRolloutStats(
 
   // Validate inputs
   const invalid = [origin, interval, increment, initial, max].some(
-    (n) => typeof n !== "number" || !Number.isFinite(n)
+    (n) => typeof n !== 'number' || !Number.isFinite(n)
   );
   if (invalid) {
-    logger?.warn("Invalid phased rollout values", {
+    logger?.warn('Invalid phased rollout values', {
       name,
       origin,
       interval,

@@ -4,13 +4,13 @@
  * This file demonstrates various patterns for using the cache service.
  */
 
-import { useEffect } from "react";
+import { useEffect } from 'react';
 import {
   type CacheableResult,
   PromiseCacheProvider,
   useCacheContext,
   useCachedPromise,
-} from "./index";
+} from './index';
 
 // ============================================================================
 // Example 1: Basic Usage with useCachedPromise
@@ -59,14 +59,14 @@ function DataLoader() {
 
   const loadData = async () => {
     await cachedPromise<{ items: string[] }>(
-      "api-data",
-      () => fetch("/api/data").then((r) => r.json()),
+      'api-data',
+      () => fetch('/api/data').then((r) => r.json()),
       { ttl: 60_000 }
     );
   };
 
   return (
-    <button onClick={loadData} type="button">
+    <button onClick={loadData} type='button'>
       Load Data
     </button>
   );
@@ -80,7 +80,7 @@ function CacheControls() {
   const cache = useCacheContext();
 
   const clearUserCache = () => {
-    cache.delete("user-123");
+    cache.delete('user-123');
   };
 
   const clearAllCache = () => {
@@ -88,19 +88,19 @@ function CacheControls() {
   };
 
   const checkCache = () => {
-    cache.has("user-123");
-    cache.get<User>("user-123");
+    cache.has('user-123');
+    cache.get<User>('user-123');
   };
 
   return (
     <div>
-      <button onClick={clearUserCache} type="button">
+      <button onClick={clearUserCache} type='button'>
         Clear User
       </button>
-      <button onClick={clearAllCache} type="button">
+      <button onClick={clearAllCache} type='button'>
         Clear All
       </button>
-      <button onClick={checkCache} type="button">
+      <button onClick={checkCache} type='button'>
         Check Cache
       </button>
     </div>
@@ -113,9 +113,9 @@ function CacheControls() {
 
 function DashboardData() {
   const { data, loading, execute } = useCachedPromise(
-    "dashboard",
+    'dashboard',
     async () => {
-      const response = await fetch("/api/dashboard");
+      const response = await fetch('/api/dashboard');
       return response.json();
     },
     {
@@ -146,7 +146,7 @@ type SessionData = {
 };
 
 async function fetchSession(): Promise<CacheableResult<SessionData>> {
-  const response = await fetch("/api/session");
+  const response = await fetch('/api/session');
   const data = await response.json();
 
   // API returns expiresAt (in seconds or milliseconds - auto-detected)
@@ -161,7 +161,7 @@ async function fetchSession(): Promise<CacheableResult<SessionData>> {
 
 function SessionManager() {
   const { data, loading, execute } = useCachedPromise<SessionData>(
-    "session",
+    'session',
     fetchSession,
     {} // No TTL needed - expiresAt takes precedence
   );
@@ -184,8 +184,8 @@ function TokenRefresher() {
   const { cachedPromise } = useCacheContext();
 
   const refreshToken = async () => {
-    await cachedPromise<{ token: string }>("auth-token", async () => {
-      const response = await fetch("/api/token/refresh");
+    await cachedPromise<{ token: string }>('auth-token', async () => {
+      const response = await fetch('/api/token/refresh');
       const data = await response.json();
 
       // Return with expiresAt
@@ -197,7 +197,7 @@ function TokenRefresher() {
   };
 
   return (
-    <button onClick={refreshToken} type="button">
+    <button onClick={refreshToken} type='button'>
       Refresh Token
     </button>
   );
@@ -209,9 +209,9 @@ function TokenRefresher() {
 
 function LiveStats() {
   const { data, loading, execute } = useCachedPromise(
-    "live-stats",
+    'live-stats',
     async () => {
-      const response = await fetch("/api/stats/live");
+      const response = await fetch('/api/stats/live');
       return response.json();
     },
     {
@@ -222,10 +222,10 @@ function LiveStats() {
 
   return (
     <div>
-      <button onClick={execute} type="button">
+      <button onClick={execute} type='button'>
         Refresh Stats
       </button>
-      {loading ? "Loading..." : <div>{JSON.stringify(data)}</div>}
+      {loading ? 'Loading...' : <div>{JSON.stringify(data)}</div>}
     </div>
   );
 }
@@ -239,7 +239,7 @@ export function App() {
     <PromiseCacheProvider>
       <div>
         <h1>My App</h1>
-        <UserProfile userId="123" />
+        <UserProfile userId='123' />
         <DataLoader />
         <CacheControls />
         <DashboardData />

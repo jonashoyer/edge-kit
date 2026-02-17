@@ -5,11 +5,10 @@
  * for a Next.js App Router project
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-
+import type { AbstractKeyValueService } from '../../key-value/abstract-key-value';
 import { StripeService } from '..';
-import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
 import { StripeKVStore } from '../kv-store';
 
 // Example auth helper, replace with your own auth implementation
@@ -19,7 +18,7 @@ async function getAuthenticatedUser(req: NextRequest) {
   const userId = req.headers.get('x-user-id');
   const email = req.headers.get('x-user-email');
 
-  if (!userId || !email) {
+  if (!(userId && email)) {
     return null;
   }
 
@@ -75,17 +74,27 @@ export async function POST(req: NextRequest) {
     const { priceId } = data;
 
     if (!priceId) {
-      return NextResponse.json({ error: 'Price ID is required' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Price ID is required' },
+        { status: 400 }
+      );
     }
 
     const stripeService = getStripeService();
 
-    const checkoutSession = await stripeService.createSubscriptionCheckout(user.id, user.email, priceId);
+    const checkoutSession = await stripeService.createSubscriptionCheckout(
+      user.id,
+      user.email,
+      priceId
+    );
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error) {
     console.error('Checkout error:', error);
 
-    return NextResponse.json({ error: 'Failed to create checkout session' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create checkout session' },
+      { status: 500 }
+    );
   }
 }

@@ -1,16 +1,16 @@
-import { CustomError } from "../../utils/custom-error";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import { CustomError } from '../../utils/custom-error';
+import type { AbstractLogger } from '../logging/abstract-logger';
 
-export type BackoffStrategy = "exponential" | "none";
+export type BackoffStrategy = 'exponential' | 'none';
 
 /**
  * Error thrown when mutex acquisition times out after all retries
  */
-export class MutexAcquireTimeoutError extends CustomError<"MUTEX_ACQUIRE_TIMEOUT"> {
+export class MutexAcquireTimeoutError extends CustomError<'MUTEX_ACQUIRE_TIMEOUT'> {
   constructor(name: string, retries: number) {
     super(
       `Failed to acquire mutex '${name}' after ${retries} retries`,
-      "MUTEX_ACQUIRE_TIMEOUT"
+      'MUTEX_ACQUIRE_TIMEOUT'
     );
   }
 }

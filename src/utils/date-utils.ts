@@ -1,4 +1,4 @@
-import dayjs from "dayjs";
+import dayjs from 'dayjs';
 
 /**
  * Utility functions for date manipulation and formatting.
@@ -17,7 +17,7 @@ export const maxDate = (...dates: Date[]) =>
   new Date(Math.max(...dates.map((d) => d.getTime())));
 
 export const formatDate = (date: Date, format: string): string => {
-  const pad = (n: number) => n.toString().padStart(2, "0");
+  const pad = (n: number) => n.toString().padStart(2, '0');
   const map: Record<string, string> = {
     YYYY: date.getFullYear().toString(),
     MM: pad(date.getMonth() + 1),
@@ -38,17 +38,17 @@ export const addDays = (date: Date, days: number): Date => {
 export const humanizeTime = (date: string | Date | dayjs.Dayjs) => {
   const d = dayjs(date);
 
-  if (d.isSame(dayjs(), "day")) {
-    return `Today, ${d.format("HH:mm")}`;
+  if (d.isSame(dayjs(), 'day')) {
+    return `Today, ${d.format('HH:mm')}`;
   }
 
-  if (d.isSame(dayjs().subtract(1, "day"), "day")) {
-    return `Yesterday, ${d.format("HH:mm")}`;
+  if (d.isSame(dayjs().subtract(1, 'day'), 'day')) {
+    return `Yesterday, ${d.format('HH:mm')}`;
   }
 
-  if (d.isSame(dayjs(), "year")) {
-    return d.format("D MMMM");
+  if (d.isSame(dayjs(), 'year')) {
+    return d.format('D MMMM');
   }
 
-  return d.format("D MMM YY");
+  return d.format('D MMM YY');
 };

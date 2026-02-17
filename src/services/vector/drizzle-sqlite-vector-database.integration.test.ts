@@ -1,26 +1,24 @@
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-// Use real sqlite-vec-loader for integration tests
-import { loadSqliteVec } from "../../db/sqlite-vec-loader";
-import { float32Blob } from "../../db/types/float32-blob";
-import type { VectorEntry } from "./abstract-vector-database";
-import { DrizzleSqliteVectorDatabase } from "./drizzle-sqlite-vector-database";
+import Database from 'better-sqlite3';
+import { drizzle } from 'drizzle-orm/better-sqlite3';
+import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { float32Blob } from '../../db/types/float32-blob';
+import type { VectorEntry } from './abstract-vector-database';
+import { DrizzleSqliteVectorDatabase } from './drizzle-sqlite-vector-database';
 
 // Test schema
 const EMBED_DIM = 1536;
-const embeddings = sqliteTable("embeddings", {
-  id: text("id").primaryKey(),
-  namespace: text("namespace").notNull(),
-  embedding: float32Blob(EMBED_DIM)("embedding"),
-  metadata: text("metadata"),
-  createdAt: integer("created_at")
+const embeddings = sqliteTable('embeddings', {
+  id: text('id').primaryKey(),
+  namespace: text('namespace').notNull(),
+  embedding: float32Blob(EMBED_DIM)('embedding'),
+  metadata: text('metadata'),
+  createdAt: integer('created_at')
     .notNull()
     .default(Math.floor(Date.now() / 1000)),
 });
 
-describe("DrizzleSqliteVectorDatabase Integration", () => {
+describe('DrizzleSqliteVectorDatabase Integration', () => {
   let sqlite: Database.Database;
   let db: ReturnType<typeof drizzle>;
   let vectorDb: DrizzleSqliteVectorDatabase<{ title: string; chunk: number }>;
@@ -28,7 +26,7 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
 
   beforeEach(() => {
     // Create in-memory database for testing
-    sqlite = new Database(":memory:");
+    sqlite = new Database(':memory:');
     db = drizzle(sqlite);
     contentStore.clear();
 
@@ -47,7 +45,7 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
     const embeddingsTable = {
       ...embeddings,
       _: {
-        name: "embeddings",
+        name: 'embeddings',
       },
     };
 
@@ -70,7 +68,7 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       },
       dim: EMBED_DIM,
       extensionPath:
-        "./node_modules/.pnpm/sqlite-vec-darwin-arm64@0.1.7-alpha.2/node_modules/sqlite-vec-darwin-arm64/vec0.dylib",
+        './node_modules/.pnpm/sqlite-vec-darwin-arm64@0.1.7-alpha.2/node_modules/sqlite-vec-darwin-arm64/vec0.dylib',
       getContent: (namespace, ids) =>
         Promise.resolve(
           ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
@@ -87,7 +85,7 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
     }
   });
 
-  describe("End-to-End Vector Operations", () => {
+  describe('End-to-End Vector Operations', () => {
     const testEntries: VectorEntry<
       number[],
       { title: string; chunk: number },
@@ -95,29 +93,29 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       true
     >[] = [
       {
-        id: "doc:1#0",
+        id: 'doc:1#0',
         vector: new Array(EMBED_DIM).fill(0.1),
-        metadata: { title: "Test Document 1", chunk: 0 },
+        metadata: { title: 'Test Document 1', chunk: 0 },
       },
       {
-        id: "doc:1#1",
+        id: 'doc:1#1',
         vector: new Array(EMBED_DIM).fill(0.2),
-        metadata: { title: "Test Document 1", chunk: 1 },
+        metadata: { title: 'Test Document 1', chunk: 1 },
       },
       {
-        id: "doc:2#0",
+        id: 'doc:2#0',
         vector: new Array(EMBED_DIM).fill(0.3),
-        metadata: { title: "Test Document 2", chunk: 0 },
+        metadata: { title: 'Test Document 2', chunk: 0 },
       },
       {
-        id: "doc:3#0",
+        id: 'doc:3#0',
         vector: new Array(EMBED_DIM).fill(0.4),
-        metadata: { title: "Test Document 3", chunk: 0 },
+        metadata: { title: 'Test Document 3', chunk: 0 },
       },
     ];
 
-    it("should perform complete CRUD operations", async () => {
-      const namespace = "test-namespace";
+    it('should perform complete CRUD operations', async () => {
+      const namespace = 'test-namespace';
 
       // 1. Upsert entries
       await vectorDb.upsert(namespace, testEntries);
@@ -131,7 +129,7 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
 
       expect(baseTableRows).toHaveLength(4);
       expect(baseTableRows.map((row: any) => row.id)).toEqual(
-        expect.arrayContaining(["doc:1#0", "doc:1#1", "doc:2#0", "doc:3#0"])
+        expect.arrayContaining(['doc:1#0', 'doc:1#1', 'doc:2#0', 'doc:3#0'])
       );
 
       // 2. Query for similar vectors
@@ -142,14 +140,14 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       });
 
       expect(queryResults).toHaveLength(3);
-      expect(queryResults[0]).toHaveProperty("id");
-      expect(queryResults[0]).toHaveProperty("metadata");
-      expect(queryResults[0]).not.toHaveProperty("vector");
+      expect(queryResults[0]).toHaveProperty('id');
+      expect(queryResults[0]).toHaveProperty('metadata');
+      expect(queryResults[0]).not.toHaveProperty('vector');
 
       // 3. List specific entries
       const listResults = await vectorDb.list(
         namespace,
-        ["doc:1#0", "doc:1#1"],
+        ['doc:1#0', 'doc:1#1'],
         {
           includeVectors: true,
           includeMetadata: true,
@@ -159,18 +157,18 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       expect(listResults).toHaveLength(2);
       expect(listResults[0]).not.toBeNull();
       expect(listResults[1]).not.toBeNull();
-      expect(listResults[0]).toHaveProperty("vector");
-      expect(listResults[0]).toHaveProperty("metadata");
+      expect(listResults[0]).toHaveProperty('vector');
+      expect(listResults[0]).toHaveProperty('metadata');
 
       // 4. Delete some entries
-      await vectorDb.delete(namespace, ["doc:3#0"]);
+      await vectorDb.delete(namespace, ['doc:3#0']);
 
       // Verify deletion
       const remainingEntries = await vectorDb.list(namespace, [
-        "doc:1#0",
-        "doc:1#1",
-        "doc:2#0",
-        "doc:3#0",
+        'doc:1#0',
+        'doc:1#1',
+        'doc:2#0',
+        'doc:3#0',
       ]);
       expect(remainingEntries.filter((entry) => entry !== null)).toHaveLength(
         3
@@ -178,9 +176,9 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       expect(remainingEntries[3]).toBeNull(); // doc:3#0 should be deleted
     });
 
-    it("should handle namespace isolation", async () => {
-      const namespace1 = "namespace-1";
-      const namespace2 = "namespace-2";
+    it('should handle namespace isolation', async () => {
+      const namespace1 = 'namespace-1';
+      const namespace2 = 'namespace-2';
 
       const entries1: VectorEntry<
         number[],
@@ -189,9 +187,9 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
         true
       >[] = [
         {
-          id: "doc:1#0",
+          id: 'doc:1#0',
           vector: new Array(EMBED_DIM).fill(0.1),
-          metadata: { title: "Namespace 1 Doc", chunk: 0 },
+          metadata: { title: 'Namespace 1 Doc', chunk: 0 },
         },
       ];
 
@@ -202,9 +200,9 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
         true
       >[] = [
         {
-          id: "doc:1#0", // Same ID but different namespace
+          id: 'doc:1#0', // Same ID but different namespace
           vector: new Array(EMBED_DIM).fill(0.2),
-          metadata: { title: "Namespace 2 Doc", chunk: 0 },
+          metadata: { title: 'Namespace 2 Doc', chunk: 0 },
         },
       ];
 
@@ -233,8 +231,8 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
 
       expect(results1).toHaveLength(1);
       expect(results2).toHaveLength(1);
-      expect(results1[0].metadata?.title).toBe("Namespace 1 Doc");
-      expect(results2[0].metadata?.title).toBe("Namespace 2 Doc");
+      expect(results1[0].metadata?.title).toBe('Namespace 1 Doc');
+      expect(results2[0].metadata?.title).toBe('Namespace 2 Doc');
 
       // Verify namespace isolation in base table
       const baseRows1 = sqlite
@@ -255,29 +253,29 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       expect(baseRows2[0].namespace).toBe(namespace2);
     });
 
-    it("should handle vector dimension validation", async () => {
-      const namespace = "test-namespace";
+    it('should handle vector dimension validation', async () => {
+      const namespace = 'test-namespace';
 
       // Test invalid dimension
       const invalidEntry = {
-        id: "invalid",
+        id: 'invalid',
         vector: new Array(100), // Wrong dimension
-        metadata: { title: "Invalid", chunk: 0 },
+        metadata: { title: 'Invalid', chunk: 0 },
       };
 
       await expect(vectorDb.upsert(namespace, [invalidEntry])).rejects.toThrow(
-        "dimension mismatch"
+        'dimension mismatch'
       );
 
       // Test invalid query vector
       const invalidQueryVector = new Array(100);
       await expect(
         vectorDb.query(namespace, invalidQueryVector, 1)
-      ).rejects.toThrow("dimension mismatch");
+      ).rejects.toThrow('dimension mismatch');
     });
 
-    it("should handle conditional vector/metadata selection", async () => {
-      const namespace = "test-namespace";
+    it('should handle conditional vector/metadata selection', async () => {
+      const namespace = 'test-namespace';
       await vectorDb.upsert(namespace, testEntries);
 
       // Test query with different selection options
@@ -295,8 +293,8 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       );
 
       expect(vectorOnlyResults).toHaveLength(2);
-      expect(vectorOnlyResults[0]).toHaveProperty("vector");
-      expect(vectorOnlyResults[0]).not.toHaveProperty("metadata");
+      expect(vectorOnlyResults[0]).toHaveProperty('vector');
+      expect(vectorOnlyResults[0]).not.toHaveProperty('metadata');
 
       // Only metadata
       const metadataOnlyResults = await vectorDb.query(
@@ -310,8 +308,8 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       );
 
       expect(metadataOnlyResults).toHaveLength(2);
-      expect(metadataOnlyResults[0]).toHaveProperty("metadata");
-      expect(metadataOnlyResults[0]).not.toHaveProperty("vector");
+      expect(metadataOnlyResults[0]).toHaveProperty('metadata');
+      expect(metadataOnlyResults[0]).not.toHaveProperty('vector');
 
       // Both
       const bothResults = await vectorDb.query(namespace, queryVector, 2, {
@@ -320,8 +318,8 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       });
 
       expect(bothResults).toHaveLength(2);
-      expect(bothResults[0]).toHaveProperty("vector");
-      expect(bothResults[0]).toHaveProperty("metadata");
+      expect(bothResults[0]).toHaveProperty('vector');
+      expect(bothResults[0]).toHaveProperty('metadata');
 
       // Neither
       const neitherResults = await vectorDb.query(namespace, queryVector, 2, {
@@ -330,12 +328,12 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       });
 
       expect(neitherResults).toHaveLength(2);
-      expect(neitherResults[0]).not.toHaveProperty("vector");
-      expect(neitherResults[0]).not.toHaveProperty("metadata");
+      expect(neitherResults[0]).not.toHaveProperty('vector');
+      expect(neitherResults[0]).not.toHaveProperty('metadata');
     });
 
-    it("should handle upsert updates", async () => {
-      const namespace = "test-namespace";
+    it('should handle upsert updates', async () => {
+      const namespace = 'test-namespace';
 
       // Initial upsert
       const initialEntries: VectorEntry<
@@ -345,20 +343,20 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
         true
       >[] = [
         {
-          id: "doc:1#0",
+          id: 'doc:1#0',
           vector: new Array(EMBED_DIM).fill(0.1),
-          metadata: { title: "Original Title", chunk: 0 },
+          metadata: { title: 'Original Title', chunk: 0 },
         },
       ];
 
       await vectorDb.upsert(namespace, initialEntries);
 
       // Verify initial state
-      const initialResults = await vectorDb.list(namespace, ["doc:1#0"], {
+      const initialResults = await vectorDb.list(namespace, ['doc:1#0'], {
         includeMetadata: true,
       });
 
-      expect(initialResults[0]?.metadata?.title).toBe("Original Title");
+      expect(initialResults[0]?.metadata?.title).toBe('Original Title');
 
       // Update with same ID
       const updatedEntries: VectorEntry<
@@ -368,31 +366,31 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
         true
       >[] = [
         {
-          id: "doc:1#0",
+          id: 'doc:1#0',
           vector: new Array(EMBED_DIM).fill(0.2), // Different vector
-          metadata: { title: "Updated Title", chunk: 0 }, // Different metadata
+          metadata: { title: 'Updated Title', chunk: 0 }, // Different metadata
         },
       ];
 
       await vectorDb.upsert(namespace, updatedEntries);
 
       // Verify update
-      const updatedResults = await vectorDb.list(namespace, ["doc:1#0"], {
+      const updatedResults = await vectorDb.list(namespace, ['doc:1#0'], {
         includeMetadata: true,
       });
 
-      expect(updatedResults[0]?.metadata?.title).toBe("Updated Title");
+      expect(updatedResults[0]?.metadata?.title).toBe('Updated Title');
 
       // Verify only one entry exists (not duplicated)
-      const allResults = await vectorDb.list(namespace, ["doc:1#0"], {
+      const allResults = await vectorDb.list(namespace, ['doc:1#0'], {
         includeMetadata: true,
       });
 
       expect(allResults).toHaveLength(1);
     });
 
-    it("should handle empty operations gracefully", async () => {
-      const namespace = "test-namespace";
+    it('should handle empty operations gracefully', async () => {
+      const namespace = 'test-namespace';
 
       // Empty upsert
       await expect(vectorDb.upsert(namespace, [])).resolves.toBeUndefined();
@@ -413,8 +411,8 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       await expect(vectorDb.delete(namespace, [])).resolves.toBeUndefined();
     });
 
-    it("should handle large batch operations", async () => {
-      const namespace = "test-namespace";
+    it('should handle large batch operations', async () => {
+      const namespace = 'test-namespace';
 
       // Create a large batch of entries
       const largeBatch: VectorEntry<
@@ -475,9 +473,9 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
     });
   });
 
-  describe("RAG Service Integration", () => {
-    it("should work with RagService interface", async () => {
-      const namespace = "rag-test";
+  describe('RAG Service Integration', () => {
+    it('should work with RagService interface', async () => {
+      const namespace = 'rag-test';
 
       // Simulate RAG service usage
       const ragEntries: VectorEntry<
@@ -487,29 +485,29 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
         true
       >[] = [
         {
-          id: "doc:1#0",
+          id: 'doc:1#0',
           vector: new Array(EMBED_DIM).fill(0.1),
           metadata: {
-            docId: "doc-1",
-            text: "This is the first chunk of document 1",
+            docId: 'doc-1',
+            text: 'This is the first chunk of document 1',
             chunk: 0,
           },
         },
         {
-          id: "doc:1#1",
+          id: 'doc:1#1',
           vector: new Array(EMBED_DIM).fill(0.2),
           metadata: {
-            docId: "doc-1",
-            text: "This is the second chunk of document 1",
+            docId: 'doc-1',
+            text: 'This is the second chunk of document 1',
             chunk: 1,
           },
         },
         {
-          id: "doc:2#0",
+          id: 'doc:2#0',
           vector: new Array(EMBED_DIM).fill(0.3),
           metadata: {
-            docId: "doc-2",
-            text: "This is the first chunk of document 2",
+            docId: 'doc-2',
+            text: 'This is the first chunk of document 2',
             chunk: 0,
           },
         },
@@ -526,9 +524,9 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       });
 
       expect(searchResults).toHaveLength(3);
-      expect(searchResults[0]).toHaveProperty("metadata");
-      expect(searchResults[0].metadata).toHaveProperty("text");
-      expect(searchResults[0].metadata).toHaveProperty("docId");
+      expect(searchResults[0]).toHaveProperty('metadata');
+      expect(searchResults[0].metadata).toHaveProperty('text');
+      expect(searchResults[0].metadata).toHaveProperty('docId');
 
       // Verify results are ordered by similarity (distance)
       // Note: In a real scenario, this would be ordered by cosine distance
@@ -538,9 +536,9 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
     });
   });
 
-  describe("Vector Similarity Search", () => {
-    it("should return results ordered by similarity", async () => {
-      const namespace = "similarity-test";
+  describe('Vector Similarity Search', () => {
+    it('should return results ordered by similarity', async () => {
+      const namespace = 'similarity-test';
 
       // Create vectors with known similarity relationships
       const entries: VectorEntry<
@@ -550,19 +548,19 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
         true
       >[] = [
         {
-          id: "vec:1",
+          id: 'vec:1',
           vector: new Array(EMBED_DIM).fill(0.1), // All 0.1
-          metadata: { description: "Vector with all 0.1 values" },
+          metadata: { description: 'Vector with all 0.1 values' },
         },
         {
-          id: "vec:2",
+          id: 'vec:2',
           vector: new Array(EMBED_DIM).fill(0.2), // All 0.2
-          metadata: { description: "Vector with all 0.2 values" },
+          metadata: { description: 'Vector with all 0.2 values' },
         },
         {
-          id: "vec:3",
+          id: 'vec:3',
           vector: new Array(EMBED_DIM).fill(0.3), // All 0.3
-          metadata: { description: "Vector with all 0.3 values" },
+          metadata: { description: 'Vector with all 0.3 values' },
         },
       ];
 
@@ -584,17 +582,17 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       expect(results[2].id).toBeDefined();
     });
 
-    it("should handle different vector dimensions correctly", async () => {
-      const namespace = "dimension-test";
+    it('should handle different vector dimensions correctly', async () => {
+      const namespace = 'dimension-test';
 
       // Test with Float32Array input
       const float32Vector = new Float32Array(EMBED_DIM).fill(0.5);
       const entries: VectorEntry<Float32Array, { type: string }, true, true>[] =
         [
           {
-            id: "float32:1",
+            id: 'float32:1',
             vector: float32Vector,
-            metadata: { type: "Float32Array" },
+            metadata: { type: 'Float32Array' },
           },
         ];
 
@@ -609,13 +607,13 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
 
       expect(results).toHaveLength(1);
       expect(results[0].vector).toBeDefined();
-      expect(results[0].metadata?.type).toBe("Float32Array");
+      expect(results[0].metadata?.type).toBe('Float32Array');
     });
   });
 
-  describe("Performance and Scalability", () => {
-    it("should handle concurrent operations", async () => {
-      const namespace = "concurrent-test";
+  describe('Performance and Scalability', () => {
+    it('should handle concurrent operations', async () => {
+      const namespace = 'concurrent-test';
       const entries: VectorEntry<number[], { index: number }, true, true>[] =
         [];
 
@@ -643,13 +641,13 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
       expect(results).toHaveLength(10);
       results.forEach((result) => {
         expect(result).toHaveLength(5);
-        expect(result[0]).toHaveProperty("id");
-        expect(result[0]).toHaveProperty("metadata");
+        expect(result[0]).toHaveProperty('id');
+        expect(result[0]).toHaveProperty('metadata');
       });
     });
 
-    it("should maintain data integrity under stress", async () => {
-      const namespace = "stress-test";
+    it('should maintain data integrity under stress', async () => {
+      const namespace = 'stress-test';
 
       // Create many entries
       const entries: VectorEntry<number[], { value: number }, true, true>[] =
@@ -667,16 +665,16 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
 
       // Verify all entries were stored
       const count = sqlite
-        .prepare("SELECT COUNT(*) as count FROM embeddings WHERE namespace = ?")
+        .prepare('SELECT COUNT(*) as count FROM embeddings WHERE namespace = ?')
         .get(namespace) as { count: number };
 
       expect(count.count).toBe(200);
 
       // Perform mixed operations
-      await vectorDb.delete(namespace, ["stress:0", "stress:1", "stress:2"]);
+      await vectorDb.delete(namespace, ['stress:0', 'stress:1', 'stress:2']);
       await vectorDb.upsert(namespace, [
         {
-          id: "stress:new",
+          id: 'stress:new',
           vector: new Array(EMBED_DIM).fill(0.999),
           metadata: { value: 999 },
         },
@@ -684,7 +682,7 @@ describe("DrizzleSqliteVectorDatabase Integration", () => {
 
       // Verify final state
       const finalCount = sqlite
-        .prepare("SELECT COUNT(*) as count FROM embeddings WHERE namespace = ?")
+        .prepare('SELECT COUNT(*) as count FROM embeddings WHERE namespace = ?')
         .get(namespace) as { count: number };
 
       expect(finalCount.count).toBe(198); // 200 - 3 deleted + 1 added

@@ -1,8 +1,8 @@
-import type { EmbeddingModelMiddleware, LanguageModelMiddleware } from "ai";
-import type { AbstractLogger } from "../logging/abstract-logger";
-import { fnv1a64B64 } from "../../utils/crypto-utils";
-import { stableStringify } from "../../utils/object-utils";
-import { AbstractKeyValueService } from "../key-value/abstract-key-value";
+import type { EmbeddingModelMiddleware, LanguageModelMiddleware } from 'ai';
+import { fnv1a64B64 } from '../../utils/crypto-utils';
+import { stableStringify } from '../../utils/object-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import type { AbstractLogger } from '../logging/abstract-logger';
 
 interface CacheEntry<Params = unknown, Result = unknown> {
   params: Params;
@@ -13,30 +13,30 @@ interface MemoryCacheEntry<Params, Result> extends CacheEntry<Params, Result> {
   expiresAt: number | null;
 }
 
-type WrapGenerate = NonNullable<LanguageModelMiddleware["wrapGenerate"]>;
+type WrapGenerate = NonNullable<LanguageModelMiddleware['wrapGenerate']>;
 type WrapGenerateArgs = Parameters<WrapGenerate>[0];
-type GenerateParams = WrapGenerateArgs["params"];
-type GenerateResult = Awaited<ReturnType<WrapGenerateArgs["doGenerate"]>>;
-type LanguageModel = WrapGenerateArgs["model"];
-type CachedGenerateParams = Omit<GenerateParams, "abortSignal" | "headers">;
+type GenerateParams = WrapGenerateArgs['params'];
+type GenerateResult = Awaited<ReturnType<WrapGenerateArgs['doGenerate']>>;
+type LanguageModel = WrapGenerateArgs['model'];
+type CachedGenerateParams = Omit<GenerateParams, 'abortSignal' | 'headers'>;
 type LlmCacheEntry = CacheEntry<CachedGenerateParams, GenerateResult>;
 
-type WrapEmbed = NonNullable<EmbeddingModelMiddleware["wrapEmbed"]>;
+type WrapEmbed = NonNullable<EmbeddingModelMiddleware['wrapEmbed']>;
 type WrapEmbedArgs = Parameters<WrapEmbed>[0];
-type EmbedParams = WrapEmbedArgs["params"];
-type EmbedResult = Awaited<ReturnType<WrapEmbedArgs["doEmbed"]>>;
-type EmbeddingModel = WrapEmbedArgs["model"];
-type CachedEmbedParams = Omit<EmbedParams, "abortSignal" | "headers">;
+type EmbedParams = WrapEmbedArgs['params'];
+type EmbedResult = Awaited<ReturnType<WrapEmbedArgs['doEmbed']>>;
+type EmbeddingModel = WrapEmbedArgs['model'];
+type CachedEmbedParams = Omit<EmbedParams, 'abortSignal' | 'headers'>;
 type EmbeddingCacheEntry = CacheEntry<CachedEmbedParams, EmbedResult>;
 
 type CacheKeyInput =
   | {
-      kind: "generate";
+      kind: 'generate';
       model: LanguageModel;
       params: CachedGenerateParams;
     }
   | {
-      kind: "embed";
+      kind: 'embed';
       model: EmbeddingModel;
       params: CachedEmbedParams;
     };
@@ -68,7 +68,7 @@ export interface AiCacheOptions {
   shouldCache?: (input: CacheKeyInput) => boolean;
 }
 
-const DEFAULT_KEY_NAMESPACE = "ai:cache";
+const DEFAULT_KEY_NAMESPACE = 'ai:cache';
 
 const stripGenerateParams = (params: GenerateParams): CachedGenerateParams => {
   const { abortSignal, headers, ...rest } = params;
@@ -85,34 +85,31 @@ const identifyModel = (model: unknown): string | undefined => {
     return;
   }
 
-  if (typeof model === "string") {
+  if (typeof model === 'string') {
     return model;
   }
 
-  if (typeof model !== "object") {
+  if (typeof model !== 'object') {
     return;
   }
 
   const record = model as Record<string, unknown>;
-  const provider = typeof record.provider === "string" ? record.provider : "";
-  const modelId = typeof record.modelId === "string" ? record.modelId : "";
+  const provider = typeof record.provider === 'string' ? record.provider : '';
+  const modelId = typeof record.modelId === 'string' ? record.modelId : '';
   const parts = [provider, modelId].filter(Boolean);
 
-  return parts.length > 0 ? parts.join(":") : undefined;
+  return parts.length > 0 ? parts.join(':') : undefined;
 };
 
 const isAbortSignal = (value: unknown): value is AbortSignal => {
-  if (typeof AbortSignal === "undefined") {
+  if (typeof AbortSignal === 'undefined') {
     return false;
   }
 
   return value instanceof AbortSignal;
 };
 
-const sanitizeForCache = (
-  value: unknown,
-  seen: WeakSet<object>
-): unknown => {
+const sanitizeForCache = (value: unknown, seen: WeakSet<object>): unknown => {
   if (value === undefined) {
     return;
   }
@@ -122,15 +119,19 @@ const sanitizeForCache = (
   }
 
   const valueType = typeof value;
-  if (valueType === "string" || valueType === "number" || valueType === "boolean") {
+  if (
+    valueType === 'string' ||
+    valueType === 'number' ||
+    valueType === 'boolean'
+  ) {
     return value;
   }
 
-  if (valueType === "bigint") {
+  if (valueType === 'bigint') {
     return value.toString();
   }
 
-  if (valueType === "symbol" || valueType === "function") {
+  if (valueType === 'symbol' || valueType === 'function') {
     return;
   }
 
@@ -138,9 +139,9 @@ const sanitizeForCache = (
     return;
   }
 
-  if (typeof value === "object") {
+  if (typeof value === 'object') {
     if (seen.has(value)) {
-      return "[Circular]";
+      return '[Circular]';
     }
     seen.add(value);
   }
@@ -176,7 +177,7 @@ const sanitizeForCache = (
     return entries;
   }
 
-  if (typeof value !== "object") {
+  if (typeof value !== 'object') {
     return;
   }
 
@@ -220,7 +221,7 @@ const toDate = (value: unknown): Date | undefined => {
     return value;
   }
 
-  if (typeof value === "string" || typeof value === "number") {
+  if (typeof value === 'string' || typeof value === 'number') {
     const date = new Date(value);
     if (!Number.isNaN(date.getTime())) {
       return date;
@@ -231,7 +232,7 @@ const toDate = (value: unknown): Date | undefined => {
 };
 
 const normalizeGenerateResult = (result: GenerateResult): GenerateResult => {
-  if (!result.response || typeof result.response !== "object") {
+  if (!result.response || typeof result.response !== 'object') {
     return result;
   }
 
@@ -291,14 +292,17 @@ export function createLlmCachingMiddleware(
     shouldCache,
   } = options;
 
-  const memoryCache = new Map<string, MemoryCacheEntry<CachedGenerateParams, GenerateResult>>();
+  const memoryCache = new Map<
+    string,
+    MemoryCacheEntry<CachedGenerateParams, GenerateResult>
+  >();
 
   return {
-    specificationVersion: "v3",
+    specificationVersion: 'v3',
     wrapGenerate: async ({ doGenerate, params, model }) => {
       const sanitizedParams = stripGenerateParams(params);
       const keyInput: CacheKeyInput = {
-        kind: "generate",
+        kind: 'generate',
         model,
         params: sanitizedParams,
       };
@@ -323,12 +327,15 @@ export function createLlmCachingMiddleware(
             const normalized = normalizeGenerateResult(stored.result);
             memoryCache.set(
               cacheKey,
-              buildMemoryEntry({ params: stored.params, result: normalized }, ttlSeconds)
+              buildMemoryEntry(
+                { params: stored.params, result: normalized },
+                ttlSeconds
+              )
             );
             return normalized;
           }
         } catch (error) {
-          logger?.error("Failed to read LLM cache entry", { error });
+          logger?.error('Failed to read LLM cache entry', { error });
         }
       }
 
@@ -340,7 +347,7 @@ export function createLlmCachingMiddleware(
         try {
           await cacheStore.set(cacheKey, entry, ttlSeconds);
         } catch (error) {
-          logger?.error("Failed to write LLM cache entry", { error });
+          logger?.error('Failed to write LLM cache entry', { error });
         }
       }
 
@@ -365,14 +372,17 @@ export function createEmbeddingCachingMiddleware(
     shouldCache,
   } = options;
 
-  const memoryCache = new Map<string, MemoryCacheEntry<CachedEmbedParams, EmbedResult>>();
+  const memoryCache = new Map<
+    string,
+    MemoryCacheEntry<CachedEmbedParams, EmbedResult>
+  >();
 
   return {
-    specificationVersion: "v3",
+    specificationVersion: 'v3',
     wrapEmbed: async ({ doEmbed, params, model }) => {
       const sanitizedParams = stripEmbedParams(params);
       const keyInput: CacheKeyInput = {
-        kind: "embed",
+        kind: 'embed',
         model,
         params: sanitizedParams,
       };
@@ -396,12 +406,15 @@ export function createEmbeddingCachingMiddleware(
           if (stored) {
             memoryCache.set(
               cacheKey,
-              buildMemoryEntry({ params: stored.params, result: stored.result }, ttlSeconds)
+              buildMemoryEntry(
+                { params: stored.params, result: stored.result },
+                ttlSeconds
+              )
             );
             return stored.result;
           }
         } catch (error) {
-          logger?.error("Failed to read embedding cache entry", { error });
+          logger?.error('Failed to read embedding cache entry', { error });
         }
       }
 
@@ -413,7 +426,7 @@ export function createEmbeddingCachingMiddleware(
         try {
           await cacheStore.set(cacheKey, entry, ttlSeconds);
         } catch (error) {
-          logger?.error("Failed to write embedding cache entry", { error });
+          logger?.error('Failed to write embedding cache entry', { error });
         }
       }
 

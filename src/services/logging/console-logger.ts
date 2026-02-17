@@ -1,4 +1,4 @@
-import { AbstractLogger, type LogMetadata } from "./abstract-logger";
+import { AbstractLogger, type LogMetadata } from './abstract-logger';
 
 /**
  * Simple console implementation of AbstractLogger.
@@ -8,7 +8,7 @@ import { AbstractLogger, type LogMetadata } from "./abstract-logger";
 export class ConsoleLogger extends AbstractLogger {
   log(
     message: string,
-    level: "info" | "warn" | "error",
+    level: 'info' | 'warn' | 'error',
     metadata?: LogMetadata
   ): void {
     const logMessage = `[${level.toUpperCase()}] ${message}`;
@@ -17,14 +17,14 @@ export class ConsoleLogger extends AbstractLogger {
   }
 
   info(message: string, metadata?: LogMetadata): void {
-    this.log(message, "info", metadata);
+    this.log(message, 'info', metadata);
   }
 
   warn(message: string, metadata?: LogMetadata): void {
-    this.log(message, "warn", metadata);
+    this.log(message, 'warn', metadata);
   }
 
   error(message: string, metadata?: LogMetadata): void {
-    this.log(message, "error", metadata);
+    this.log(message, 'error', metadata);
   }
 }

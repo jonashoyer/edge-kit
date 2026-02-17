@@ -5,7 +5,7 @@ export const ml = (strings: readonly string[], ...placeholders: any[]) => {
   });
   return withSpace
     .replace(/$\n^\s*/gm, (substring) =>
-      substring.split("\n").fill("").join("\n")
+      substring.split('\n').fill('').join('\n')
     )
     .trim();
 };
@@ -15,9 +15,9 @@ export const firstCharUpper = (str: string) =>
 
 export const convertSnakeCaseToReadable = (input: string) =>
   input
-    .split("_")
+    .split('_')
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+    .join(' ');
 
 // New function
 export const camelToSnakeCase = (str: string): string => {
@@ -27,5 +27,5 @@ export const camelToSnakeCase = (str: string): string => {
 // New function
 export const truncate = (str: string, maxLength: number): string => {
   if (str.length <= maxLength) return str;
-  return str.slice(0, maxLength - 3) + "...";
+  return str.slice(0, maxLength - 3) + '...';
 };

@@ -1,7 +1,7 @@
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
 
-import { AbstractLogger } from '../logging/abstract-logger';
-import { AbstractStripeStore } from './abstract-stripe-store';
+import type { AbstractLogger } from '../logging/abstract-logger';
+import type { AbstractStripeStore } from './abstract-stripe-store';
 
 export class StripeCheckoutService {
   private store: AbstractStripeStore;
@@ -17,7 +17,7 @@ export class StripeCheckoutService {
       logger?: AbstractLogger;
       successUrl: string;
       cancelUrl: string;
-    },
+    }
   ) {
     this.store = store;
     this.stripe = stripe;
@@ -30,7 +30,10 @@ export class StripeCheckoutService {
    * Creates or retrieves a Stripe customer for the user
    * This ensures we always have a customerId before checkout
    */
-  async getOrCreateStripeCustomer(userId: string, email: string): Promise<string> {
+  async getOrCreateStripeCustomer(
+    userId: string,
+    email: string
+  ): Promise<string> {
     try {
       // First check if we already have a customer ID for this user
       const existingCustomerId = await this.store.getStripeCustomerId(userId);
@@ -48,13 +51,16 @@ export class StripeCheckoutService {
         },
         {
           idempotencyKey: userId,
-        },
+        }
       );
 
       // Store the mapping in our KV store
       await this.store.setUserToCustomerMapping(userId, customer.id);
 
-      this.logger?.info('Created new Stripe customer', { userId, customerId: customer.id });
+      this.logger?.info('Created new Stripe customer', {
+        userId,
+        customerId: customer.id,
+      });
       return customer.id;
     } catch (error) {
       this.logger?.error('Failed to create Stripe customer', { userId, error });
@@ -74,7 +80,7 @@ export class StripeCheckoutService {
       cancelUrl?: string;
       trialPeriodDays?: number;
       metadata?: Record<string, string>;
-    },
+    }
   ): Promise<Stripe.Checkout.Session> {
     try {
       // Always make sure we have a Stripe customer ID before creating checkout
@@ -91,7 +97,9 @@ export class StripeCheckoutService {
           },
         ],
         mode: 'subscription',
-        subscription_data: options?.trialPeriodDays ? { trial_period_days: options.trialPeriodDays } : undefined,
+        subscription_data: options?.trialPeriodDays
+          ? { trial_period_days: options.trialPeriodDays }
+          : undefined,
         success_url: options?.successUrl || this.successUrl,
         cancel_url: options?.cancelUrl || this.cancelUrl,
         metadata: {
@@ -108,7 +116,10 @@ export class StripeCheckoutService {
 
       return session;
     } catch (error) {
-      this.logger?.error('Failed to create subscription checkout', { userId, error });
+      this.logger?.error('Failed to create subscription checkout', {
+        userId,
+        error,
+      });
       throw error;
     }
   }
@@ -127,7 +138,7 @@ export class StripeCheckoutService {
       successUrl?: string;
       cancelUrl?: string;
       metadata?: Record<string, string>;
-    },
+    }
   ): Promise<Stripe.Checkout.Session> {
     try {
       // Always make sure we have a Stripe customer ID before creating checkout
@@ -158,7 +169,10 @@ export class StripeCheckoutService {
 
       return session;
     } catch (error) {
-      this.logger?.error('Failed to create one-time checkout', { userId, error });
+      this.logger?.error('Failed to create one-time checkout', {
+        userId,
+        error,
+      });
       throw error;
     }
   }

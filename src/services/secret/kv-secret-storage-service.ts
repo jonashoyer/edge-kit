@@ -1,8 +1,8 @@
-import { stringToArrayBuffer } from "../../utils/buffer-utils";
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
-import type { AbstractLogger } from "../logging/abstract-logger";
-import type { AbstractSecretStorageService } from "./abstract-secret-storage-service";
-import { type EncryptedData, EncryptionService } from "./encryption-service";
+import { stringToArrayBuffer } from '../../utils/buffer-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import type { AbstractLogger } from '../logging/abstract-logger';
+import type { AbstractSecretStorageService } from './abstract-secret-storage-service';
+import { type EncryptedData, EncryptionService } from './encryption-service';
 
 /**
  * Implements secure storage of secrets using the BasicEncryptionService and a key-value store
@@ -37,14 +37,14 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
     this.encryptionService = new EncryptionService(masterKey, {
       pbkdf2Iterations: options.pbkdf2Iterations,
     });
-    this.secretPrefix = options.secretPrefix || "secret:";
+    this.secretPrefix = options.secretPrefix || 'secret:';
     this.logger = options.logger;
   }
 
   /**
    * Generate the storage key with namespace and prefix
    */
-  private getStorageKey(key: string, namespace = "default"): string {
+  private getStorageKey(key: string, namespace = 'default'): string {
     return `${this.secretPrefix}${namespace}:${key}`;
   }
 
@@ -54,12 +54,12 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
   async storeSecret<T>(
     key: string,
     value: T,
-    namespace = "default"
+    namespace = 'default'
   ): Promise<void> {
     const storageKey = this.getStorageKey(key, namespace);
     // Convert value to string using JSON.stringify
     const stringValue =
-      typeof value === "string" ? value : JSON.stringify(value);
+      typeof value === 'string' ? value : JSON.stringify(value);
     const encryptedData = await this.encryptionService.encrypt(stringValue);
     await this.keyValueService.set(storageKey, encryptedData);
   }
@@ -67,7 +67,7 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
   /**
    * Retrieve and decrypt a secret
    */
-  async getSecret<T>(key: string, namespace = "default"): Promise<T | null> {
+  async getSecret<T>(key: string, namespace = 'default'): Promise<T | null> {
     const storageKey = this.getStorageKey(key, namespace);
     const encryptedData =
       await this.keyValueService.get<EncryptedData>(storageKey);
@@ -100,7 +100,7 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
   /**
    * Delete a secret
    */
-  async deleteSecret(key: string, namespace = "default"): Promise<void> {
+  async deleteSecret(key: string, namespace = 'default'): Promise<void> {
     const storageKey = this.getStorageKey(key, namespace);
     await this.keyValueService.delete(storageKey);
   }
@@ -108,7 +108,7 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
   /**
    * Check if a secret exists
    */
-  async hasSecret(key: string, namespace = "default"): Promise<boolean> {
+  async hasSecret(key: string, namespace = 'default'): Promise<boolean> {
     const storageKey = this.getStorageKey(key, namespace);
     return await this.keyValueService.exists(storageKey);
   }
@@ -118,7 +118,7 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
    */
   async rotateSecretKey(
     key: string,
-    namespace = "default",
+    namespace = 'default',
     newMasterKeyString?: string
   ): Promise<void> {
     try {
@@ -137,8 +137,8 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
       if (newMasterKeyString) {
         // Backup the current master key if we're temporarily using a new one
         const backupKey = await this.getSecret<string>(
-          "master-key-backup",
-          "system"
+          'master-key-backup',
+          'system'
         );
         if (backupKey) {
           originalMasterKey = stringToArrayBuffer(backupKey);

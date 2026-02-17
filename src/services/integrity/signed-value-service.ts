@@ -1,13 +1,13 @@
-import { constantTimeEqual, sha256Base64 } from "../../utils/crypto-utils";
-import { CustomError } from "../../utils/custom-error";
-import { AbstractSignedValue, type SignedValue } from "./abstract-signed-value";
+import { constantTimeEqual, sha256Base64 } from '../../utils/crypto-utils';
+import { CustomError } from '../../utils/custom-error';
+import { AbstractSignedValue, type SignedValue } from './abstract-signed-value';
 
 /**
  * Error thrown when signature verification fails
  */
-export class SignatureVerificationError extends CustomError<"INVALID_SIGNATURE"> {
+export class SignatureVerificationError extends CustomError<'INVALID_SIGNATURE'> {
   constructor(message: string) {
-    super(message, "INVALID_SIGNATURE");
+    super(message, 'INVALID_SIGNATURE');
   }
 }
 
@@ -15,7 +15,7 @@ export class SignatureVerificationError extends CustomError<"INVALID_SIGNATURE">
  * Implements signed value creation and verification using HMAC-SHA256
  */
 export class SignedValueService extends AbstractSignedValue {
-  private readonly algorithm = "HMAC-SHA256";
+  private readonly algorithm = 'HMAC-SHA256';
 
   /**
    * Sign a value with a secret
@@ -48,15 +48,15 @@ export class SignedValueService extends AbstractSignedValue {
     secret: string
   ): Promise<boolean> {
     // Validate structure
-    if (!signedValue || typeof signedValue !== "object") {
+    if (!signedValue || typeof signedValue !== 'object') {
       return false;
     }
 
     if (
       !(
-        "algorithm" in signedValue &&
-        "value" in signedValue &&
-        "signature" in signedValue
+        'algorithm' in signedValue &&
+        'value' in signedValue &&
+        'signature' in signedValue
       )
     ) {
       return false;

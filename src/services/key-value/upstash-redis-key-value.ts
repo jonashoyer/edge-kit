@@ -1,7 +1,7 @@
-import { Redis } from "@upstash/redis";
+import { Redis } from '@upstash/redis';
 
-import type { Nullable } from "../../utils/type-utils";
-import { AbstractKeyValueService } from "./abstract-key-value";
+import type { Nullable } from '../../utils/type-utils';
+import { AbstractKeyValueService } from './abstract-key-value';
 
 /**
  * Upstash Redis implementation of AbstractKeyValueService.
@@ -13,7 +13,7 @@ export class UpstashRedisKeyValueService extends AbstractKeyValueService {
   constructor(redis: { url: string; token: string } | Redis) {
     super();
     this.client =
-      "url" in redis
+      'url' in redis
         ? new Redis({ url: redis.url, token: redis.token })
         : redis;
   }

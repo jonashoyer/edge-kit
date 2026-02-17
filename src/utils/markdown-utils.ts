@@ -1,17 +1,17 @@
 /**
  * How to format a field label in markdown
  */
-export type FieldFormat = "bold" | "italic" | "code" | "plain";
+export type FieldFormat = 'bold' | 'italic' | 'code' | 'plain';
 
 /**
  * Output format for rendering
  */
-export type OutputFormat = "markdown" | "xml";
+export type OutputFormat = 'markdown' | 'xml';
 
 /**
  * How to render arrays
  */
-export type ArrayRenderMode = "inline" | "bulleted";
+export type ArrayRenderMode = 'inline' | 'bulleted';
 
 /**
  * Configuration for a single field
@@ -60,14 +60,14 @@ export type MdSchema<T> = {
 /**
  * Format a label according to the specified style
  */
-function formatLabel(label: string, format: FieldFormat = "plain"): string {
-  if (format === "bold") {
+function formatLabel(label: string, format: FieldFormat = 'plain'): string {
+  if (format === 'bold') {
     return `**${label}**`;
   }
-  if (format === "italic") {
+  if (format === 'italic') {
     return `*${label}*`;
   }
-  if (format === "code") {
+  if (format === 'code') {
     return `\`${label}\``;
   }
   return label;
@@ -78,15 +78,15 @@ function formatLabel(label: string, format: FieldFormat = "plain"): string {
  */
 function formatValue(value: unknown): string {
   if (value === null || value === undefined) {
-    return "";
+    return '';
   }
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     return value;
   }
-  if (typeof value === "number" || typeof value === "boolean") {
+  if (typeof value === 'number' || typeof value === 'boolean') {
     return String(value);
   }
-  if (typeof value === "object") {
+  if (typeof value === 'object') {
     return JSON.stringify(value);
   }
   return String(value);
@@ -99,7 +99,7 @@ function shouldOmit(value: unknown): boolean {
   if (value === null || value === undefined) {
     return true;
   }
-  if (typeof value === "string" && value.trim() === "") {
+  if (typeof value === 'string' && value.trim() === '') {
     return true;
   }
   if (Array.isArray(value) && value.length === 0) {
@@ -107,7 +107,7 @@ function shouldOmit(value: unknown): boolean {
   }
   // Only treat plain objects as empty objects
   if (
-    typeof value === "object" &&
+    typeof value === 'object' &&
     value !== null &&
     (value as { constructor?: unknown }).constructor === Object &&
     Object.keys(value as Record<string, unknown>).length === 0
@@ -129,11 +129,11 @@ function renderArray(
   // Check if we have nested objects with a schema
   const hasNestedObjects =
     config.fields &&
-    arr.some((item) => typeof item === "object" && item !== null);
+    arr.some((item) => typeof item === 'object' && item !== null);
 
   // Determine rendering mode
   // Default to inline unless explicitly bulleted
-  let shouldRenderInline = config.arrayMode !== "bulleted";
+  let shouldRenderInline = config.arrayMode !== 'bulleted';
 
   // If we have nested objects, always use bulleted format
   if (hasNestedObjects) {
@@ -142,24 +142,24 @@ function renderArray(
 
   if (shouldRenderInline) {
     // Inline rendering: join with commas
-    return arr.map((item) => formatValue(item)).join(", ");
+    return arr.map((item) => formatValue(item)).join(', ');
   }
 
   // Bulleted rendering
   return arr
     .map((item) => {
-      if (typeof item === "object" && item !== null && config.fields) {
+      if (typeof item === 'object' && item !== null && config.fields) {
         // Nested object in array
         const nested = renderObject(
           item as Record<string, unknown>,
           config.fields as MdSchemaConfig<Record<string, unknown>>,
           depth + 1
         );
-        return `- ${nested.replace(/\n/g, "\n  ")}`;
+        return `- ${nested.replace(/\n/g, '\n  ')}`;
       }
       return `- ${formatValue(item)}`;
     })
-    .join("\n");
+    .join('\n');
 }
 
 /**
@@ -208,7 +208,7 @@ function renderObject(
     fields.push(`${formattedLabel}: ${rendered}`);
   }
 
-  return fields.join("\n");
+  return fields.join('\n');
 }
 
 /**
@@ -231,7 +231,7 @@ function renderFieldValue(
   }
 
   // Handle objects
-  if (typeof value === "object" && config.fields) {
+  if (typeof value === 'object' && config.fields) {
     const nested = renderObject(
       value as Record<string, unknown>,
       config.fields as MdSchemaConfig<Record<string, unknown>>,
@@ -239,9 +239,9 @@ function renderFieldValue(
     );
     // Indent nested content
     return `\n${nested
-      .split("\n")
+      .split('\n')
       .map((line) => `  ${line}`)
-      .join("\n")}`;
+      .join('\n')}`;
   }
 
   // Handle primitives
@@ -258,12 +258,12 @@ function renderFieldValueAsMarkdown(
   depth: number
 ): string {
   if (value === null || value === undefined) {
-    return "";
+    return '';
   }
   if (Array.isArray(value)) {
     return renderArray(value, config, schemaConfig, depth);
   }
-  if (typeof value === "object" && config.fields) {
+  if (typeof value === 'object' && config.fields) {
     return renderObject(
       value as Record<string, unknown>,
       config.fields as MdSchemaConfig<Record<string, unknown>>,
@@ -287,23 +287,27 @@ function renderFieldValueAsMarkdown(
  * //   <age>30</age>
  * // </root>
  */
-export function jsonToXml(json: unknown, rootName = "root", options: { disableIndentation?: boolean, disableEscape?: boolean } = {}): string {
+export function jsonToXml(
+  json: unknown,
+  rootName = 'root',
+  options: { disableIndentation?: boolean; disableEscape?: boolean } = {}
+): string {
   const convert = (obj: unknown, name: string): string => {
     if (obj === null || obj === undefined) {
       return `<${name}/>`;
     }
 
-    if (typeof obj !== "object") {
+    if (typeof obj !== 'object') {
       return `<${name}>${options.disableEscape ? obj.toString() : escapeXml(obj.toString())}</${name}>`;
     }
 
     if (Array.isArray(obj)) {
-      return obj.map((item) => convert(item, name)).join("\n");
+      return obj.map((item) => convert(item, name)).join('\n');
     }
 
     const children = Object.entries(obj)
       .map(([key, value]) => convert(value, key))
-      .join("\n");
+      .join('\n');
 
     return `<${name}>\n${options.disableIndentation ? children : indent(children)}\n</${name}>`;
   };
@@ -313,18 +317,18 @@ export function jsonToXml(json: unknown, rootName = "root", options: { disableIn
 
 function indent(str: string): string {
   return str
-    .split("\n")
+    .split('\n')
     .map((line) => ` ${line}`)
-    .join("\n");
+    .join('\n');
 }
 
 function escapeXml(str: string): string {
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 // ============================================================================
@@ -347,7 +351,7 @@ function mdBuild<T extends Record<string, unknown>>(
           0
         )
       )
-      .join("\n\n");
+      .join('\n\n');
   }
   return renderObject(
     data,
@@ -362,7 +366,7 @@ function mdBuild<T extends Record<string, unknown>>(
 function mdBuildXml<T extends Record<string, unknown>>(
   data: T | T[],
   config: MdSchemaConfig<T>,
-  rootName = "root"
+  rootName = 'root'
 ): string {
   if (Array.isArray(data)) {
     const transformed = data.map((item) =>
@@ -422,12 +426,12 @@ function processXmlValue(
   tv: unknown,
   schema: MdSchemaConfig<unknown>
 ): unknown | undefined {
-  if (fc?.outputFormat === "markdown") {
+  if (fc?.outputFormat === 'markdown') {
     const md = renderFieldValueAsMarkdown(tv, fc, schema, 0);
-    return md.trim() === "" ? undefined : md;
+    return md.trim() === '' ? undefined : md;
   }
 
-  if (fc?.fields && typeof tv === "object" && tv !== null) {
+  if (fc?.fields && typeof tv === 'object' && tv !== null) {
     return transformDataForXml(
       tv as Record<string, unknown>,
       fc.fields as MdSchemaConfig<Record<string, unknown>>
@@ -492,7 +496,7 @@ export function buildMarkdown<T extends Record<string, unknown>>(
 export function buildXml<T extends Record<string, unknown>>(
   data: T | T[],
   config: MdSchemaConfig<T>,
-  rootName = "root"
+  rootName = 'root'
 ): string {
   return mdBuildXml(data, config, rootName);
 }

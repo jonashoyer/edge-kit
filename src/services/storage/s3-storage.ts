@@ -5,10 +5,10 @@ import {
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-import { AbstractStorage, type StorageOptions } from "./abstract-storage";
+import { AbstractStorage, type StorageOptions } from './abstract-storage';
 
 interface S3StorageOptions extends StorageOptions {
   bucket: string;
@@ -110,7 +110,7 @@ export class S3Storage extends AbstractStorage {
 
     return {
       url,
-      method: "POST" as const,
+      method: 'POST' as const,
       expiresAt: Date.now() + this.presignedTtl,
     };
   }

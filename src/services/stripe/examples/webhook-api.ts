@@ -5,11 +5,10 @@
  * for a Next.js App Router project
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-
+import type { AbstractKeyValueService } from '../../key-value/abstract-key-value';
 import { StripeService } from '..';
-import { AbstractKeyValueService } from '../../key-value/abstract-key-value';
 import { StripeKVStore } from '../kv-store';
 
 // Example of getting services, replace with your own implementations
@@ -59,7 +58,10 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get('stripe-signature');
 
     if (!signature) {
-      return NextResponse.json({ error: 'Missing Stripe signature' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing Stripe signature' },
+        { status: 400 }
+      );
     }
 
     // Initialize service and process webhook
@@ -76,7 +78,10 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Webhook error:', error);
 
-    return NextResponse.json({ error: 'Failed to process webhook' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to process webhook' },
+      { status: 500 }
+    );
   }
 }
 

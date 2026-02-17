@@ -28,6 +28,8 @@ export abstract class AbstractSignedValue {
    * @param secret - The secret used for signing
    * @returns True if the signature is valid, false otherwise
    */
-  abstract verify<T>(signedValue: SignedValue<T>, secret: string): Promise<boolean>;
+  abstract verify<T>(
+    signedValue: SignedValue<T>,
+    secret: string
+  ): Promise<boolean>;
 }
-

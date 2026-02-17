@@ -1,4 +1,4 @@
-import type { Nullable } from "../../utils/type-utils";
+import type { Nullable } from '../../utils/type-utils';
 
 /**
  * Abstract base class for Key-Value storage services.

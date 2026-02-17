@@ -1,5 +1,5 @@
-import type { AbstractStorage } from "../storage/abstract-storage";
-import { AbstractLogger, type LogLevel } from "./abstract-logger";
+import type { AbstractStorage } from '../storage/abstract-storage';
+import { AbstractLogger, type LogLevel } from './abstract-logger';
 
 export interface LogFileEntry {
   timestamp: string;
@@ -93,14 +93,14 @@ export class LogFileService extends AbstractLogger {
    */
   async close() {
     if (this.closed) {
-      throw new Error("DebugLogService: Already closed");
+      throw new Error('DebugLogService: Already closed');
     }
 
     this.closed = true;
 
     // Build JSONL content: metadata line + entry lines
     const lines = this.entries.map((entry) => JSON.stringify(entry));
-    const content = lines.join("\n");
+    const content = lines.join('\n');
 
     // Upload log file
     await this.storage.write(this.key, Buffer.from(content), {

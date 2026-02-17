@@ -1,5 +1,5 @@
-import { seedRandomNumberGenerator } from "../../utils/random-utils";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import { seedRandomNumberGenerator } from '../../utils/random-utils';
+import type { AbstractLogger } from '../logging/abstract-logger';
 
 export type BaseFeatureFlag = {
   disabled?: boolean;
@@ -94,13 +94,13 @@ export class FeatureFlagService<T extends string = string> {
       return false;
     }
 
-    if ("enabled" in flag) {
+    if ('enabled' in flag) {
       return flag.enabled;
     }
-    if ("rolloutPercentage" in flag) {
+    if ('rolloutPercentage' in flag) {
       return this.isEnabledRolloutPercentage(name, identifier, flag);
     }
-    if ("rolloutInterval" in flag) {
+    if ('rolloutInterval' in flag) {
       return this.isEnabledGradualRollout(name, identifier, flag);
     }
 

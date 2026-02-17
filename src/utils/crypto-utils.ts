@@ -1,7 +1,7 @@
-import { arrayBufferToBase64Url } from "./buffer-utils";
+import { arrayBufferToBase64Url } from './buffer-utils';
 
 const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array => {
-  return typeof data === "string"
+  return typeof data === 'string'
     ? new TextEncoder().encode(data)
     : new Uint8Array(data);
 };
@@ -11,7 +11,7 @@ export async function sha256(
   salt?: Uint8Array
 ): Promise<ArrayBuffer> {
   const buff = await crypto.subtle.digest(
-    "SHA-256",
+    'SHA-256',
     new Uint8Array([...dataToUint8Array(data), ...(salt ?? [])])
   );
   return buff;
@@ -42,7 +42,7 @@ export async function sha256IpBase64(
   salt?: Uint8Array
 ): Promise<string> {
   const ipBytes = new Uint8Array(
-    ip.split(".").map((e) => Number.parseInt(e, 10))
+    ip.split('.').map((e) => Number.parseInt(e, 10))
   );
   const hashBuffer = await sha256(ipBytes.buffer, salt);
   return arrayBufferToBase64Url(hashBuffer);
@@ -93,13 +93,13 @@ export function hashCode(str: string) {
 }
 
 const base64Digit =
-  "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_";
+  '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_';
 const toB64 = (x: number | bigint) =>
   x
     .toString(2)
     .split(/(?=(?:.{6})+(?!.))/g)
     .map((v) => base64Digit[Number.parseInt(v, 2)])
-    .join("");
+    .join('');
 export function hashCodeB64(str: string) {
   return toB64(hashCode(str));
 }

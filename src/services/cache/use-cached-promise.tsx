@@ -1,6 +1,6 @@
 // We need to re-export the context to access pendingRequests
-import React from "react";
-import type { CacheOptions } from "./promise-cache-context";
+import React from 'react';
+import type { CacheOptions } from './promise-cache-context';
 
 type CacheStateInternal = {
   cache: Map<string, { value: unknown; expiresAt: number | null }>;
@@ -38,7 +38,7 @@ export function useCachedPromise<T>(
 
   if (!cacheState) {
     throw new Error(
-      "useCachedPromise must be used within a PromiseCacheProvider"
+      'useCachedPromise must be used within a PromiseCacheProvider'
     );
   }
 
@@ -96,7 +96,7 @@ export function useCachedPromise<T>(
       let actualValue: T;
       let expiresAt: number | null = null;
 
-      if (rawResult && typeof rawResult === "object" && "data" in rawResult) {
+      if (rawResult && typeof rawResult === 'object' && 'data' in rawResult) {
         // Result is CacheableResult<T>
         const cacheableResult = rawResult as {
           data: T;

@@ -1,7 +1,7 @@
 import {
   pipeline,
   type TextGenerationPipeline,
-} from "@huggingface/transformers";
+} from '@huggingface/transformers';
 
 /**
  * Singleton wrapper for HuggingFace Transformers pipelines.
@@ -24,8 +24,8 @@ export class PipelineSingleton {
     if (!this.pipeline) {
       // @ts-expect-error, pipeline function is not typed correctly
       this.pipeline = await pipeline(
-        "text-generation",
-        "HuggingFaceTB/SmolLM2-135M-Instruct"
+        'text-generation',
+        'HuggingFaceTB/SmolLM2-135M-Instruct'
       );
       // this.pipeline = await pipeline('text-generation', 'onnx-community/MobileLLM-125M', { dtype: 'fp32' });
     }
@@ -34,8 +34,8 @@ export class PipelineSingleton {
 
   async getFillMaskPipeline() {
     const unmasker = await pipeline(
-      "fill-mask",
-      "Xenova/distilbert-base-uncased"
+      'fill-mask',
+      'Xenova/distilbert-base-uncased'
     );
     return unmasker;
   }
@@ -43,8 +43,8 @@ export class PipelineSingleton {
   // https://huggingface.co/unikei/distilbert-base-re-punctuate
   async getPunctuationPipeline() {
     const punctuator = await pipeline(
-      "token-classification",
-      "ldenoue/distilbert-base-re-punctuate"
+      'token-classification',
+      'ldenoue/distilbert-base-re-punctuate'
     );
     return punctuator;
   }

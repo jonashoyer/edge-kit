@@ -1,9 +1,9 @@
-import { type LanguageModel, streamObject, streamText } from "ai";
-import { z } from "zod";
-import type { JSONSchema } from "zod/v4/core/json-schema";
-import { fnv1a64B64 } from "../../utils/crypto-utils";
-import { stableStringify } from "../../utils/object-utils";
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
+import { type LanguageModel, streamObject, streamText } from 'ai';
+import { z } from 'zod';
+import type { JSONSchema } from 'zod/v4/core/json-schema';
+import { fnv1a64B64 } from '../../utils/crypto-utils';
+import { stableStringify } from '../../utils/object-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
 
 export interface OptimisticLlmServiceOptions {
   /**
@@ -41,7 +41,7 @@ export class OptimisticLlmService {
   ) {
     this.kv = kv;
     this.ttlSeconds = options.ttlSeconds ?? 300; // 5 minutes
-    this.keyNamespace = options.keyNamespace ?? "llm:warm";
+    this.keyNamespace = options.keyNamespace ?? 'llm:warm';
     this.minCachedTokens = options.minCachedTokens ?? 1024;
     this.getTokenCount =
       options.getTokenCount ?? this.defaultEstimateTokenCount;
@@ -119,11 +119,11 @@ export class OptimisticLlmService {
   ): string {
     const hash = fnv1a64B64(prefix);
     const modelId = this.identifyModel(model);
-    const modelPart = modelId ? `:${modelId}` : "";
+    const modelPart = modelId ? `:${modelId}` : '';
     const schemaHash = schema
       ? this.hashSchema(z.toJSONSchema(schema))
       : undefined;
-    const schemaPart = schemaHash ? `:s:${schemaHash}` : "";
+    const schemaPart = schemaHash ? `:s:${schemaHash}` : '';
     return `${this.keyNamespace}${modelPart}${schemaPart}:${hash}`;
   }
 
@@ -172,7 +172,7 @@ export class OptimisticLlmService {
    */
   private identifyModel(model: LanguageModel): string | undefined {
     if (!model) return;
-    if (typeof model === "string") return model;
-    return [model.provider, model.modelId].filter(Boolean).join(":");
+    if (typeof model === 'string') return model;
+    return [model.provider, model.modelId].filter(Boolean).join(':');
   }
 }

@@ -1,4 +1,4 @@
-import type { VectorEntry } from "../vector/abstract-vector-database";
+import type { VectorEntry } from '../vector/abstract-vector-database';
 
 export interface ChunkedDocumentMeta {
   docId: string;

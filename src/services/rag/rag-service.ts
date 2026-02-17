@@ -8,7 +8,7 @@ import type {
 import type { AbstractChunker, Chunk } from './abstract-chunker';
 import {
   type ContextualizedEmbedder,
-  ContextualizedInputType,
+  type ContextualizedInputType,
   VoyageContextualizedEmbedder,
 } from './contextualized-embedder';
 
@@ -32,11 +32,11 @@ export interface Reranker<TMeta = RagChunkMetadataBase> {
 
 export interface RagServiceOptions<
   TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
-  TVectorDb extends AbstractVectorDatabase<TMeta, number[], true> = AbstractVectorDatabase<
+  TVectorDb extends AbstractVectorDatabase<
     TMeta,
     number[],
     true
-  >,
+  > = AbstractVectorDatabase<TMeta, number[], true>,
 > {
   vectorDb: TVectorDb;
   embeddingModel: EmbeddingModelV3; // model from AI SDK provider (e.g. voyage.embeddingModel('voyage-3'))
@@ -81,11 +81,11 @@ export interface SearchOptions {
  */
 export class RagService<
   TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
-  TVectorDb extends AbstractVectorDatabase<TMeta, number[], true> = AbstractVectorDatabase<
+  TVectorDb extends AbstractVectorDatabase<
     TMeta,
     number[],
     true
-  >,
+  > = AbstractVectorDatabase<TMeta, number[], true>,
 > {
   private readonly vectorDb: TVectorDb;
   private readonly embeddingModel: EmbeddingModelV3;
@@ -129,23 +129,16 @@ export class RagService<
     await this.indexChunks(namespace, docId, chunks, baseMetadata);
   }
 
-  async getVectors(
-    texts: string[],
-    inputType: ContextualizedInputType
-  ) {
+  async getVectors(texts: string[], inputType: ContextualizedInputType) {
     if (this.contextualized && this.contextualizedEmbedder) {
       // Use contextualized chunk embeddings: one document per request, inputs = [chunks]
-      return await this.contextualizedEmbedder.embed(
-        [[...texts]],
-        inputType
-      );
-    } else {
-      const { embeddings } = await embedMany({
-        model: this.embeddingModel,
-        values: texts,
-      });
-      return embeddings;
+      return await this.contextualizedEmbedder.embed([[...texts]], inputType);
     }
+    const { embeddings } = await embedMany({
+      model: this.embeddingModel,
+      values: texts,
+    });
+    return embeddings;
   }
 
   async indexChunks(
@@ -172,14 +165,9 @@ export class RagService<
     await this.vectorDb.upsert(namespace, entries as any);
   }
 
-  withContent(): RagService<
-    TMeta,
-    VectorDatabaseWithContent<TMeta, number[]>
-  > {
+  withContent(): RagService<TMeta, VectorDatabaseWithContent<TMeta, number[]>> {
     if (!this.vectorDb.getContent) {
-      throw new Error(
-        'vectorDb.getContent is required to enable reranking.'
-      );
+      throw new Error('vectorDb.getContent is required to enable reranking.');
     }
     return this as RagService<
       TMeta,
@@ -195,8 +183,7 @@ export class RagService<
     options: SearchOptions
   ): Promise<VectorEntry<number[], TMeta, any>[]> {
     const topK = options.topK ?? 8;
-    const shouldRerank =
-      options.rerank === true && this.reranker !== undefined;
+    const shouldRerank = options.rerank === true && this.reranker !== undefined;
     const candidateTopKDefault = shouldRerank ? topK * 4 : topK;
     const candidateTopK = Math.max(
       options.candidateTopK ?? candidateTopKDefault,
@@ -220,9 +207,7 @@ export class RagService<
     if (!reranker) return results;
     const getContent = this.vectorDb.getContent;
     if (!getContent) {
-      throw new Error(
-        'Reranking requires vectorDb.getContent to be provided.'
-      );
+      throw new Error('Reranking requires vectorDb.getContent to be provided.');
     }
 
     const ids = results.map((result) => result.id);
@@ -237,9 +222,8 @@ export class RagService<
     // Map reranked order back to results
     return reranked
       .map((it) => results.find((entry) => entry.id === it.id))
-      .filter(
-        (entry): entry is VectorEntry<number[], TMeta, boolean, false> =>
-          Boolean(entry)
+      .filter((entry): entry is VectorEntry<number[], TMeta, boolean, false> =>
+        Boolean(entry)
       );
   }
 

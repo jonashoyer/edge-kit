@@ -1,14 +1,14 @@
-import type { ZodIssue, ZodType } from "zod";
+import type { ZodIssue, ZodType } from 'zod';
 
-import { CustomError } from "./custom-error";
-import { genId } from "./id-generator";
+import { CustomError } from './custom-error';
+import { genId } from './id-generator';
 
 /**
  * Extended fetch wrapper (`fetchExt`) with built-in resilience and convenience features.
  * Supports retries (with backoff/jitter), timeouts, typed JSON responses (via Zod),
  * idempotency keys, and detailed error types.
  */
-export class FetchExtTimeoutError extends CustomError<"FETCH_TIMEOUT"> {
+export class FetchExtTimeoutError extends CustomError<'FETCH_TIMEOUT'> {
   readonly url: string;
   readonly timeoutMs: number;
   readonly attempt: number;
@@ -16,7 +16,7 @@ export class FetchExtTimeoutError extends CustomError<"FETCH_TIMEOUT"> {
   constructor(args: { url: string; timeoutMs: number; attempt: number }) {
     super(
       `Fetch request timed out after ${args.timeoutMs}ms (attempt ${args.attempt})`,
-      "FETCH_TIMEOUT"
+      'FETCH_TIMEOUT'
     );
     this.url = args.url;
     this.timeoutMs = args.timeoutMs;
@@ -24,7 +24,7 @@ export class FetchExtTimeoutError extends CustomError<"FETCH_TIMEOUT"> {
   }
 }
 
-export class FetchExtHttpError extends CustomError<"FETCH_HTTP_ERROR"> {
+export class FetchExtHttpError extends CustomError<'FETCH_HTTP_ERROR'> {
   readonly url: string;
   readonly status: number;
   readonly statusText: string;
@@ -38,7 +38,7 @@ export class FetchExtHttpError extends CustomError<"FETCH_HTTP_ERROR"> {
     super(
       args.message ??
         `Fetch failed with HTTP ${args.status} ${args.statusText}`,
-      "FETCH_HTTP_ERROR"
+      'FETCH_HTTP_ERROR'
     );
     this.url = args.url;
     this.status = args.status;
@@ -46,26 +46,30 @@ export class FetchExtHttpError extends CustomError<"FETCH_HTTP_ERROR"> {
   }
 }
 
-export class FetchExtNetworkError extends CustomError<"FETCH_NETWORK_ERROR"> {
+export class FetchExtNetworkError extends CustomError<'FETCH_NETWORK_ERROR'> {
   readonly cause: unknown;
   readonly response: Response | undefined;
 
-  constructor(args: { cause: unknown, response: Response | undefined }) {
-    super("Fetch failed due to a network error", "FETCH_NETWORK_ERROR");
+  constructor(args: { cause: unknown; response: Response | undefined }) {
+    super('Fetch failed due to a network error', 'FETCH_NETWORK_ERROR');
     this.cause = args.cause;
     this.response = args.response;
   }
 }
 
-export class FetchExtRetriesExhaustedError extends CustomError<"FETCH_RETRIES_EXHAUSTED"> {
+export class FetchExtRetriesExhaustedError extends CustomError<'FETCH_RETRIES_EXHAUSTED'> {
   readonly retries: number;
   readonly cause: unknown;
   readonly response: Response | undefined;
 
-  constructor(args: { retries: number; cause: unknown, response: Response | undefined }) {
+  constructor(args: {
+    retries: number;
+    cause: unknown;
+    response: Response | undefined;
+  }) {
     super(
       `Fetch failed after ${args.retries + 1} attempt(s)`,
-      "FETCH_RETRIES_EXHAUSTED"
+      'FETCH_RETRIES_EXHAUSTED'
     );
     this.retries = args.retries;
     this.cause = args.cause;
@@ -73,7 +77,7 @@ export class FetchExtRetriesExhaustedError extends CustomError<"FETCH_RETRIES_EX
   }
 }
 
-export class FetchExtInvalidJsonError extends CustomError<"FETCH_INVALID_JSON"> {
+export class FetchExtInvalidJsonError extends CustomError<'FETCH_INVALID_JSON'> {
   readonly bodyTextSnippet: string;
   readonly cause: unknown;
   readonly response: Response;
@@ -83,14 +87,14 @@ export class FetchExtInvalidJsonError extends CustomError<"FETCH_INVALID_JSON"> 
     cause: unknown;
     response: Response;
   }) {
-    super("Fetch response was not valid JSON", "FETCH_INVALID_JSON");
+    super('Fetch response was not valid JSON', 'FETCH_INVALID_JSON');
     this.bodyTextSnippet = args.bodyTextSnippet;
     this.cause = args.cause;
     this.response = args.response;
   }
 }
 
-export class FetchExtSchemaValidationError extends CustomError<"FETCH_SCHEMA_VALIDATION"> {
+export class FetchExtSchemaValidationError extends CustomError<'FETCH_SCHEMA_VALIDATION'> {
   readonly issues: readonly ZodIssue[];
   readonly response: Response;
 
@@ -99,8 +103,8 @@ export class FetchExtSchemaValidationError extends CustomError<"FETCH_SCHEMA_VAL
     response: Response;
   }) {
     super(
-      "Fetch JSON response failed schema validation",
-      "FETCH_SCHEMA_VALIDATION"
+      'Fetch JSON response failed schema validation',
+      'FETCH_SCHEMA_VALIDATION'
     );
     this.issues = args.issues;
     this.response = args.response;
@@ -111,7 +115,7 @@ type JsonBody = Record<string, unknown> | unknown[];
 
 export interface FetchExtOptionsBase {
   url: string;
-  init?: Omit<RequestInit, "body"> & { body?: RequestInit["body"] | JsonBody };
+  init?: Omit<RequestInit, 'body'> & { body?: RequestInit['body'] | JsonBody };
   /**
    * Timeout (ms) for a single attempt.
    * @default 10000
@@ -131,7 +135,7 @@ export interface FetchExtOptionsBase {
    * Backoff strategy applied to `retryDelay`.
    * @default "exponential"
    */
-  backoff?: "exponential" | "none";
+  backoff?: 'exponential' | 'none';
   /**
    * Retry on HTTP status codes (e.g. [429, 503]). Default: no HTTP-status retries.
    */
@@ -179,7 +183,7 @@ export interface FetchExtOptionsBase {
     attempt: number;
     retries: number;
     delayMs: number;
-    reason: "http_status" | "timeout" | "error";
+    reason: 'http_status' | 'timeout' | 'error';
     status?: number;
     error?: unknown;
   }) => void | Promise<void>;
@@ -204,6 +208,16 @@ export type FetchExtJsonResult<T> = {
   data: T;
 };
 
+export type FetchExtTextResult = {
+  response: Response;
+  data: string;
+};
+
+export type FetchExtBlobResult = {
+  response: Response;
+  data: Blob;
+};
+
 export type FetchExtError =
   | FetchExtTimeoutError
   | FetchExtHttpError
@@ -217,8 +231,8 @@ const sleep = async (ms: number): Promise<void> => {
 };
 
 const callOnRetry = (
-  onRetry: FetchExtOptionsBase["onRetry"],
-  ctx: Parameters<NonNullable<FetchExtOptionsBase["onRetry"]>>[0]
+  onRetry: FetchExtOptionsBase['onRetry'],
+  ctx: Parameters<NonNullable<FetchExtOptionsBase['onRetry']>>[0]
 ): void => {
   if (!onRetry) return;
   Promise.resolve(onRetry(ctx)).catch(() => {});
@@ -226,25 +240,25 @@ const callOnRetry = (
 
 const isJsonBody = (body: unknown): body is JsonBody => {
   if (body === null || body === undefined) return false;
-  if (typeof body !== "object") return false;
+  if (typeof body !== 'object') return false;
   if (body instanceof ArrayBuffer) return false;
   if (body instanceof Uint8Array) return false;
-  if (typeof Blob !== "undefined" && body instanceof Blob) return false;
-  if (typeof FormData !== "undefined" && body instanceof FormData) return false;
+  if (typeof Blob !== 'undefined' && body instanceof Blob) return false;
+  if (typeof FormData !== 'undefined' && body instanceof FormData) return false;
   if (
-    typeof URLSearchParams !== "undefined" &&
+    typeof URLSearchParams !== 'undefined' &&
     body instanceof URLSearchParams
   ) {
     return false;
   }
-  if (typeof ReadableStream !== "undefined" && body instanceof ReadableStream) {
+  if (typeof ReadableStream !== 'undefined' && body instanceof ReadableStream) {
     return false;
   }
   return true;
 };
 
 const normalizeInit = (
-  init: FetchExtOptionsBase["init"],
+  init: FetchExtOptionsBase['init'],
   opts: {
     accept?: string;
     idempotency?: { key: string; headerName: string };
@@ -252,8 +266,8 @@ const normalizeInit = (
 ): RequestInit => {
   const { body, headers: headersInit, ...rest } = init ?? {};
   const headers = new Headers(headersInit);
-  if (opts.accept !== undefined && !headers.has("accept")) {
-    headers.set("accept", opts.accept);
+  if (opts.accept !== undefined && !headers.has('accept')) {
+    headers.set('accept', opts.accept);
   }
 
   if (opts.idempotency && !headers.has(opts.idempotency.headerName)) {
@@ -261,15 +275,15 @@ const normalizeInit = (
   }
 
   if (isJsonBody(body)) {
-    if (!headers.has("content-type")) {
-      headers.set("content-type", "application/json");
+    if (!headers.has('content-type')) {
+      headers.set('content-type', 'application/json');
     }
     return { ...rest, headers, body: JSON.stringify(body) };
   }
 
   const out: RequestInit = { ...rest, headers };
   if (body !== undefined) {
-    out.body = body as RequestInit["body"];
+    out.body = body as RequestInit['body'];
   }
   return out;
 };
@@ -315,9 +329,9 @@ const parseBlob = async (response: Response): Promise<Blob> => {
 const getDelayMs = (
   attemptIndex: number,
   retryDelay: number,
-  backoff: "exponential" | "none"
+  backoff: 'exponential' | 'none'
 ): number => {
-  return backoff === "exponential"
+  return backoff === 'exponential'
     ? retryDelay * 2 ** attemptIndex
     : retryDelay;
 };
@@ -327,7 +341,7 @@ const canRetry = (attemptIndex: number, retries: number): boolean => {
 };
 
 const isAbortError = (error: unknown): boolean => {
-  return error instanceof Error && error.name === "AbortError";
+  return error instanceof Error && error.name === 'AbortError';
 };
 
 const capDelayMs = (delayMs: number, maxRetryWaitMs?: number): number => {
@@ -377,7 +391,10 @@ const fetchWithTimeout = async (
   }
 };
 
-const normalizeAttemptError = (response: Response | undefined, error: unknown): unknown => {
+const normalizeAttemptError = (
+  response: Response | undefined,
+  error: unknown
+): unknown => {
   if (error instanceof CustomError) return error;
   return new FetchExtNetworkError({ cause: error, response });
 };
@@ -385,7 +402,7 @@ const normalizeAttemptError = (response: Response | undefined, error: unknown): 
 const getErrorDelayMs = (args: {
   attemptIndex: number;
   retryDelay: number;
-  backoff: "exponential" | "none";
+  backoff: 'exponential' | 'none';
   maxRetryWaitMs?: number;
   jitter: boolean;
 }): number => {
@@ -400,7 +417,7 @@ const getHttpStatusDelayMs = (args: {
   attemptIndex: number;
   response: Response;
   retryDelay: number;
-  backoff: "exponential" | "none";
+  backoff: 'exponential' | 'none';
   maxRetryWaitMs?: number;
   respectRetryAfter: boolean;
   jitter: boolean;
@@ -417,7 +434,7 @@ const getHttpStatusDelayMs = (args: {
     );
   }
 
-  const retryAfterHeader = args.response.headers.get("retry-after");
+  const retryAfterHeader = args.response.headers.get('retry-after');
   if (!retryAfterHeader) {
     return applyJitter(
       capDelayMs(backoffDelay, args.maxRetryWaitMs),
@@ -444,10 +461,10 @@ const retrySleep = async (args: {
   attempt: number;
   retries: number;
   delayMs: number;
-  reason: "http_status" | "timeout" | "error";
+  reason: 'http_status' | 'timeout' | 'error';
   status?: number;
   error?: unknown;
-  onRetry?: FetchExtOptionsBase["onRetry"];
+  onRetry?: FetchExtOptionsBase['onRetry'];
 }): Promise<void> => {
   callOnRetry(args.onRetry, {
     url: args.url,
@@ -467,13 +484,13 @@ const fetchWithRetries = async (args: {
   timeoutMs: number;
   retries: number;
   retryDelay: number;
-  backoff: "exponential" | "none";
+  backoff: 'exponential' | 'none';
   retryOnHttpStatuses: number[];
   maxRetryWaitMs?: number;
   jitter: boolean;
   respectRetryAfter: boolean;
   throwOnHttpError: boolean;
-  onRetry?: FetchExtOptionsBase["onRetry"];
+  onRetry?: FetchExtOptionsBase['onRetry'];
 }): Promise<Response> => {
   let lastError: unknown = null;
 
@@ -502,7 +519,7 @@ const fetchWithRetries = async (args: {
       attempt,
       retries: args.retries,
       delayMs,
-      reason: "http_status",
+      reason: 'http_status',
       status: response.status,
       onRetry: args.onRetry,
     });
@@ -516,11 +533,11 @@ const fetchWithRetries = async (args: {
     error: unknown,
     lastResponse?: Response
   ): Promise<void> => {
-    if (error instanceof CustomError && error.code === "FETCH_HTTP_ERROR") {
+    if (error instanceof CustomError && error.code === 'FETCH_HTTP_ERROR') {
       throw error;
     }
 
-    if (error instanceof CustomError && error.code === "FETCH_TIMEOUT") {
+    if (error instanceof CustomError && error.code === 'FETCH_TIMEOUT') {
       if (!canRetry(attemptIndex, args.retries)) throw error;
 
       const delayMs = getErrorDelayMs({
@@ -536,7 +553,7 @@ const fetchWithRetries = async (args: {
         attempt,
         retries: args.retries,
         delayMs,
-        reason: "timeout",
+        reason: 'timeout',
         error,
         onRetry: args.onRetry,
       });
@@ -564,7 +581,7 @@ const fetchWithRetries = async (args: {
       attempt,
       retries: args.retries,
       delayMs,
-      reason: "error",
+      reason: 'error',
       error,
       onRetry: args.onRetry,
     });
@@ -602,7 +619,7 @@ const fetchWithRetries = async (args: {
     }
   }
 
-  if (lastError instanceof CustomError && lastError.code === "FETCH_TIMEOUT") {
+  if (lastError instanceof CustomError && lastError.code === 'FETCH_TIMEOUT') {
     throw lastError;
   }
 
@@ -614,61 +631,71 @@ const fetchWithRetries = async (args: {
 };
 
 type FetchExtExpectation<T> =
-  | { kind: "json"; schema: ZodType<T> }
-  | { kind: "text" }
-  | { kind: "blob" }
-  | { kind: "none" };
+  | { kind: 'json'; schema: ZodType<T> }
+  | { kind: 'text' }
+  | { kind: 'blob' }
+  | { kind: 'none' };
 
 const getExpectation = <T>(
-  options:
-    | FetchExtOptionsBase
-    | FetchExtExpectJsonOptions<T>
-    | FetchExtExpectTextOptions
-    | FetchExtExpectBlobOptions
+  options: FetchExtOptions<T>
 ): FetchExtExpectation<T> => {
-  if ("expectJson" in options && options.expectJson !== undefined) {
-    return { kind: "json", schema: options.expectJson.schema } as const;
+  if ('expectJson' in options && options.expectJson !== undefined) {
+    return { kind: 'json', schema: options.expectJson.schema } as const;
   }
-  if ("expectText" in options && options.expectText === true) {
-    return { kind: "text" } as const;
+  if ('expectText' in options && options.expectText === true) {
+    return { kind: 'text' } as const;
   }
-  if ("expectBlob" in options && options.expectBlob === true) {
-    return { kind: "blob" } as const;
+  if ('expectBlob' in options && options.expectBlob === true) {
+    return { kind: 'blob' } as const;
   }
-  return { kind: "none" } as const;
+  return { kind: 'none' } as const;
 };
 
 const getAcceptHeader = <T>(
   expectation: FetchExtExpectation<T>
 ): string | undefined => {
-  if (expectation.kind === "json") return "application/json";
-  if (expectation.kind === "text") return "text/plain, */*";
-  if (expectation.kind === "blob") return "*/*";
+  if (expectation.kind === 'json') return 'application/json';
+  if (expectation.kind === 'text') return 'text/plain, */*';
+  if (expectation.kind === 'blob') return '*/*';
   return;
 };
 
-export type FetchExtOptions<T> = FetchExtOptionsBase & (
-  | FetchExtExpectJsonOptions<T>
-  | FetchExtExpectTextOptions
-  | FetchExtExpectBlobOptions
-  | {}
-);
+export type FetchExtOptions<T> = FetchExtOptionsBase &
+  (
+    | {
+        expectJson: FetchExtExpectJsonOptions<T>['expectJson'];
+        expectText?: never;
+        expectBlob?: never;
+      }
+    | {
+        expectText: true;
+        expectJson?: never;
+        expectBlob?: never;
+      }
+    | {
+        expectBlob: true;
+        expectJson?: never;
+        expectText?: never;
+      }
+    | {
+        expectJson?: undefined;
+        expectText?: undefined;
+        expectBlob?: undefined;
+      }
+  );
 
-export async function fetchExt(options: FetchExtOptionsBase): Promise<Response>;
-export async function fetchExt<T>(
-  options: FetchExtOptionsBase & FetchExtExpectJsonOptions<T>
-): Promise<FetchExtJsonResult<T>>;
-export async function fetchExt(
-  options: FetchExtOptionsBase & FetchExtExpectTextOptions
-): Promise<{ response: Response; data: string }>;
-export async function fetchExt(
-  options: FetchExtOptionsBase & FetchExtExpectBlobOptions
-): Promise<{ response: Response; data: Blob }>;
-export async function fetchExt<T>(
-  options: FetchExtOptions<T>
-): Promise<
-  Response | FetchExtJsonResult<T> | { response: Response; data: unknown }
-> {
+export type FetchExtResult<TOptions extends FetchExtOptions<unknown>> =
+  TOptions extends { expectJson: { schema: ZodType<infer TJson> } }
+    ? FetchExtJsonResult<TJson>
+    : TOptions extends { expectText: true }
+      ? FetchExtTextResult
+      : TOptions extends { expectBlob: true }
+        ? FetchExtBlobResult
+        : Response;
+
+export async function fetchExt<TOptions extends FetchExtOptions<unknown>>(
+  options: TOptions
+): Promise<FetchExtResult<TOptions>> {
   const expectation = getExpectation(options);
 
   const {
@@ -676,36 +703,36 @@ export async function fetchExt<T>(
     timeout = 10_000,
     retries = 0,
     retryDelay = 500,
-    backoff = "exponential",
+    backoff = 'exponential',
     retryOnHttpStatuses = [],
     maxRetryWaitMs,
     jitter = false,
     respectRetryAfter = true,
     throwOnHttpError = false,
     idempotencyKey = false,
-    idempotencyHeaderName = "Idempotency-Key",
+    idempotencyHeaderName = 'Idempotency-Key',
     onRetry,
   } = options;
 
   const expectationsCount =
-    Number("expectJson" in options && options.expectJson !== undefined) +
-    Number("expectText" in options && options.expectText === true) +
-    Number("expectBlob" in options && options.expectBlob === true);
+    Number('expectJson' in options && options.expectJson !== undefined) +
+    Number('expectText' in options && options.expectText === true) +
+    Number('expectBlob' in options && options.expectBlob === true);
   if (
     expectationsCount > 1 ||
-    (expectationsCount === 1 && expectation.kind === "none")
+    (expectationsCount === 1 && expectation.kind === 'none')
   ) {
     throw new CustomError(
-      "Only one of expectJson, expectText, or expectBlob may be provided",
-      "FETCH_EXPECTATION_CONFLICT"
+      'Only one of expectJson, expectText, or expectBlob may be provided',
+      'FETCH_EXPECTATION_CONFLICT'
     );
   }
 
-  const method = (options.init?.method ?? "GET").toUpperCase();
+  const method = (options.init?.method ?? 'GET').toUpperCase();
   const idempotency =
-    idempotencyKey !== false && method !== "GET" && method !== "HEAD"
+    idempotencyKey !== false && method !== 'GET' && method !== 'HEAD'
       ? {
-          key: typeof idempotencyKey === "string" ? idempotencyKey : genId(),
+          key: typeof idempotencyKey === 'string' ? idempotencyKey : genId(),
           headerName: idempotencyHeaderName,
         }
       : undefined;
@@ -732,22 +759,22 @@ export async function fetchExt<T>(
     onRetry,
   });
 
-  if (expectation.kind === "json") {
+  if (expectation.kind === 'json') {
     const data = await parseJsonWithSchema(
       response.clone(),
       expectation.schema,
       url
     );
-    return { response, data };
+    return { response, data } as FetchExtResult<TOptions>;
   }
-  if (expectation.kind === "text") {
+  if (expectation.kind === 'text') {
     const data = await parseText(response.clone());
-    return { response, data };
+    return { response, data } as FetchExtResult<TOptions>;
   }
-  if (expectation.kind === "blob") {
+  if (expectation.kind === 'blob') {
     const data = await parseBlob(response.clone());
-    return { response, data };
+    return { response, data } as FetchExtResult<TOptions>;
   }
 
-  return response;
+  return response as FetchExtResult<TOptions>;
 }

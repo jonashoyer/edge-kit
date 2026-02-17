@@ -1,10 +1,10 @@
-import { Search } from "@upstash/search";
-import type { VectorEntry } from "../vector/abstract-vector-database";
+import { Search } from '@upstash/search';
+import type { VectorEntry } from '../vector/abstract-vector-database';
 import {
   AbstractRetriever,
   type ChunkedDocumentMeta,
   type RetrieverQueryOptions,
-} from "./abstract-retriever";
+} from './abstract-retriever';
 
 export type UpstashSearchContent = Record<string, unknown>;
 

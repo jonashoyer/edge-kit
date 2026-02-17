@@ -3,7 +3,7 @@
  * @credit https://github.com/dmnd/dedent
  */
 
-import { fnv1a64B64 } from "../crypto-utils";
+import { fnv1a64B64 } from '../crypto-utils';
 
 export type TplOptions = {
   escapeSpecialCharacters?: boolean;
@@ -19,9 +19,9 @@ export type Tpl = {
   getHash: (promptedString: string) => string | undefined;
 };
 
-const hashSymbol = Symbol("hash");
-const interpolationSymbol = Symbol("interpolation");
-const interpolationValuesSymbol = Symbol("interpolation-values");
+const hashSymbol = Symbol('hash');
+const interpolationSymbol = Symbol('interpolation');
+const interpolationValuesSymbol = Symbol('interpolation-values');
 
 const DENT_REGEX = /^(\s+)\S+/;
 
@@ -42,7 +42,7 @@ function getMinDent(lines: string[]) {
 
 function applyDedenting(lines: string[], mindent: number) {
   return lines.map((line) =>
-    line.startsWith(" ") || line.startsWith("\t") ? line.slice(mindent) : line
+    line.startsWith(' ') || line.startsWith('\t') ? line.slice(mindent) : line
   );
 }
 
@@ -59,7 +59,7 @@ function createTpl(options: TplOptions) {
     }
 
     const hash = (options.hashFn ?? fnv1a64B64)(
-      str[interpolationSymbol].join("_TPL$_")
+      str[interpolationSymbol].join('_TPL$_')
     );
     str[hashSymbol] = hash;
     return hash;
@@ -70,7 +70,7 @@ function createTpl(options: TplOptions) {
   function tplFn(literals: string): string;
   function tplFn(strings: TemplateStringsArray, ...values: unknown[]): string;
   function tplFn(strings: TemplateStringsArray | string, ...values: unknown[]) {
-    const raw = typeof strings === "string" ? [strings] : strings.raw;
+    const raw = typeof strings === 'string' ? [strings] : strings.raw;
     const {
       escapeSpecialCharacters = Array.isArray(strings),
       trimWhitespace = true,
@@ -81,36 +81,36 @@ function createTpl(options: TplOptions) {
     let processedParts = raw.map((part) => {
       if (escapeSpecialCharacters) {
         return part
-          .replace(/\\\n[ \t]*/g, "")
-          .replace(/\\`/g, "`")
-          .replace(/\\\$/g, "$")
-          .replace(/\\\{/g, "{");
+          .replace(/\\\n[ \t]*/g, '')
+          .replace(/\\`/g, '`')
+          .replace(/\\\$/g, '$')
+          .replace(/\\\{/g, '{');
       }
       return part;
     });
 
     // Calculate minimum indentation for each part
     const minDent = getMinDent(
-      processedParts.flatMap((part) => part.split("\n"))
+      processedParts.flatMap((part) => part.split('\n'))
     );
 
     // Apply dedenting to each part
     if (minDent !== null) {
       processedParts = processedParts.map((part) =>
-        applyDedenting(part.split("\n"), minDent).join("\n")
+        applyDedenting(part.split('\n'), minDent).join('\n')
       );
     }
 
     // Apply whitespace trimming to parts
     if (trimWhitespace && processedParts.length > 0) {
-      processedParts[0] = processedParts[0]?.trimStart() ?? "";
+      processedParts[0] = processedParts[0]?.trimStart() ?? '';
       processedParts[processedParts.length - 1] =
-        processedParts.at(-1)?.trimEnd() ?? "";
+        processedParts.at(-1)?.trimEnd() ?? '';
     }
 
     // Handle escaped newlines in parts
     if (escapeSpecialCharacters) {
-      processedParts = processedParts.map((part) => part.replace(/\\n/g, "\n"));
+      processedParts = processedParts.map((part) => part.replace(/\\n/g, '\n'));
     }
 
     // Store the processed parts for hashing
@@ -118,9 +118,9 @@ function createTpl(options: TplOptions) {
 
     // Now apply the values to get the final result
     const result = processedParts.reduce((acc, part, i) => {
-      const value = i < values.length ? values[i] : "";
-      return acc + part + (omitFalsyValues && !value ? "" : value);
-    }, "");
+      const value = i < values.length ? values[i] : '';
+      return acc + part + (omitFalsyValues && !value ? '' : value);
+    }, '');
 
     // Create the result string with the symbols attached
     // biome-ignore lint/style/useConsistentBuiltinInstantiation: We need a String instance to attach the symbols

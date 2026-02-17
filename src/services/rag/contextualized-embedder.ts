@@ -1,6 +1,6 @@
-import { fetchExt } from "../../utils/fetch-utils";
+import { fetchExt } from '../../utils/fetch-utils';
 
-export type ContextualizedInputType = "document" | "query" | null;
+export type ContextualizedInputType = 'document' | 'query' | null;
 
 export interface ContextualizedEmbedder {
   embed(
@@ -9,14 +9,16 @@ export interface ContextualizedEmbedder {
   ): Promise<number[][]>;
 }
 
-export type VoyageContextualizedEmbedderModel = "voyage-context-3" | (string & {});
+export type VoyageContextualizedEmbedderModel =
+  | 'voyage-context-3'
+  | (string & {});
 
 export interface VoyageContextualizedEmbedderOptions {
   apiKey: string;
   model: VoyageContextualizedEmbedderModel;
   baseUrl?: string; // default: https://api.voyageai.com/v1
   outputDimension?: 256 | 512 | 1024 | 2048;
-  outputDtype?: "float" | "int8" | "uint8" | "binary" | "ubinary";
+  outputDtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary';
 }
 
 const TRAILING_SLASH_REGEX = /\/$/;
@@ -33,9 +35,9 @@ export class VoyageContextualizedEmbedder implements ContextualizedEmbedder {
   private readonly outputDtype?: VoyageContextualizedEmbedderOptions['outputDtype'];
 
   constructor(options: VoyageContextualizedEmbedderOptions) {
-    this.baseUrl = (options.baseUrl ?? "https://api.voyageai.com/v1").replace(
+    this.baseUrl = (options.baseUrl ?? 'https://api.voyageai.com/v1').replace(
       TRAILING_SLASH_REGEX,
-      ""
+      ''
     );
     this.apiKey = options.apiKey;
     this.model = options.model;
@@ -47,20 +49,20 @@ export class VoyageContextualizedEmbedder implements ContextualizedEmbedder {
     documents: string[][],
     inputType: ContextualizedInputType
   ): Promise<number[][]> {
-    const body: any = {
+    const body = {
       model: this.model,
       inputs: documents,
+      input_type: inputType,
+      output_dimension: this.outputDimension,
+      output_dtype: this.outputDtype,
     };
-    if (inputType) body.input_type = inputType;
-    if (this.outputDimension) body.output_dimension = this.outputDimension;
-    if (this.outputDtype) body.output_dtype = this.outputDtype;
 
     const res = await fetchExt({
       url: `${this.baseUrl}/contextual_embeddings`,
       init: {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify(body),
@@ -70,7 +72,7 @@ export class VoyageContextualizedEmbedder implements ContextualizedEmbedder {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
+      const text = await res.text().catch(() => '');
       throw new Error(
         `Voyage contextualized embeddings failed: ${res.status} ${res.statusText} ${text}`
       );

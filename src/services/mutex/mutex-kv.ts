@@ -1,16 +1,16 @@
-import { genId } from "../../utils/id-generator";
-import { timeout } from "../../utils/misc-utils";
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import { genId } from '../../utils/id-generator';
+import { timeout } from '../../utils/misc-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import type { AbstractLogger } from '../logging/abstract-logger';
 import {
   AbstractMutex,
   type AcquireResult,
   type BackoffStrategy,
   MutexAcquireTimeoutError,
   type MutexOptions,
-} from "./abstract-mutex";
+} from './abstract-mutex';
 
-const DEFAULT_PREFIX = "mtx:";
+const DEFAULT_PREFIX = 'mtx:';
 const DEFAULT_TTL_SECONDS = 30;
 const DEFAULT_RETRIES = 5;
 const DEFAULT_RETRY_DELAY_MS = 50;
@@ -48,7 +48,7 @@ export class KvMutex<
     this.ttlSeconds = options?.ttlSeconds ?? DEFAULT_TTL_SECONDS;
     this.retries = options?.retries ?? DEFAULT_RETRIES;
     this.retryDelayMs = options?.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS;
-    this.backoff = options?.backoff ?? "exponential";
+    this.backoff = options?.backoff ?? 'exponential';
     this.jitterMs = options?.jitterMs ?? DEFAULT_JITTER_MS;
     this.logger = options?.logger;
   }
@@ -82,21 +82,21 @@ export class KvMutex<
       if (count === 1) {
         await this.kv.set(ownerKey, token, opts.ttlSeconds);
         await this.kv.expire(countKey, opts.ttlSeconds);
-        opts.logger?.info("mutex acquired", { name, attemptIndex });
+        opts.logger?.info('mutex acquired', { name, attemptIndex });
         return { token };
       }
 
       if (attemptIndex < opts.retries) {
         const jitter = Math.floor(Math.random() * opts.jitterMs);
         await timeout(delayMs + jitter);
-        delayMs = opts.backoff === "exponential" ? delayMs * 2 : delayMs;
+        delayMs = opts.backoff === 'exponential' ? delayMs * 2 : delayMs;
         continue;
       }
 
       break;
     }
 
-    opts.logger?.warn("mutex acquire timeout", { name, retries: opts.retries });
+    opts.logger?.warn('mutex acquire timeout', { name, retries: opts.retries });
     throw new MutexAcquireTimeoutError(name, opts.retries);
   }
 
@@ -111,12 +111,12 @@ export class KvMutex<
     const currentToken = await this.kv.get<string>(ownerKey);
 
     if (currentToken !== token) {
-      opts.logger?.warn("mutex release token mismatch", { name });
+      opts.logger?.warn('mutex release token mismatch', { name });
       return false;
     }
 
     await this.kv.mdelete([ownerKey, countKey]);
-    opts.logger?.info("mutex released", { name });
+    opts.logger?.info('mutex released', { name });
     return true;
   }
 
@@ -131,7 +131,7 @@ export class KvMutex<
     const currentToken = await this.kv.get<string>(ownerKey);
 
     if (currentToken !== token) {
-      opts.logger?.warn("mutex refresh token mismatch", { name });
+      opts.logger?.warn('mutex refresh token mismatch', { name });
       return false;
     }
 
@@ -139,9 +139,9 @@ export class KvMutex<
     const countOk = await this.kv.expire(countKey, opts.ttlSeconds);
     const ok = ownerOk && countOk;
     if (ok) {
-      opts.logger?.info("mutex refreshed", { name });
+      opts.logger?.info('mutex refreshed', { name });
     } else {
-      opts.logger?.warn("mutex refresh failed", { name });
+      opts.logger?.warn('mutex refresh failed', { name });
     }
     return ok;
   }

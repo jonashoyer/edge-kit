@@ -1,12 +1,12 @@
-import type { Nullable } from "../../utils/type-utils";
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
-import { AbstractStripeB2BStore } from "./abstract-stripe-store";
-import { stripeKeyNamespace } from "./stripe-keys";
+import type { Nullable } from '../../utils/type-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import { AbstractStripeB2BStore } from './abstract-stripe-store';
+import { stripeKeyNamespace } from './stripe-keys';
 import type {
   OrganizationSubscriptionData,
   StripeSubscription,
   SubscriptionOfferData,
-} from "./types";
+} from './types';
 
 export class StripeB2BKVStore extends AbstractStripeB2BStore {
   constructor(private kvService: AbstractKeyValueService) {
@@ -17,12 +17,12 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     userId: string,
     stripeCustomerId: string
   ): Promise<void> {
-    const key = stripeKeyNamespace.key("userToCustomer", userId);
+    const key = stripeKeyNamespace.key('userToCustomer', userId);
     await this.kvService.set(key, stripeCustomerId);
   }
 
   async getStripeCustomerId(userId: string): Promise<Nullable<string>> {
-    const key = stripeKeyNamespace.key("userToCustomer", userId);
+    const key = stripeKeyNamespace.key('userToCustomer', userId);
     return this.kvService.get<string>(key);
   }
 
@@ -31,7 +31,7 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     subscriptionData: StripeSubscription
   ): Promise<void> {
     const key = stripeKeyNamespace.key(
-      "customerSubscription",
+      'customerSubscription',
       stripeCustomerId
     );
     await this.kvService.set(key, subscriptionData);
@@ -41,7 +41,7 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     stripeCustomerId: string
   ): Promise<Nullable<StripeSubscription>> {
     const key = stripeKeyNamespace.key(
-      "customerSubscription",
+      'customerSubscription',
       stripeCustomerId
     );
     return this.kvService.get<StripeSubscription>(key);
@@ -60,18 +60,18 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     stripeCustomerId: string
   ): Promise<void> {
     await this.kvService.set(
-      stripeKeyNamespace.key("orgToCustomer", orgId),
+      stripeKeyNamespace.key('orgToCustomer', orgId),
       stripeCustomerId
     );
     await this.kvService.set(
-      stripeKeyNamespace.key("customerToOrg", stripeCustomerId),
+      stripeKeyNamespace.key('customerToOrg', stripeCustomerId),
       orgId
     );
   }
 
   async getStripeCustomerIdByOrg(orgId: string): Promise<Nullable<string>> {
     return this.kvService.get<string>(
-      stripeKeyNamespace.key("orgToCustomer", orgId)
+      stripeKeyNamespace.key('orgToCustomer', orgId)
     );
   }
 
@@ -79,7 +79,7 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     stripeCustomerId: string
   ): Promise<Nullable<string>> {
     return this.kvService.get<string>(
-      stripeKeyNamespace.key("customerToOrg", stripeCustomerId)
+      stripeKeyNamespace.key('customerToOrg', stripeCustomerId)
     );
   }
 
@@ -88,7 +88,7 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     data: OrganizationSubscriptionData
   ): Promise<void> {
     await this.kvService.set(
-      stripeKeyNamespace.key("orgSubscription", orgId),
+      stripeKeyNamespace.key('orgSubscription', orgId),
       data
     );
   }
@@ -97,7 +97,7 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     orgId: string
   ): Promise<Nullable<OrganizationSubscriptionData>> {
     return this.kvService.get<OrganizationSubscriptionData>(
-      stripeKeyNamespace.key("orgSubscription", orgId)
+      stripeKeyNamespace.key('orgSubscription', orgId)
     );
   }
 
@@ -105,19 +105,19 @@ export class StripeB2BKVStore extends AbstractStripeB2BStore {
     orgId: string,
     offer: SubscriptionOfferData
   ): Promise<void> {
-    await this.kvService.set(stripeKeyNamespace.key("orgOffer", orgId), offer);
+    await this.kvService.set(stripeKeyNamespace.key('orgOffer', orgId), offer);
   }
 
   async getSubscriptionOffer(
     orgId: string
   ): Promise<Nullable<SubscriptionOfferData>> {
     return this.kvService.get<SubscriptionOfferData>(
-      stripeKeyNamespace.key("orgOffer", orgId)
+      stripeKeyNamespace.key('orgOffer', orgId)
     );
   }
 
   async removeSubscriptionOffer(orgId: string): Promise<void> {
-    await this.kvService.delete(stripeKeyNamespace.key("orgOffer", orgId));
+    await this.kvService.delete(stripeKeyNamespace.key('orgOffer', orgId));
   }
 
   // For portability, default to permissive stubs; users should override in concrete stores

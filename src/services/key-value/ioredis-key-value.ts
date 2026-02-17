@@ -1,7 +1,7 @@
-import IORedis, { type RedisOptions } from "ioredis";
+import IORedis, { type RedisOptions } from 'ioredis';
 
-import type { Nullable } from "../../utils/type-utils";
-import { AbstractKeyValueService } from "./abstract-key-value";
+import type { Nullable } from '../../utils/type-utils';
+import { AbstractKeyValueService } from './abstract-key-value';
 
 /**
  * IORedis implementation of AbstractKeyValueService.
@@ -28,9 +28,9 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     const serializedValue =
-      typeof value === "string" ? value : JSON.stringify(value);
+      typeof value === 'string' ? value : JSON.stringify(value);
     if (ttlSeconds !== undefined) {
-      await this.client.set(key, serializedValue, "EX", ttlSeconds);
+      await this.client.set(key, serializedValue, 'EX', ttlSeconds);
     } else {
       await this.client.set(key, serializedValue);
     }
@@ -79,9 +79,9 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
 
     for (const [key, value] of keyValues) {
       const serializedValue =
-        typeof value === "string" ? value : JSON.stringify(value);
+        typeof value === 'string' ? value : JSON.stringify(value);
       if (ttlSeconds !== undefined) {
-        pipeline.set(key, serializedValue, "EX", ttlSeconds);
+        pipeline.set(key, serializedValue, 'EX', ttlSeconds);
       } else {
         pipeline.set(key, serializedValue);
       }

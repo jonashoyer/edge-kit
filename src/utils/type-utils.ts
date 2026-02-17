@@ -78,32 +78,32 @@ export type UnionToOvlds<U> = UnionToIntersection<
   U extends unknown ? (f: U) => void : never
 >;
 
-export type PopUnion<U> = UnionToOvlds<U> extends (a: infer A) => void
-  ? A
-  : never;
+export type PopUnion<U> =
+  UnionToOvlds<U> extends (a: infer A) => void ? A : never;
 
 export type IsUnion<T> = [T] extends [UnionToIntersection<T>] ? false : true;
 
-export type UnionToArray<T, A extends unknown[] = []> = IsUnion<T> extends true
-  ? UnionToArray<Exclude<T, PopUnion<T>>, [PopUnion<T>, ...A]>
-  : [T, ...A];
+export type UnionToArray<T, A extends unknown[] = []> =
+  IsUnion<T> extends true
+    ? UnionToArray<Exclude<T, PopUnion<T>>, [PopUnion<T>, ...A]>
+    : [T, ...A];
 
 export function betterTypeof(data: unknown) {
-  if (typeof data === "number") {
+  if (typeof data === 'number') {
     if (Number.isNaN(data)) {
-      return "NaN";
+      return 'NaN';
     }
     if (Number.isInteger(data)) {
-      return "integer";
+      return 'integer';
     }
   }
 
-  if (typeof data === "object") {
+  if (typeof data === 'object') {
     if (Array.isArray(data)) {
-      return "array";
+      return 'array';
     }
     if (data === null) {
-      return "null";
+      return 'null';
     }
     if (Object.getPrototypeOf(data) !== Object.prototype && data.constructor) {
       return data.constructor.name;

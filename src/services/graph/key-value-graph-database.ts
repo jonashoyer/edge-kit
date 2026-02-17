@@ -1,4 +1,4 @@
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import {
   AbstractGraphDatabase,
   applyPagination,
@@ -12,7 +12,7 @@ import {
   matchesFilter,
   normalizeEdge,
   sortBySpecs,
-} from "./abstract-graph-database";
+} from './abstract-graph-database';
 
 // Storage layout (key namespace is kept short to reduce payload sizes):
 // - Node document:         g:n:{nodeId} -> GraphProperties (JSON)
@@ -33,7 +33,7 @@ const EDGE_INDEX_MEMBER = (a: string, b: string): string => {
 };
 
 const EDGE_INDEX_SPLIT = (member: string): GraphEdgeTuple => {
-  const [u, v] = member.split("|");
+  const [u, v] = member.split('|');
   return [u, v];
 };
 
@@ -50,10 +50,10 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
   KEY_INDEX_NODES = (): string => `${this.prefix}index:nodes`;
   KEY_INDEX_EDGES = (): string => `${this.prefix}index:edges`;
 
-  constructor(kv: AbstractKeyValueService, prefix = "g:") {
+  constructor(kv: AbstractKeyValueService, prefix = 'g:') {
     super();
     this.kv = kv;
-    this.prefix = prefix ?? "g:";
+    this.prefix = prefix ?? 'g:';
   }
 
   // --- Internal helpers to keep method complexity low ---

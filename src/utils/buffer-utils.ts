@@ -1,8 +1,8 @@
 export const arrayBufferToBase64Url = (buffer: ArrayBuffer): string => {
   return btoa(String.fromCharCode(...new Uint8Array(buffer)))
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=/g, "");
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=/g, '');
 };
 
 /**
@@ -10,9 +10,9 @@ export const arrayBufferToBase64Url = (buffer: ArrayBuffer): string => {
  */
 export function base64UrlToArrayBuffer(base64Url: string): ArrayBuffer {
   // Add padding if missing, and convert URL-safe characters back
-  let base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+  let base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
   while (base64.length % 4) {
-    base64 += "=";
+    base64 += '=';
   }
   const byteString = atob(base64);
   const buffer = new ArrayBuffer(byteString.length);

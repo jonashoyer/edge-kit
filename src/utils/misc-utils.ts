@@ -1,6 +1,10 @@
-export const timeout = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+export const timeout = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
-export const tryParse = <T>(value: string | null | undefined, defaultValue: T) => {
+export const tryParse = <T>(
+  value: string | null | undefined,
+  defaultValue: T
+) => {
   if (!value) return defaultValue;
   try {
     return JSON.parse(value) as T;

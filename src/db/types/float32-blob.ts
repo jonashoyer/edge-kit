@@ -1,4 +1,4 @@
-import { customType } from "drizzle-orm/sqlite-core";
+import { customType } from 'drizzle-orm/sqlite-core';
 
 /**
  * Creates a Drizzle customType for storing Float32Array embeddings as BLOB in SQLite.
@@ -20,7 +20,7 @@ import { customType } from "drizzle-orm/sqlite-core";
 export const float32Blob = (dim: number) =>
   customType<{ data: Float32Array; driverData: Buffer | Uint8Array }>({
     dataType() {
-      return "blob";
+      return 'blob';
     },
     toDriver(inputValue: Float32Array) {
       let value = inputValue;

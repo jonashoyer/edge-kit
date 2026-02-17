@@ -20,19 +20,19 @@ export type KnowledgeGraph = {
 
 // Querying and filtering types
 export type GraphComparisonOperator =
-  | "eq"
-  | "ne"
-  | "gt"
-  | "gte"
-  | "lt"
-  | "lte"
-  | "contains"
-  | "startsWith"
-  | "endsWith"
-  | "in"
-  | "notIn"
-  | "exists"
-  | "notExists";
+  | 'eq'
+  | 'ne'
+  | 'gt'
+  | 'gte'
+  | 'lt'
+  | 'lte'
+  | 'contains'
+  | 'startsWith'
+  | 'endsWith'
+  | 'in'
+  | 'notIn'
+  | 'exists'
+  | 'notExists';
 
 export type GraphPrimitive = string | number | boolean | null;
 
@@ -48,8 +48,8 @@ export type GraphPropertiesFilter = {
   none?: PropertyCondition[]; // NOT
 };
 
-export type GraphSortDirection = "asc" | "desc";
-export type GraphNullsPosition = "first" | "last";
+export type GraphSortDirection = 'asc' | 'desc';
+export type GraphNullsPosition = 'first' | 'last';
 export type GraphSortSpec = {
   key: string;
   direction?: GraphSortDirection;
@@ -220,10 +220,10 @@ export const comparePrimitives = (
   if (a === b) return 0;
   if (a === null) return -1;
   if (b === null) return 1;
-  if (typeof a === "number" && typeof b === "number") {
+  if (typeof a === 'number' && typeof b === 'number') {
     return a < b ? -1 : 1;
   }
-  if (typeof a === "boolean" && typeof b === "boolean") {
+  if (typeof a === 'boolean' && typeof b === 'boolean') {
     if (a === b) return 0;
     return a === true ? 1 : -1;
   }
@@ -233,8 +233,8 @@ export const comparePrimitives = (
   return sa < sb ? -1 : 1;
 };
 
-const isNum = (x: unknown): x is number => typeof x === "number";
-const isStr = (x: unknown): x is string => typeof x === "string";
+const isNum = (x: unknown): x is number => typeof x === 'number';
+const isStr = (x: unknown): x is string => typeof x === 'string';
 
 type OpHandler = (
   value: GraphPrimitive,
@@ -314,13 +314,13 @@ const compareBySpec = (
   b: GraphProperties,
   spec: GraphSortSpec
 ): number => {
-  const dir = spec.direction === "desc" ? -1 : 1;
-  const nulls: GraphNullsPosition = spec.nulls ?? "last";
+  const dir = spec.direction === 'desc' ? -1 : 1;
+  const nulls: GraphNullsPosition = spec.nulls ?? 'last';
   const av = getProperty(a, spec.key);
   const bv = getProperty(b, spec.key);
   if (av === null && bv === null) return 0;
-  if (av === null && bv !== null) return nulls === "first" ? -1 : 1;
-  if (bv === null && av !== null) return nulls === "first" ? 1 : -1;
+  if (av === null && bv !== null) return nulls === 'first' ? -1 : 1;
+  if (bv === null && av !== null) return nulls === 'first' ? 1 : -1;
   const cmp = comparePrimitives(av, bv);
   if (cmp === 0) return 0;
   return cmp * dir;
@@ -360,8 +360,8 @@ export const applyPagination = <T>(
   offset?: number,
   limit?: number
 ): T[] => {
-  const start = typeof offset === "number" && offset > 0 ? offset : 0;
+  const start = typeof offset === 'number' && offset > 0 ? offset : 0;
   const end =
-    typeof limit === "number" && limit >= 0 ? start + limit : items.length;
+    typeof limit === 'number' && limit >= 0 ? start + limit : items.length;
   return items.slice(start, end);
 };

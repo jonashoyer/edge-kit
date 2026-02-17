@@ -1,5 +1,5 @@
-import type { StorageOptions } from "./abstract-storage";
-import { S3Storage } from "./s3-storage";
+import type { StorageOptions } from './abstract-storage';
+import { S3Storage } from './s3-storage';
 
 interface R2StorageOptions extends StorageOptions {
   accountId: string;
@@ -17,7 +17,7 @@ export class R2Storage extends S3Storage {
     super({
       ...options,
       endpoint: `https://${options.accountId}.r2.cloudflarestorage.com`,
-      region: "auto",
+      region: 'auto',
     });
   }
 }

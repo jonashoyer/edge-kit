@@ -32,7 +32,7 @@ export abstract class AbstractStorage {
   ): Promise<{
     url: string;
     fields?: Record<string, string>; // present for POST, absent for PUT
-    method: "POST" | "PUT";
+    method: 'POST' | 'PUT';
     expiresAt: number;
   }>;
 

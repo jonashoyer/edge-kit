@@ -1,4 +1,4 @@
-import { ml } from "../utils/string-utils";
+import { ml } from '../utils/string-utils';
 
 export type PromptTemplateParams<T extends string> = Record<
   ExtractVariables<T>,
@@ -21,7 +21,7 @@ function replace<T extends string>(
 ): string {
   return ml([template]).replace(
     /{{(\w+)}}/g,
-    (_, key) => params[key as keyof PromptTemplateParams<T>] ?? ""
+    (_, key) => params[key as keyof PromptTemplateParams<T>] ?? ''
   );
 }
 
@@ -66,7 +66,7 @@ function composer<
  * // - cherry
  */
 function arrayToList(arr: unknown[]): string {
-  return arr.map((item) => `- ${item}`).join("\n");
+  return arr.map((item) => `- ${item}`).join('\n');
 }
 
 /**
@@ -83,7 +83,7 @@ function arrayToList(arr: unknown[]): string {
 function objectToKeyValue(obj: Record<string, unknown>): string {
   return Object.entries(obj)
     .map(([key, value]) => `${key}: ${value}`)
-    .join("\n");
+    .join('\n');
 }
 
 /**
@@ -100,23 +100,23 @@ function objectToKeyValue(obj: Record<string, unknown>): string {
  * //   <age>30</age>
  * // </root>
  */
-function jsonToXml(json: unknown, rootName = "root"): string {
+function jsonToXml(json: unknown, rootName = 'root'): string {
   const convert = (obj: unknown, name: string): string => {
     if (obj === null || obj === undefined) {
       return `<${name}/>`;
     }
 
-    if (typeof obj !== "object") {
+    if (typeof obj !== 'object') {
       return `<${name}>${escapeXml(obj.toString())}</${name}>`;
     }
 
     if (Array.isArray(obj)) {
-      return obj.map((item) => convert(item, name)).join("\n");
+      return obj.map((item) => convert(item, name)).join('\n');
     }
 
     const children = Object.entries(obj)
       .map(([key, value]) => convert(value, key))
-      .join("\n");
+      .join('\n');
 
     return `<${name}>\n${indent(children)}\n</${name}>`;
   };
@@ -126,18 +126,18 @@ function jsonToXml(json: unknown, rootName = "root"): string {
 
 function indent(str: string): string {
   return str
-    .split("\n")
+    .split('\n')
     .map((line) => `  ${line}`)
-    .join("\n");
+    .join('\n');
 }
 
 function escapeXml(str: string): string {
   return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&apos;");
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
 }
 
 export const PromptComposer = {

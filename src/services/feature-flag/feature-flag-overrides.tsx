@@ -6,10 +6,10 @@ import {
   useMemo,
   useRef,
   useState,
-} from "react";
+} from 'react';
 
-import type { AbstractLogger } from "../logging/abstract-logger";
-import type { FeatureFlagService } from "./feature-flag";
+import type { AbstractLogger } from '../logging/abstract-logger';
+import type { FeatureFlagService } from './feature-flag';
 
 type Nullable<T> = T | null | undefined;
 
@@ -31,13 +31,13 @@ export type FeatureFlagOverridesState<T extends string> = Record<
 export type FeatureFlagOverridesProviderProps<T extends string> = {
   service: FeatureFlagService<T>;
   logger?: AbstractLogger;
-  persist?: "local" | "none";
+  persist?: 'local' | 'none';
   prefix?: string;
   enable?: boolean;
 };
 
 type ResolveMeta = {
-  source: "override" | "service";
+  source: 'override' | 'service';
   overridden: boolean;
   reason?: string;
 };
@@ -60,11 +60,11 @@ export type FeatureFlagOverridesContextValue<T extends string> = {
 const FeatureFlagOverridesContext =
   createContext<Nullable<FeatureFlagOverridesContextValue<string>>>(null);
 
-const DEFAULT_PREFIX = "ff";
+const DEFAULT_PREFIX = 'ff';
 
 function safeIsBrowser() {
   return (
-    typeof window !== "undefined" && typeof window.localStorage !== "undefined"
+    typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
   );
 }
 
@@ -81,7 +81,7 @@ export function FeatureFlagOverridesProvider<T extends string>(
     children,
     service,
     logger,
-    persist = "local",
+    persist = 'local',
     prefix = DEFAULT_PREFIX,
     enable = true,
   } = props;
@@ -90,7 +90,7 @@ export function FeatureFlagOverridesProvider<T extends string>(
     {} as FeatureFlagOverridesState<T>
   );
   const isBrowser = safeIsBrowser();
-  const persistLocal = enable && persist === "local" && isBrowser;
+  const persistLocal = enable && persist === 'local' && isBrowser;
   const keyRef = useRef(storageKey(prefix));
 
   // Load from localStorage once
@@ -105,7 +105,7 @@ export function FeatureFlagOverridesProvider<T extends string>(
         setOverrides(parsed);
       }
     } catch {
-      logger?.warn?.("Failed to load feature flag overrides from localStorage");
+      logger?.warn?.('Failed to load feature flag overrides from localStorage');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [persistLocal, logger]);
@@ -119,7 +119,7 @@ export function FeatureFlagOverridesProvider<T extends string>(
       window.localStorage.setItem(keyRef.current, JSON.stringify(overrides));
     } catch {
       logger?.warn?.(
-        "Failed to persist feature flag overrides to localStorage"
+        'Failed to persist feature flag overrides to localStorage'
       );
     }
   }, [overrides, persistLocal, logger]);
@@ -186,9 +186,9 @@ export function FeatureFlagOverridesProvider<T extends string>(
         return {
           enabled: true,
           meta: {
-            source: "override",
+            source: 'override',
             overridden: true,
-            reason: "identifier override enabled",
+            reason: 'identifier override enabled',
           } as ResolveMeta,
         };
       }
@@ -196,9 +196,9 @@ export function FeatureFlagOverridesProvider<T extends string>(
         return {
           enabled: true,
           meta: {
-            source: "override",
+            source: 'override',
             overridden: true,
-            reason: "global override enabled",
+            reason: 'global override enabled',
           } as ResolveMeta,
         };
       }
@@ -207,7 +207,7 @@ export function FeatureFlagOverridesProvider<T extends string>(
       const enabled = service.isEnabled(name, identifier);
       return {
         enabled,
-        meta: { source: "service", overridden: false } as ResolveMeta,
+        meta: { source: 'service', overridden: false } as ResolveMeta,
       };
     },
     [overrides, service]
@@ -238,7 +238,7 @@ export function useFeatureFlags<T extends string>() {
   >;
   if (!ctx) {
     throw new Error(
-      "useFeatureFlags must be used within FeatureFlagOverridesProvider"
+      'useFeatureFlags must be used within FeatureFlagOverridesProvider'
     );
   }
   return ctx;

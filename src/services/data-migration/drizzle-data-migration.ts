@@ -1,13 +1,13 @@
-import { is } from "drizzle-orm";
+import { is } from 'drizzle-orm';
 import {
   MySqlDatabase,
   type MySqlTableWithColumns,
-} from "drizzle-orm/mysql-core";
-import { PgDatabase, type PgTableWithColumns } from "drizzle-orm/pg-core";
+} from 'drizzle-orm/mysql-core';
+import { PgDatabase, type PgTableWithColumns } from 'drizzle-orm/pg-core';
 import {
   BaseSQLiteDatabase,
   type SQLiteTableWithColumns,
-} from "drizzle-orm/sqlite-core";
+} from 'drizzle-orm/sqlite-core';
 
 import type {
   AnyMySqlDatabase,
@@ -15,11 +15,11 @@ import type {
   CreateTableConfig,
   SqlFlavors,
   SqlFlavorToDialect,
-} from "../../database/types";
-import { genId } from "../../utils/id-generator";
-import type { AbstractLogger } from "../logging/abstract-logger";
+} from '../../database/types';
+import { genId } from '../../utils/id-generator';
+import type { AbstractLogger } from '../logging/abstract-logger';
 
-export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
+export type DataMigrationTable<Dialect extends 'mysql' | 'pg' | 'sqlite'> =
   CreateTableConfig<
     Dialect,
     {
@@ -27,7 +27,7 @@ export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         Dialect,
         {
           data: string;
-          dataType: "string";
+          dataType: 'string';
           notNull: true;
         }
       >;
@@ -35,7 +35,7 @@ export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         Dialect,
         {
           data: string;
-          dataType: "string";
+          dataType: 'string';
           notNull: true;
         }
       >;
@@ -43,7 +43,7 @@ export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         Dialect,
         {
           data: Date;
-          dataType: "date";
+          dataType: 'date';
           notNull: true;
         }
       >;
@@ -51,7 +51,7 @@ export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         Dialect,
         {
           data: Date;
-          dataType: "date";
+          dataType: 'date';
           notNull: boolean;
         }
       >;
@@ -59,7 +59,7 @@ export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         Dialect,
         {
           data: string;
-          dataType: "string";
+          dataType: 'string';
           notNull: boolean;
         }
       >;
@@ -68,7 +68,7 @@ export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         {
           // TODO: Add json type
           data: string;
-          dataType: "string";
+          dataType: 'string';
           notNull: boolean;
         }
       >;
@@ -76,13 +76,13 @@ export type DataMigrationTable<Dialect extends "mysql" | "pg" | "sqlite"> =
   >;
 
 export type MySqlDataMigrationTable = MySqlTableWithColumns<
-  DataMigrationTable<"mysql">
+  DataMigrationTable<'mysql'>
 >;
 export type PostgresDataMigrationTable = PgTableWithColumns<
-  DataMigrationTable<"pg">
+  DataMigrationTable<'pg'>
 >;
 export type SQLiteDataMigrationTable = SQLiteTableWithColumns<
-  DataMigrationTable<"sqlite">
+  DataMigrationTable<'sqlite'>
 >;
 
 export type DataMigrationScript = {
@@ -208,7 +208,7 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavors> {
         );
       } finally {
         const errorMessage = error
-          ? [error.message, error.stack].filter(Boolean).join("\n\n")
+          ? [error.message, error.stack].filter(Boolean).join('\n\n')
           : null;
 
         const date = new Date();

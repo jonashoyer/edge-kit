@@ -1,25 +1,25 @@
-import { type NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { type NextRequest, NextResponse } from 'next/server';
+import Stripe from 'stripe';
 
-import type { AbstractKeyValueService } from "../../key-value/abstract-key-value";
-import { StripeB2BService } from "../b2b-service";
-import { StripeB2BKVStore } from "../kv-b2b-store";
+import type { AbstractKeyValueService } from '../../key-value/abstract-key-value';
+import { StripeB2BService } from '../b2b-service';
+import { StripeB2BKVStore } from '../kv-b2b-store';
 
 function getKeyValueService(): AbstractKeyValueService {
-  throw new Error("Implement KV service");
+  throw new Error('Implement KV service');
 }
 
 function getStripeB2B(): StripeB2BService {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-    apiVersion: "2025-02-24.acacia",
+    apiVersion: '2025-02-24.acacia',
   });
   return new StripeB2BService(
     new StripeB2BKVStore(getKeyValueService()),
     stripe,
     {
-      baseUrl: process.env.APP_URL || "http://localhost:3000",
-      successPath: "/billing/success",
-      cancelPath: "/billing",
+      baseUrl: process.env.APP_URL || 'http://localhost:3000',
+      successPath: '/billing/success',
+      cancelPath: '/billing',
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
     }
   );
@@ -28,10 +28,10 @@ function getStripeB2B(): StripeB2BService {
 export async function POST(req: NextRequest) {
   const svc = getStripeB2B();
   const body = await req.text();
-  const signature = req.headers.get("stripe-signature");
+  const signature = req.headers.get('stripe-signature');
   if (!signature)
     return NextResponse.json(
-      { error: "Missing Stripe signature" },
+      { error: 'Missing Stripe signature' },
       { status: 400 }
     );
   const result = await svc.handleWebhook(body, signature);

@@ -1,9 +1,10 @@
-import { PostHog, PostHogOptions } from 'posthog-node';
+import { PostHog, type PostHogOptions } from 'posthog-node';
 
-import { AbstractServerSideAnalytics } from './abstract-analytics';
+import type { AbstractServerSideAnalytics } from './abstract-analytics';
 
-export class PosthogServerSideAnalytics<T extends Record<string, Record<string, unknown>>>
-  implements AbstractServerSideAnalytics<T>
+export class PosthogServerSideAnalytics<
+  T extends Record<string, Record<string, unknown>>,
+> implements AbstractServerSideAnalytics<T>
 {
   public posthog: PostHog;
 
@@ -16,7 +17,11 @@ export class PosthogServerSideAnalytics<T extends Record<string, Record<string, 
     });
   }
 
-  public capture<TEvent extends keyof T>(event: TEvent, properties: T[TEvent], distinctId: string): void {
+  public capture<TEvent extends keyof T>(
+    event: TEvent,
+    properties: T[TEvent],
+    distinctId: string
+  ): void {
     this.posthog.capture({ event: event as string, distinctId, properties });
   }
 

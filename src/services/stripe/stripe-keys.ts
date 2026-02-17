@@ -1,4 +1,4 @@
-import { NamespaceComposer } from "../../composers/namespace-composer";
+import { NamespaceComposer } from '../../composers/namespace-composer';
 
 /**
  * Key namespace for Stripe-related data in key-value storage

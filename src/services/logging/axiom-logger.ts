@@ -1,6 +1,6 @@
-import { Axiom } from "@axiomhq/js";
+import { Axiom } from '@axiomhq/js';
 
-import type { AbstractLogger, LogMetadata } from "./abstract-logger";
+import type { AbstractLogger, LogMetadata } from './abstract-logger';
 
 /**
  * Axiom implementation of AbstractLogger.
@@ -23,7 +23,7 @@ export class AxiomLogger implements AbstractLogger {
 
   log(
     message: string,
-    level: "info" | "warn" | "error",
+    level: 'info' | 'warn' | 'error',
     metadata?: LogMetadata
   ) {
     this.client.ingest(this.dataset, [
@@ -37,14 +37,14 @@ export class AxiomLogger implements AbstractLogger {
   }
 
   info(message: string, metadata?: LogMetadata) {
-    this.log(message, "info", metadata);
+    this.log(message, 'info', metadata);
   }
 
   warn(message: string, metadata?: LogMetadata) {
-    this.log(message, "warn", metadata);
+    this.log(message, 'warn', metadata);
   }
 
   error(message: string, metadata?: LogMetadata) {
-    this.log(message, "error", metadata);
+    this.log(message, 'error', metadata);
   }
 }

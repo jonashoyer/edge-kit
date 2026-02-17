@@ -1,8 +1,8 @@
-import { genId } from "../../utils/id-generator";
-import type { Nullable } from "../../utils/type-utils";
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
-import type { AbstractLogger } from "../logging/abstract-logger";
-import { slashCommandKvNamespace } from "./slash-command-kv-namespace";
+import { genId } from '../../utils/id-generator';
+import type { Nullable } from '../../utils/type-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import type { AbstractLogger } from '../logging/abstract-logger';
+import { slashCommandKvNamespace } from './slash-command-kv-namespace';
 import type {
   CommandContext,
   CommandDefinition,
@@ -11,7 +11,7 @@ import type {
   CommandState,
   InteractionContext,
   Progress,
-} from "./types";
+} from './types';
 
 type AnyCommandDefinition = CommandDefinition<
   unknown,
@@ -75,7 +75,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
 
     if (envelope.requestId) {
       const existing = await this.kv.get<string>(
-        slashCommandKvNamespace.key("request", envelope.requestId)
+        slashCommandKvNamespace.key('request', envelope.requestId)
       );
       if (existing !== null) {
         // At-most-once: do not re-execute. Return the original commandId.
@@ -87,7 +87,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
 
     if (envelope.requestId) {
       // Best-effort dedupe (KV may not support atomic set-if-not-exists)
-      const key = slashCommandKvNamespace.key("request", envelope.requestId);
+      const key = slashCommandKvNamespace.key('request', envelope.requestId);
       const already = await this.kv.get<string>(key);
       if (already !== null) {
         return already;
@@ -101,7 +101,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
       commandName: envelope.commandName,
       userId: envelope.userId,
       channelId: envelope.channelId,
-      status: "received",
+      status: 'received',
       payload: envelope.payload,
       createdAt: now,
       updatedAt: now,
@@ -123,7 +123,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
       context
     );
     execution.catch((error) => {
-      this.logger?.error("Command execution task rejected", {
+      this.logger?.error('Command execution task rejected', {
         commandId,
         error,
       });
@@ -136,7 +136,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     const state = await this.getState(interaction.commandId);
     if (state === null) {
       // State probably expired; treat as no-op to avoid retry storms.
-      this.logger?.warn("Interaction for missing command state", {
+      this.logger?.warn('Interaction for missing command state', {
         commandId: interaction.commandId,
         actionId: interaction.actionId,
       });
@@ -145,7 +145,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
 
     if (interaction.userId !== state.userId) {
       // Conservative default: only the initiating user can advance the workflow.
-      this.logger?.warn("Interaction user mismatch", {
+      this.logger?.warn('Interaction user mismatch', {
         commandId: state.id,
         actionId: interaction.actionId,
         expectedUserId: state.userId,
@@ -190,7 +190,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
       return;
     }
 
-    this.logger?.warn("No interaction handler registered", {
+    this.logger?.warn('No interaction handler registered', {
       commandId: state.id,
       actionId: interaction.actionId,
       commandName: state.commandName,
@@ -204,7 +204,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     commandId: string
   ): Promise<Nullable<CommandState<TPayload, TRenderState>>> {
     return await this.kv.get<CommandState<TPayload, TRenderState>>(
-      slashCommandKvNamespace.key("command", commandId)
+      slashCommandKvNamespace.key('command', commandId)
     );
   }
 
@@ -228,9 +228,9 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
   private async safeAcknowledge(state: CommandState): Promise<void> {
     try {
       await this.acknowledge(state);
-      await this.patchState(state.id, { status: "acknowledged" });
+      await this.patchState(state.id, { status: 'acknowledged' });
     } catch (error) {
-      this.logger?.warn("Acknowledge failed", {
+      this.logger?.warn('Acknowledge failed', {
         commandId: state.id,
         error,
       });
@@ -271,7 +271,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
 
     const ctx = this.makeCommandContext(state, definition, ttlSeconds);
 
-    await this.patchState(commandId, { status: "processing" }, ttlSeconds);
+    await this.patchState(commandId, { status: 'processing' }, ttlSeconds);
     await this.renderAndSync(
       await this.getRequiredState(commandId),
       definition
@@ -320,7 +320,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
       complete: async (result: unknown) => {
         const updated = await this.patchState(
           initialState.id,
-          { status: "completed", result },
+          { status: 'completed', result },
           ttlSeconds
         );
         ctx.state = updated;
@@ -329,7 +329,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
       fail: async (error: string) => {
         const updated = await this.patchState(
           initialState.id,
-          { status: "failed", error },
+          { status: 'failed', error },
           ttlSeconds
         );
         ctx.state = updated;
@@ -371,7 +371,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
       return this.fallbackRender(state);
     }
     return [
-      { type: "section", text: { type: "mrkdwn", text: "*Processing…*" } },
+      { type: 'section', text: { type: 'mrkdwn', text: '*Processing…*' } },
     ];
   }
 
@@ -408,7 +408,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     ttlSeconds: number
   ): Promise<void> {
     await this.kv.set(
-      slashCommandKvNamespace.key("command", commandId),
+      slashCommandKvNamespace.key('command', commandId),
       state,
       ttlSeconds
     );

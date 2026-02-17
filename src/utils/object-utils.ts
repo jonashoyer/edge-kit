@@ -21,13 +21,14 @@ export const recursivelySortObject = <T>(obj: T): RecursivelySorted<T> => {
     {},
     ...Object.entries(obj as Record<string, unknown>)
       .sort(([keyA], [keyB]) => keyA.localeCompare(keyB))
-      .map(([key, value]) => ({ [key]: recursivelySortObject(value) })),
+      .map(([key, value]) => ({ [key]: recursivelySortObject(value) }))
   );
 
   return sortedObject as RecursivelySorted<T>;
 };
 
-export const stableStringify = (obj: any) => JSON.stringify(recursivelySortObject(obj));
+export const stableStringify = (obj: any) =>
+  JSON.stringify(recursivelySortObject(obj));
 
 // Why preserve key order?
 // Some LLM-based workflows rely on a deterministic property sequence within schema objects. By recording the current key order in a dedicated `__keys` field we can later restore that sequence after JSON round-trips or other transformations, guaranteeing stable and predictable output.
@@ -58,11 +59,18 @@ export const serializeObjectKeys = (obj: any) => {
  * @param obj - The object potentially containing a `__keys` metadata property.
  * @returns The object with properties reordered and `__keys` removed.
  */
-export const deserializeObjectKeys = (obj: any & { __keys?: string[] }, _keys?: string[]) => {
+export const deserializeObjectKeys = (
+  obj: any & { __keys?: string[] },
+  _keys?: string[]
+) => {
   const keys = _keys ?? obj.__keys;
   if (!keys) return obj;
 
-  obj = Object.fromEntries(Object.entries(obj).sort(([keyA], [keyB]) => keys.indexOf(keyA) - keys.indexOf(keyB)));
+  obj = Object.fromEntries(
+    Object.entries(obj).sort(
+      ([keyA], [keyB]) => keys.indexOf(keyA) - keys.indexOf(keyB)
+    )
+  );
   delete obj.__keys;
 
   return obj;

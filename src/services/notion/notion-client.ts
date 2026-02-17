@@ -9,31 +9,31 @@ import {
   type QueryDataSourceParameters,
   type RichTextItemResponse,
   type SearchResponse,
-} from "@notionhq/client";
-import type { QueryDataSourceResponse } from "@notionhq/client/build/src/api-endpoints";
-import { markdownToBlocks } from "@tryfabric/martian";
+} from '@notionhq/client';
+import type { QueryDataSourceResponse } from '@notionhq/client/build/src/api-endpoints';
+import { markdownToBlocks } from '@tryfabric/martian';
 
-type NotionObject = SearchResponse["results"][number];
+type NotionObject = SearchResponse['results'][number];
 
-type PropertyTypes = PageObjectResponse["properties"][string]["type"];
+type PropertyTypes = PageObjectResponse['properties'][string]['type'];
 
 type PropertyTypeToObject = {
   [K in PropertyTypes]: Extract<
-    PageObjectResponse["properties"][string],
+    PageObjectResponse['properties'][string],
     { type: K }
   >;
 };
 
 type PropertyTypeToValue = {
   [K in PropertyTypes]: Extract<
-    PageObjectResponse["properties"][string],
+    PageObjectResponse['properties'][string],
     { type: K }
   > extends Record<K, infer V>
     ? V
     : never;
 };
 
-type RichTextTypes = "title" | "rich_text";
+type RichTextTypes = 'title' | 'rich_text';
 type PropertyValueReturn<T extends PropertyTypes> = T extends RichTextTypes
   ? string
   : PropertyTypeToValue[T];
@@ -48,9 +48,9 @@ export type NotionDatabase = {
 };
 
 type QueryDatabaseFilterAnd = Extract<
-  QueryDataSourceParameters["filter"],
+  QueryDataSourceParameters['filter'],
   { and: unknown }
->["and"];
+>['and'];
 
 /**
  * Notion API Client wrapper.
@@ -66,7 +66,7 @@ export class NotionClient {
 
   async createPage(
     databaseId: string,
-    properties: CreatePageParameters["properties"],
+    properties: CreatePageParameters['properties'],
     markdown: string
   ) {
     const content = markdownToBlocks(markdown);
@@ -114,19 +114,19 @@ export class NotionClient {
   }
 
   static extractIcon(obj: NotionObject) {
-    if (!("icon" in obj && obj.icon)) {
+    if (!('icon' in obj && obj.icon)) {
       return null;
     }
 
-    if (obj.icon.type === "emoji") {
+    if (obj.icon.type === 'emoji') {
       return obj.icon.emoji;
     }
 
-    if (obj.icon.type === "file") {
+    if (obj.icon.type === 'file') {
       return obj.icon.file.url;
     }
 
-    if (obj.icon.type === "external") {
+    if (obj.icon.type === 'external') {
       return obj.icon.external.url;
     }
 
@@ -134,7 +134,7 @@ export class NotionClient {
   }
 
   static uuidToId(uuid: string) {
-    return uuid.replace(/-/g, "");
+    return uuid.replace(/-/g, '');
   }
 
   async getDatabases(cursor?: string | null): Promise<NotionDatabase[]> {
@@ -143,7 +143,7 @@ export class NotionClient {
     }
 
     const searchResult = await this.client.search({
-      filter: { value: "data_source", property: "object" },
+      filter: { value: 'data_source', property: 'object' },
       page_size: 100,
       start_cursor: cursor,
     });
@@ -152,15 +152,15 @@ export class NotionClient {
       id: result.id,
       icon: NotionClient.extractIcon(result),
       name:
-        "title" in result
+        'title' in result
           ? result.title
-              .map((title) => ("plain_text" in title ? title.plain_text : ""))
-              .join("")
+              .map((title) => ('plain_text' in title ? title.plain_text : ''))
+              .join('')
           : null,
-      archived: "archived" in result ? result.archived : false,
-      inTrash: "in_trash" in result ? result.in_trash : false,
+      archived: 'archived' in result ? result.archived : false,
+      inTrash: 'in_trash' in result ? result.in_trash : false,
       pageId:
-        "parent" in result && result.parent.type === "page_id"
+        'parent' in result && result.parent.type === 'page_id'
           ? result.parent.page_id
           : null,
     }));
@@ -179,7 +179,7 @@ export class NotionClient {
       filter?: QueryDatabaseFilterAnd;
       cursor?: string;
     }
-  ): Promise<QueryDataSourceResponse["results"]> {
+  ): Promise<QueryDataSourceResponse['results']> {
     const startEditedTime = options?.startEditedTime
       ? new Date(options.startEditedTime).toISOString()
       : undefined;
@@ -190,13 +190,13 @@ export class NotionClient {
 
     const items = await collectPaginatedAPI(this.client.dataSources.query, {
       data_source_id: databaseId,
-      sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
+      sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
       filter: {
         and: [
           ...(startEditedTime
             ? [
                 {
-                  timestamp: "last_edited_time" as const,
+                  timestamp: 'last_edited_time' as const,
                   last_edited_time: { on_or_after: startEditedTime },
                 },
               ]
@@ -204,7 +204,7 @@ export class NotionClient {
           ...(endEditedTime
             ? [
                 {
-                  timestamp: "last_edited_time" as const,
+                  timestamp: 'last_edited_time' as const,
                   last_edited_time: { on_or_before: endEditedTime },
                 },
               ]
@@ -223,11 +223,11 @@ export class NotionClient {
     type: TType,
     property: string
   ): PropertyTypeToObject[TType] | null {
-    if (obj.object !== "page") {
+    if (obj.object !== 'page') {
       return null;
     }
 
-    const prop = "properties" in obj ? obj.properties?.[property] : null;
+    const prop = 'properties' in obj ? obj.properties?.[property] : null;
     return prop?.type === type ? (prop as PropertyTypeToObject[TType]) : null;
   }
 
@@ -242,7 +242,7 @@ export class NotionClient {
     }
 
     const value = prop[type as keyof typeof prop];
-    const isRichText = ["title", "rich_text"].includes(type);
+    const isRichText = ['title', 'rich_text'].includes(type);
 
     if (isRichText && Array.isArray(value)) {
       return NotionClient.notionRichTextToMarkdown(
@@ -260,7 +260,7 @@ export class NotionClient {
 
   static applyAnnotations(
     text: string,
-    annotation: RichTextItemResponse["annotations"]
+    annotation: RichTextItemResponse['annotations']
   ) {
     const { bold, code, italic, strikethrough, underline, color } = annotation;
     let formattedText = text;
@@ -280,7 +280,7 @@ export class NotionClient {
     if (underline) {
       formattedText = `<ins>${formattedText}</ins>`;
     }
-    if (color !== "default") {
+    if (color !== 'default') {
       formattedText = `==${formattedText}==`;
     }
 
@@ -290,37 +290,37 @@ export class NotionClient {
   static notionRichTextToMarkdown(richText: RichTextItemResponse[]) {
     const getContent = (e: RichTextItemResponse) => {
       switch (e.type) {
-        case "text":
+        case 'text':
           if (e.text.link) {
             return `[${e.text.content}](${e.text.link.url})`;
           }
           return e.text.content;
-        case "equation":
+        case 'equation':
           return `$${e.equation.expression}$`;
-        case "mention":
+        case 'mention':
           switch (e.mention.type) {
-            case "user":
-              return `@${"name" in e.mention.user ? e.mention.user.name : e.mention.user.id}`;
-            case "date":
+            case 'user':
+              return `@${'name' in e.mention.user ? e.mention.user.name : e.mention.user.id}`;
+            case 'date':
             // const { start, end, time_zone } = e.mention.date;
             // if (end) return `[${new Date(start).toISOString()} => ${new Date(end).toISOString()}${time_zone ? ` (${time_zone})` : ''}]`;
             // return `[${new Date(start).toISOString()}${time_zone ? ` (${time_zone})` : ''}]`;
-            case "database":
-            case "link_preview":
-            case "page":
-            case "template_mention":
+            case 'database':
+            case 'link_preview':
+            case 'page':
+            case 'template_mention':
               return e.plain_text;
             default:
-              return "";
+              return '';
           }
         default:
-          return "";
+          return '';
       }
     };
 
     return richText
       .map((e) => NotionClient.applyAnnotations(getContent(e), e.annotations))
-      .join("");
+      .join('');
   }
 
   static notionBlocksToMarkdown(
@@ -330,70 +330,70 @@ export class NotionClient {
       blocks
         // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Not that complex
         .map((block) => {
-          if (!("type" in block)) {
+          if (!('type' in block)) {
             return null;
           }
 
           switch (block.type) {
-            case "heading_1":
+            case 'heading_1':
               return `# ${NotionClient.notionRichTextToMarkdown(block.heading_1.rich_text)}`;
-            case "heading_2":
+            case 'heading_2':
               return `## ${NotionClient.notionRichTextToMarkdown(block.heading_2.rich_text)}`;
-            case "heading_3":
+            case 'heading_3':
               return `### ${NotionClient.notionRichTextToMarkdown(block.heading_3.rich_text)}`;
-            case "paragraph":
+            case 'paragraph':
               return NotionClient.notionRichTextToMarkdown(
                 block.paragraph.rich_text
               );
-            case "bulleted_list_item":
+            case 'bulleted_list_item':
               return `- ${NotionClient.notionRichTextToMarkdown(block.bulleted_list_item.rich_text)}`;
-            case "numbered_list_item":
+            case 'numbered_list_item':
               return `1. ${NotionClient.notionRichTextToMarkdown(block.numbered_list_item.rich_text)}`;
-            case "to_do":
-              return `- [${block.to_do.checked ? "x" : " "}] ${NotionClient.notionRichTextToMarkdown(block.to_do.rich_text)}`;
-            case "quote":
+            case 'to_do':
+              return `- [${block.to_do.checked ? 'x' : ' '}] ${NotionClient.notionRichTextToMarkdown(block.to_do.rich_text)}`;
+            case 'quote':
               return `> ${NotionClient.notionRichTextToMarkdown(block.quote.rich_text)}`;
-            case "code":
+            case 'code':
               return `\`\`\`${block.code.language}\n${NotionClient.notionRichTextToMarkdown(block.code.rich_text)}\n\`\`\``;
-            case "image":
-              return `![${NotionClient.notionRichTextToMarkdown(block.image.caption)}](${block.image.type === "file" ? block.image.file.url : block.image.external.url})`;
-            case "callout":
+            case 'image':
+              return `![${NotionClient.notionRichTextToMarkdown(block.image.caption)}](${block.image.type === 'file' ? block.image.file.url : block.image.external.url})`;
+            case 'callout':
               return `> ${NotionClient.notionRichTextToMarkdown(block.callout.rich_text)}`;
-            case "child_database":
+            case 'child_database':
               return `[${block.child_database.title}](child_database)`;
-            case "child_page":
+            case 'child_page':
               return `[${block.child_page.title}](child_page)`;
-            case "column":
-              return `column:${Object.keys(block.column).join(",")}`;
-            case "column_list":
-              return `column_list:${Object.keys(block.column_list).join(",")}`;
-            case "divider":
-              return "---";
-            case "embed":
+            case 'column':
+              return `column:${Object.keys(block.column).join(',')}`;
+            case 'column_list':
+              return `column_list:${Object.keys(block.column_list).join(',')}`;
+            case 'divider':
+              return '---';
+            case 'embed':
               return `[${NotionClient.notionRichTextToMarkdown(block.embed.caption)}](${block.embed.url})`;
-            case "equation":
+            case 'equation':
               return `$$${block.equation.expression}$$`;
-            case "file":
-              return `[${NotionClient.notionRichTextToMarkdown(block.file.caption)}](${block.file.type === "file" ? block.file.file.url : block.file.external.url})`;
-            case "link_preview":
+            case 'file':
+              return `[${NotionClient.notionRichTextToMarkdown(block.file.caption)}](${block.file.type === 'file' ? block.file.file.url : block.file.external.url})`;
+            case 'link_preview':
               return `[${block.link_preview.url}](${block.link_preview.url})`;
-            case "link_to_page": {
-              let id = "";
+            case 'link_to_page': {
+              let id = '';
 
-              if ("page_id" in block.link_to_page) {
+              if ('page_id' in block.link_to_page) {
                 id = block.link_to_page.page_id;
-              } else if ("database_id" in block.link_to_page) {
+              } else if ('database_id' in block.link_to_page) {
                 id = block.link_to_page.database_id;
-              } else if ("comment_id" in block.link_to_page) {
+              } else if ('comment_id' in block.link_to_page) {
                 id = block.link_to_page.comment_id;
               }
 
               return `[${id}](page)`;
             }
-            case "pdf":
-              return `[${NotionClient.notionRichTextToMarkdown(block.pdf.caption)}](${block.pdf.type === "file" ? block.pdf.file.url : block.pdf.external.url})`;
-            case "table_of_contents":
-              return "table_of_contents";
+            case 'pdf':
+              return `[${NotionClient.notionRichTextToMarkdown(block.pdf.caption)}](${block.pdf.type === 'file' ? block.pdf.file.url : block.pdf.external.url})`;
+            case 'table_of_contents':
+              return 'table_of_contents';
             // case 'table_row':
             //   return `table_row:${Object.keys(block.table_row)}`;
             // case 'template':
@@ -404,17 +404,17 @@ export class NotionClient {
             //   return `unsupported:${block.unsupported.type}`;
             // case 'video':
             //   return `[${block.bookmark.url}](${block.bookmark.url})`;
-            case "breadcrumb":
+            case 'breadcrumb':
               return `[${block.breadcrumb.url}](${block.breadcrumb.url})`;
-            case "synced_block":
+            case 'synced_block':
               return `[${block.synced_block.synced_from?.block_id}](${block.synced_block.synced_from?.block_id})`;
             // case "table":
             default:
-              return "";
+              return '';
           }
         })
         .filter(Boolean)
-        .join("\n\n")
+        .join('\n\n')
     );
   }
 }

@@ -1,7 +1,7 @@
-import { eq, inArray, sql } from "drizzle-orm";
-import type { MySqlTableWithColumns } from "drizzle-orm/mysql-core";
-import type { PgTableWithColumns } from "drizzle-orm/pg-core";
-import type { SQLiteTableWithColumns } from "drizzle-orm/sqlite-core";
+import { eq, inArray, sql } from 'drizzle-orm';
+import type { MySqlTableWithColumns } from 'drizzle-orm/mysql-core';
+import type { PgTableWithColumns } from 'drizzle-orm/pg-core';
+import type { SQLiteTableWithColumns } from 'drizzle-orm/sqlite-core';
 
 import {
   type AnyMySqlDatabase,
@@ -10,18 +10,18 @@ import {
   type CreateColumnConfig,
   type CreateTableConfig,
   createDialectService,
-} from "../../database/types";
-import type { Nullable } from "../../utils/type-utils";
-import { AbstractKeyValueService } from "./abstract-key-value";
+} from '../../database/types';
+import type { Nullable } from '../../utils/type-utils';
+import { AbstractKeyValueService } from './abstract-key-value';
 
-export type BaseKeyValueTable<Dialect extends "mysql" | "pg" | "sqlite"> =
+export type BaseKeyValueTable<Dialect extends 'mysql' | 'pg' | 'sqlite'> =
   CreateTableConfig<
     {
       key: CreateColumnConfig<
         Dialect,
         {
           data: string;
-          dataType: "string";
+          dataType: 'string';
           notNull: true;
         }
       >;
@@ -30,7 +30,7 @@ export type BaseKeyValueTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         {
           // biome-ignore lint/suspicious/noExplicitAny: Any type
           data: any;
-          dataType: "json";
+          dataType: 'json';
           notNull: true;
         }
       >;
@@ -38,7 +38,7 @@ export type BaseKeyValueTable<Dialect extends "mysql" | "pg" | "sqlite"> =
         Dialect,
         {
           data: number;
-          dataType: "number";
+          dataType: 'number';
           notNull: boolean;
         }
       >;
@@ -47,11 +47,11 @@ export type BaseKeyValueTable<Dialect extends "mysql" | "pg" | "sqlite"> =
   >;
 
 export type MySqlKeyValueTable = MySqlTableWithColumns<
-  BaseKeyValueTable<"mysql">
+  BaseKeyValueTable<'mysql'>
 >;
-export type PostgresKeyValueTable = PgTableWithColumns<BaseKeyValueTable<"pg">>;
+export type PostgresKeyValueTable = PgTableWithColumns<BaseKeyValueTable<'pg'>>;
 export type SQLiteKeyValueTable = SQLiteTableWithColumns<
-  BaseKeyValueTable<"sqlite">
+  BaseKeyValueTable<'sqlite'>
 >;
 
 const MS_TO_SECONDS = 1000;
@@ -171,11 +171,11 @@ class BaseDrizzleKeyValueService<
   }
 
   set<T>(_key: string, _value: T, _ttlSeconds?: number): Promise<void> {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
   }
 
   mset<T>(_keyValues: [string, T][], _ttlSeconds?: number): Promise<void> {
-    throw new Error("Not implemented");
+    throw new Error('Not implemented');
   }
 
   async delete(key: string): Promise<void> {
@@ -233,35 +233,35 @@ class BaseDrizzleKeyValueService<
    * @deprecated Unsupported operation
    */
   zadd(_key: string, _score: number, _member: string): Promise<void> {
-    throw new Error("Unsupported operation");
+    throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
   zrank(_key: string, _member: string): Promise<number | null> {
-    throw new Error("Unsupported operation");
+    throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
   zcard(_key: string): Promise<number> {
-    throw new Error("Unsupported operation");
+    throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
   zrange(_key: string, _start: number, _stop: number): Promise<string[]> {
-    throw new Error("Unsupported operation");
+    throw new Error('Unsupported operation');
   }
 
   /**
    * @deprecated Unsupported operation
    */
   zrem(_key: string, _member: string | string[]): Promise<void> {
-    throw new Error("Unsupported operation");
+    throw new Error('Unsupported operation');
   }
 
   async mdelete(_keys: string[]): Promise<void> {

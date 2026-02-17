@@ -1,16 +1,16 @@
-import type Stripe from "stripe";
+import type Stripe from 'stripe';
 
-import type { AbstractLogger } from "../logging/abstract-logger";
-import type { AbstractStripeB2BStore } from "./abstract-stripe-store";
-import { StripeSyncService } from "./sync-service";
+import type { AbstractLogger } from '../logging/abstract-logger';
+import type { AbstractStripeB2BStore } from './abstract-stripe-store';
+import { StripeSyncService } from './sync-service';
 import type {
   AbstractCRMIntegration,
   CRMPaymentData,
   OrganizationSubscriptionData,
   PromotionCodeData,
   SubscriptionOfferData,
-} from "./types";
-import { StripeWebhookService } from "./webhook-service";
+} from './types';
+import { StripeWebhookService } from './webhook-service';
 
 export interface StripeB2BServiceOptions {
   logger?: AbstractLogger;
@@ -55,9 +55,9 @@ export class StripeB2BService {
     if (!this.crm) return;
     const payload: CRMPaymentData = {
       hasPayment:
-        data.status !== "none" &&
-        data.status !== "canceled" &&
-        data.status !== "incomplete",
+        data.status !== 'none' &&
+        data.status !== 'canceled' &&
+        data.status !== 'incomplete',
       amount: data.priceId ? undefined : undefined, // amount is not directly in subscription; customers can compute via offer
       interval: data.offer?.interval,
       currency: data.offer?.currency,
@@ -101,9 +101,9 @@ export class StripeB2BService {
   ): Promise<Stripe.Checkout.Session> {
     const offer = await this.store.getSubscriptionOffer(orgId);
     if (!offer)
-      throw new Error("Organization has no subscription offer configured");
+      throw new Error('Organization has no subscription offer configured');
 
-    const customerId = await this.findOrCreateOrganizationCustomer(orgId, "");
+    const customerId = await this.findOrCreateOrganizationCustomer(orgId, '');
 
     const trialDays = offer.trialEndUnix
       ? Math.max(
@@ -116,14 +116,14 @@ export class StripeB2BService {
       : undefined;
 
     const session = await this.stripe.checkout.sessions.create({
-      mode: "subscription" as const,
+      mode: 'subscription' as const,
       customer: customerId,
       line_items: [
         {
           quantity: 1,
           price_data: {
             currency: offer.currency,
-            product_data: { name: offer.description ?? "Subscription" },
+            product_data: { name: offer.description ?? 'Subscription' },
             unit_amount: offer.unitAmount,
             recurring: { interval: offer.interval },
           },
@@ -136,8 +136,8 @@ export class StripeB2BService {
           discounts: [{ promotion_code: offer.promotionCode.id }],
         }),
       },
-      success_url: `${this.options.baseUrl}${this.options.successPath ?? "/billing/success"}`,
-      cancel_url: `${this.options.baseUrl}${this.options.cancelPath ?? "/billing"}`,
+      success_url: `${this.options.baseUrl}${this.options.successPath ?? '/billing/success'}`,
+      cancel_url: `${this.options.baseUrl}${this.options.cancelPath ?? '/billing'}`,
       metadata: { orgId, adminUserId },
     });
 
@@ -159,7 +159,7 @@ export class StripeB2BService {
       code,
       active: true,
       limit: 1,
-      expand: ["data.coupon"],
+      expand: ['data.coupon'],
     });
     const pc = list.data[0];
     if (!pc) return null;
@@ -185,28 +185,28 @@ export class StripeB2BService {
     newOffer: SubscriptionOfferData
   ) {
     const customerId = await this.store.getStripeCustomerIdByOrg(orgId);
-    if (!customerId) throw new Error("No Stripe customer for organization");
+    if (!customerId) throw new Error('No Stripe customer for organization');
 
     // Sync to get active subscription data
     const current = await this.syncService.syncStripeData(customerId);
     if (
-      current.status === "none" ||
-      !("subscriptionId" in current) ||
+      current.status === 'none' ||
+      !('subscriptionId' in current) ||
       !current.subscriptionId
     ) {
-      throw new Error("Organization has no active subscription");
+      throw new Error('Organization has no active subscription');
     }
 
     // Update in place
     await this.stripe.subscriptions.update(current.subscriptionId, {
       cancel_at_period_end: false,
-      proration_behavior: "create_prorations",
+      proration_behavior: 'create_prorations',
       items: [
         {
           id: current.subscriptionId, // Note: item id would be ideal; using subscription update requires item id; caller should store it
           price_data: {
             currency: newOffer.currency,
-            product_data: { name: newOffer.description ?? "Subscription" },
+            product_data: { name: newOffer.description ?? 'Subscription' },
             unit_amount: newOffer.unitAmount,
             recurring: { interval: newOffer.interval },
           },
@@ -226,8 +226,8 @@ export class StripeB2BService {
     if (!customerId) return false;
     const current = await this.syncService.syncStripeData(customerId);
     if (
-      current.status === "none" ||
-      !("subscriptionId" in current) ||
+      current.status === 'none' ||
+      !('subscriptionId' in current) ||
       !current.subscriptionId
     )
       return false;
@@ -243,8 +243,8 @@ export class StripeB2BService {
     if (!customerId) return false;
     const current = await this.syncService.syncStripeData(customerId);
     if (
-      current.status === "none" ||
-      !("subscriptionId" in current) ||
+      current.status === 'none' ||
+      !('subscriptionId' in current) ||
       !current.subscriptionId
     )
       return false;

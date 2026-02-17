@@ -1,14 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it } from 'vitest';
 import {
   buildMarkdown,
   buildXml,
   type MdSchemaConfig,
   mdSchema,
-} from "./markdown-utils";
+} from './markdown-utils';
 
-describe("markdown-utils", () => {
-  describe("basic markdown rendering", () => {
-    it("should render simple fields with plain labels", () => {
+describe('markdown-utils', () => {
+  describe('basic markdown rendering', () => {
+    it('should render simple fields with plain labels', () => {
       type User = {
         name: string;
         age: number;
@@ -19,101 +19,101 @@ describe("markdown-utils", () => {
         age: {},
       };
 
-      const result = buildMarkdown({ name: "Alice", age: 30 }, config);
-      expect(result).toBe("name: Alice\nage: 30");
+      const result = buildMarkdown({ name: 'Alice', age: 30 }, config);
+      expect(result).toBe('name: Alice\nage: 30');
     });
 
-    it("should use custom labels", () => {
+    it('should use custom labels', () => {
       type User = {
         name: string;
         email: string;
       };
 
       const config: MdSchemaConfig<User> = {
-        name: { label: "Full Name" },
-        email: { label: "Email Address" },
+        name: { label: 'Full Name' },
+        email: { label: 'Email Address' },
       };
 
       const result = buildMarkdown(
-        { name: "Bob", email: "bob@example.com" },
+        { name: 'Bob', email: 'bob@example.com' },
         config
       );
-      expect(result).toBe("Full Name: Bob\nEmail Address: bob@example.com");
+      expect(result).toBe('Full Name: Bob\nEmail Address: bob@example.com');
     });
   });
 
-  describe("label formatting", () => {
-    it("should format labels as bold", () => {
+  describe('label formatting', () => {
+    it('should format labels as bold', () => {
       const config: MdSchemaConfig<{ name: string }> = {
-        name: { format: "bold" },
+        name: { format: 'bold' },
       };
 
-      const result = buildMarkdown({ name: "Charlie" }, config);
-      expect(result).toBe("**name**: Charlie");
+      const result = buildMarkdown({ name: 'Charlie' }, config);
+      expect(result).toBe('**name**: Charlie');
     });
 
-    it("should format labels as italic", () => {
+    it('should format labels as italic', () => {
       const config: MdSchemaConfig<{ name: string }> = {
-        name: { format: "italic" },
+        name: { format: 'italic' },
       };
 
-      const result = buildMarkdown({ name: "Diana" }, config);
-      expect(result).toBe("*name*: Diana");
+      const result = buildMarkdown({ name: 'Diana' }, config);
+      expect(result).toBe('*name*: Diana');
     });
 
-    it("should format labels as code", () => {
+    it('should format labels as code', () => {
       const config: MdSchemaConfig<{ apiKey: string }> = {
-        apiKey: { format: "code" },
+        apiKey: { format: 'code' },
       };
 
-      const result = buildMarkdown({ apiKey: "secret123" }, config);
-      expect(result).toBe("`apiKey`: secret123");
+      const result = buildMarkdown({ apiKey: 'secret123' }, config);
+      expect(result).toBe('`apiKey`: secret123');
     });
 
-    it("should format labels as plain (default)", () => {
+    it('should format labels as plain (default)', () => {
       const config: MdSchemaConfig<{ name: string }> = {
-        name: { format: "plain" },
+        name: { format: 'plain' },
       };
 
-      const result = buildMarkdown({ name: "Eve" }, config);
-      expect(result).toBe("name: Eve");
+      const result = buildMarkdown({ name: 'Eve' }, config);
+      expect(result).toBe('name: Eve');
     });
   });
 
-  describe("array rendering", () => {
-    it("should render arrays inline by default", () => {
+  describe('array rendering', () => {
+    it('should render arrays inline by default', () => {
       const config: MdSchemaConfig<{ tags: string[] }> = {
         tags: {},
       };
 
-      const result = buildMarkdown({ tags: ["a", "b", "c"] }, config);
-      expect(result).toBe("tags: a, b, c");
+      const result = buildMarkdown({ tags: ['a', 'b', 'c'] }, config);
+      expect(result).toBe('tags: a, b, c');
     });
 
-    it("should respect arrayMode inline", () => {
+    it('should respect arrayMode inline', () => {
       const config: MdSchemaConfig<{ tags: string[] }> = {
-        tags: { arrayMode: "inline" },
+        tags: { arrayMode: 'inline' },
       };
 
       const result = buildMarkdown(
-        { tags: ["one", "two", "three", "four", "five"] },
+        { tags: ['one', 'two', 'three', 'four', 'five'] },
         config
       );
-      expect(result).toBe("tags: one, two, three, four, five");
+      expect(result).toBe('tags: one, two, three, four, five');
     });
 
-    it("should respect arrayMode bulleted", () => {
+    it('should respect arrayMode bulleted', () => {
       const config: MdSchemaConfig<{ tags: string[] }> = {
-        tags: { arrayMode: "bulleted" },
+        tags: { arrayMode: 'bulleted' },
       };
 
-      const result = buildMarkdown({ tags: ["a", "b"] }, config);
-      expect(result).toBe("tags: - a\n- b");
+      const result = buildMarkdown({ tags: ['a', 'b'] }, config);
+      expect(result).toBe('tags: - a\n- b');
     });
   });
 
-  describe("nested objects", () => {
-    it("should render nested objects with fields config", () => {
+  describe('nested objects', () => {
+    it('should render nested objects with fields config', () => {
       type User = {
         name: string;
         address: {
@@ -134,18 +134,18 @@ describe("markdown-utils", () => {
 
       const result = buildMarkdown(
         {
-          name: "Frank",
-          address: { city: "NYC", country: "USA" },
+          name: 'Frank',
+          address: { city: 'NYC', country: 'USA' },
         },
         config
       );
 
       expect(result).toBe(
-        "name: Frank\naddress: \n  city: NYC\n  country: USA"
+        'name: Frank\naddress: \n  city: NYC\n  country: USA'
       );
     });
 
-    it("should render deeply nested objects", () => {
+    it('should render deeply nested objects', () => {
       type Data = {
         level1: {
           level2: {
@@ -170,30 +170,30 @@ describe("markdown-utils", () => {
         {
           level1: {
             level2: {
-              value: "deep",
+              value: 'deep',
             },
           },
         },
         config
       );
 
-      expect(result).toBe("level1: \n  level2: \n    value: deep");
+      expect(result).toBe('level1: \n  level2: \n    value: deep');
     });
   });
 
-  describe("transform function", () => {
-    it("should apply transform to values", () => {
+  describe('transform function', () => {
+    it('should apply transform to values', () => {
       const config: MdSchemaConfig<{ date: Date }> = {
         date: {
-          transform: (date: Date) => date.toISOString().split("T")[0],
+          transform: (date: Date) => date.toISOString().split('T')[0],
         },
       };
 
-      const result = buildMarkdown({ date: new Date("2025-10-01") }, config);
-      expect(result).toBe("date: 2025-10-01");
+      const result = buildMarkdown({ date: new Date('2025-10-01') }, config);
+      expect(result).toBe('date: 2025-10-01');
     });
 
-    it("should apply transform before rendering", () => {
+    it('should apply transform before rendering', () => {
       const config: MdSchemaConfig<{ count: number }> = {
         count: {
           transform: (n: number) => `${n} items`,
@@ -201,54 +201,54 @@ describe("markdown-utils", () => {
       };
 
       const result = buildMarkdown({ count: 42 }, config);
-      expect(result).toBe("count: 42 items");
+      expect(result).toBe('count: 42 items');
     });
   });
 
-  describe("omission of empty values", () => {
-    it("should omit undefined fields by default", () => {
+  describe('omission of empty values', () => {
+    it('should omit undefined fields by default', () => {
       const config: MdSchemaConfig<{ name: string; age?: number }> = {
         name: {},
         age: {},
       };
 
-      const result = buildMarkdown({ name: "Grace" }, config);
-      expect(result).toBe("name: Grace");
+      const result = buildMarkdown({ name: 'Grace' }, config);
+      expect(result).toBe('name: Grace');
     });
 
-    it("should omit null fields by default", () => {
+    it('should omit null fields by default', () => {
       const config: MdSchemaConfig<{ name: string; email: string | null }> = {
         name: {},
         email: {},
       };
 
-      const result = buildMarkdown({ name: "Henry", email: null }, config);
-      expect(result).toBe("name: Henry");
+      const result = buildMarkdown({ name: 'Henry', email: null }, config);
+      expect(result).toBe('name: Henry');
     });
 
-    it("should omit empty strings by default", () => {
+    it('should omit empty strings by default', () => {
       const config: MdSchemaConfig<{ name: string; bio: string }> = {
         name: {},
         bio: {},
       };
 
-      const result = buildMarkdown({ name: "Iris", bio: "" }, config);
-      expect(result).toBe("name: Iris");
+      const result = buildMarkdown({ name: 'Iris', bio: '' }, config);
+      expect(result).toBe('name: Iris');
     });
 
-    it("should omit empty arrays by default", () => {
+    it('should omit empty arrays by default', () => {
       const config: MdSchemaConfig<{ name: string; tags: string[] }> = {
         name: {},
         tags: {},
       };
 
-      const result = buildMarkdown({ name: "Jack", tags: [] }, config);
-      expect(result).toBe("name: Jack");
+      const result = buildMarkdown({ name: 'Jack', tags: [] }, config);
+      expect(result).toBe('name: Jack');
     });
   });
 
-  describe("XML rendering", () => {
-    it("should render simple fields as XML", () => {
+  describe('XML rendering', () => {
+    it('should render simple fields as XML', () => {
       type User = {
         name: string;
         age: number;
@@ -259,76 +259,76 @@ describe("markdown-utils", () => {
         age: {},
       };
 
-      const result = buildXml({ name: "Karen", age: 25 }, config);
-      expect(result).toContain("<root>");
-      expect(result).toContain("<name>Karen</name>");
-      expect(result).toContain("<age>25</age>");
-      expect(result).toContain("</root>");
+      const result = buildXml({ name: 'Karen', age: 25 }, config);
+      expect(result).toContain('<root>');
+      expect(result).toContain('<name>Karen</name>');
+      expect(result).toContain('<age>25</age>');
+      expect(result).toContain('</root>');
     });
 
-    it("should use custom root name", () => {
+    it('should use custom root name', () => {
       const config: MdSchemaConfig<{ value: string }> = {
         value: {},
       };
 
-      const result = buildXml({ value: "test" }, config, "custom");
-      expect(result).toContain("<custom>");
-      expect(result).toContain("</custom>");
+      const result = buildXml({ value: 'test' }, config, 'custom');
+      expect(result).toContain('<custom>');
+      expect(result).toContain('</custom>');
     });
 
-    it("should apply transforms before XML conversion", () => {
+    it('should apply transforms before XML conversion', () => {
       const config: MdSchemaConfig<{ date: Date }> = {
         date: {
           transform: (date: Date) => date.toISOString(),
         },
       };
 
-      const result = buildXml({ date: new Date("2025-10-01") }, config);
-      expect(result).toContain("<date>2025-10-01");
+      const result = buildXml({ date: new Date('2025-10-01') }, config);
+      expect(result).toContain('<date>2025-10-01');
     });
 
-    it("should omit fields in XML by default", () => {
+    it('should omit fields in XML by default', () => {
       const config: MdSchemaConfig<{ name: string; optional?: string }> = {
         name: {},
         optional: {},
       };
 
-      const result = buildXml({ name: "Laura" }, config);
-      expect(result).toContain("<name>Laura</name>");
-      expect(result).not.toContain("<optional");
+      const result = buildXml({ name: 'Laura' }, config);
+      expect(result).toContain('<name>Laura</name>');
+      expect(result).not.toContain('<optional');
     });
   });
 
-  describe("mdSchema factory", () => {
-    it("should create schema with build method", () => {
+  describe('mdSchema factory', () => {
+    it('should create schema with build method', () => {
       const schema = mdSchema<{ name: string }>({
-        name: { format: "bold" },
+        name: { format: 'bold' },
       });
 
-      const result = schema.build({ name: "Mike" });
-      expect(result).toBe("**name**: Mike");
+      const result = schema.build({ name: 'Mike' });
+      expect(result).toBe('**name**: Mike');
     });
 
-    it("should create schema with buildXml method", () => {
+    it('should create schema with buildXml method', () => {
       const schema = mdSchema<{ name: string }>({
         name: {},
       });
 
-      const result = schema.buildXml({ name: "Nancy" });
-      expect(result).toContain("<name>Nancy</name>");
+      const result = schema.buildXml({ name: 'Nancy' });
+      expect(result).toContain('<name>Nancy</name>');
     });
 
-    it("should store config as readonly", () => {
+    it('should store config as readonly', () => {
       const schema = mdSchema<{ value: number }>({
-        value: { label: "Value" },
+        value: { label: 'Value' },
       });
 
-      expect(schema.config.value?.label).toBe("Value");
+      expect(schema.config.value?.label).toBe('Value');
     });
   });
 
-  describe("complex scenarios", () => {
-    it("should handle arrays of nested objects", () => {
+  describe('complex scenarios', () => {
+    it('should handle arrays of nested objects', () => {
       type Team = {
         name: string;
         members: Array<{ name: string; role: string }>;
@@ -337,7 +337,7 @@ describe("markdown-utils", () => {
       const config: MdSchemaConfig<Team> = {
         name: {},
         members: {
-          arrayMode: "bulleted",
+          arrayMode: 'bulleted',
           fields: {
             name: {},
             role: {},
@@ -347,23 +347,23 @@ describe("markdown-utils", () => {
 
       const result = buildMarkdown(
         {
-          name: "Engineering",
+          name: 'Engineering',
           members: [
-            { name: "Alice", role: "Lead" },
-            { name: "Bob", role: "Dev" },
+            { name: 'Alice', role: 'Lead' },
+            { name: 'Bob', role: 'Dev' },
           ],
         },
         config
       );
 
-      expect(result).toContain("name: Engineering");
-      expect(result).toContain("- name: Alice");
-      expect(result).toContain("role: Lead");
-      expect(result).toContain("- name: Bob");
-      expect(result).toContain("role: Dev");
+      expect(result).toContain('name: Engineering');
+      expect(result).toContain('- name: Alice');
+      expect(result).toContain('role: Lead');
+      expect(result).toContain('- name: Bob');
+      expect(result).toContain('role: Dev');
     });
 
-    it("should combine multiple formatting options", () => {
+    it('should combine multiple formatting options', () => {
       type Product = {
         id: string;
         name: string;
@@ -375,18 +375,18 @@ describe("markdown-utils", () => {
       };
 
       const config: MdSchemaConfig<Product> = {
-        id: { format: "code" },
-        name: { format: "bold" },
+        id: { format: 'code' },
+        name: { format: 'bold' },
         price: {
-          label: "Price (USD)",
+          label: 'Price (USD)',
           transform: (n: number) => `$${n.toFixed(2)}`,
         },
-        tags: { arrayMode: "inline" },
+        tags: { arrayMode: 'inline' },
         metadata: {
           fields: {
             createdAt: {
-              label: "Created",
-              transform: (d: Date) => d.toISOString().split("T")[0],
+              label: 'Created',
+              transform: (d: Date) => d.toISOString().split('T')[0],
             },
           },
         },
@@ -394,69 +394,69 @@ describe("markdown-utils", () => {
 
       const result = buildMarkdown(
         {
-          id: "prod-123",
-          name: "Widget",
+          id: 'prod-123',
+          name: 'Widget',
           price: 29.99,
-          tags: ["new", "featured"],
-          metadata: { createdAt: new Date("2025-01-15") },
+          tags: ['new', 'featured'],
+          metadata: { createdAt: new Date('2025-01-15') },
         },
         config
       );
 
-      expect(result).toContain("`id`: prod-123");
-      expect(result).toContain("**name**: Widget");
-      expect(result).toContain("Price (USD): $29.99");
-      expect(result).toContain("tags: new, featured");
-      expect(result).toContain("Created: 2025-01-15");
+      expect(result).toContain('`id`: prod-123');
+      expect(result).toContain('**name**: Widget');
+      expect(result).toContain('Price (USD): $29.99');
+      expect(result).toContain('tags: new, featured');
+      expect(result).toContain('Created: 2025-01-15');
     });
 
-    it("should handle empty objects gracefully", () => {
+    it('should handle empty objects gracefully', () => {
       const config: MdSchemaConfig<{ value?: string }> = {} as any;
 
       const result = buildMarkdown({}, config);
-      expect(result).toBe("");
+      expect(result).toBe('');
     });
 
-    it("should handle boolean values", () => {
+    it('should handle boolean values', () => {
       const config: MdSchemaConfig<{ active: boolean }> = {
         active: {},
       };
 
       const result = buildMarkdown({ active: true }, config);
-      expect(result).toBe("active: true");
+      expect(result).toBe('active: true');
     });
 
-    it("should handle numeric zero without omitting", () => {
+    it('should handle numeric zero without omitting', () => {
       const config: MdSchemaConfig<{ count: number }> = {
         count: {},
       };
 
       const result = buildMarkdown({ count: 0 }, config);
-      expect(result).toBe("count: 0");
+      expect(result).toBe('count: 0');
     });
   });
 
-  describe("edge cases", () => {
-    it("should handle fields not in data", () => {
+  describe('edge cases', () => {
+    it('should handle fields not in data', () => {
       const config: MdSchemaConfig<{ name: string; age?: number }> = {
         name: {},
         age: {},
       };
 
-      const result = buildMarkdown({ name: "Oscar" }, config);
-      expect(result).toBe("name: Oscar");
+      const result = buildMarkdown({ name: 'Oscar' }, config);
+      expect(result).toBe('name: Oscar');
     });
 
-    it("should handle whitespace-only strings (omit by default)", () => {
+    it('should handle whitespace-only strings (omit by default)', () => {
       const config: MdSchemaConfig<{ text: string }> = {
         text: {},
       };
 
-      const result = buildMarkdown({ text: "   " }, config);
-      expect(result).toBe("");
+      const result = buildMarkdown({ text: '   ' }, config);
+      expect(result).toBe('');
     });
 
-    it("should stringify objects without nested schema", () => {
+    it('should stringify objects without nested schema', () => {
       const config: MdSchemaConfig<{ data: Record<string, unknown> }> = {
         data: {},
       };
@@ -465,15 +465,15 @@ describe("markdown-utils", () => {
       expect(result).toBe('data: {"a":1,"b":2}');
     });
 
-    it("should handle transform returning null", () => {
+    it('should handle transform returning null', () => {
       const config: MdSchemaConfig<{ value: string }> = {
         value: {
           transform: () => null,
         },
       };
 
-      const result = buildMarkdown({ value: "anything" }, config);
-      expect(result).toBe("");
+      const result = buildMarkdown({ value: 'anything' }, config);
+      expect(result).toBe('');
     });
   });
 });

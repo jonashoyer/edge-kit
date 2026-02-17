@@ -8,9 +8,9 @@ import { hashCodeB64 } from './crypto-utils';
  * @returns A signature string that can be verified on the server
  */
 export function createRequestSignature(
-  key: string = 'default',
+  key = 'default',
   rotation: string = ENCODING_ROTATION,
-  timestamp: number = Date.now(),
+  timestamp: number = Date.now()
 ) {
   const t = Math.floor(timestamp / 1000);
   const sig = hashCodeB64(`${key}:${t}:${rotation}`);
@@ -27,12 +27,12 @@ export function createRequestSignature(
  */
 export function verifyRequestSignature(
   signature: string,
-  key: string = 'default',
+  key = 'default',
   rotation: string = ENCODING_ROTATION,
-  maxDriftMs: number = 3 * 60 * 1000,
+  maxDriftMs: number = 3 * 60 * 1000
 ) {
   const [timestampSecB36] = signature.split(':');
-  const timestamp = parseInt(timestampSecB36, 36) * 1000;
+  const timestamp = Number.parseInt(timestampSecB36, 36) * 1000;
 
   // Check if the timestamp is within allowed drift (past or future)
   const now = Date.now();

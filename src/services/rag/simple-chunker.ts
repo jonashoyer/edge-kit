@@ -1,4 +1,4 @@
-import type { AbstractChunker, Chunk } from "./abstract-chunker";
+import type { AbstractChunker, Chunk } from './abstract-chunker';
 
 export interface ChunkerOptions {
   maxTokens?: number;
@@ -37,7 +37,7 @@ export class SimpleChunker implements AbstractChunker {
       i < words.length;
       i += step, chunkIndex += 1
     ) {
-      const segment = words.slice(i, i + this.maxTokens).join(" ");
+      const segment = words.slice(i, i + this.maxTokens).join(' ');
       if (estimateTokens(segment) === 0) continue;
       chunks.push({ id: makeId(chunkIndex), text: segment });
     }

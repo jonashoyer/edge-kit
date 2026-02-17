@@ -40,13 +40,15 @@ export interface AttioTimestampValueEntry extends AttioValueBase<'timestamp'> {
   value: string;
 }
 
-export interface AttioInteractionValueEntry extends AttioValueBase<'interaction'> {
+export interface AttioInteractionValueEntry
+  extends AttioValueBase<'interaction'> {
   interaction_type: string;
   interacted_at: string;
   owner_actor: AttioActor;
 }
 
-export interface AttioRecordReferenceEntry extends AttioValueBase<'record-reference'> {
+export interface AttioRecordReferenceEntry
+  extends AttioValueBase<'record-reference'> {
   target_object: string;
   target_record_id: string;
 }
@@ -64,12 +66,14 @@ export interface AttioLocationValueEntry extends AttioValueBase<'location'> {
   longitude: string | null;
 }
 
-export interface AttioActorReferenceEntry extends AttioValueBase<'actor-reference'> {
+export interface AttioActorReferenceEntry
+  extends AttioValueBase<'actor-reference'> {
   referenced_actor_type: 'workspace-member' | string;
   referenced_actor_id: string;
 }
 
-export interface AttioEmailAddressEntry extends AttioValueBase<'email-address'> {
+export interface AttioEmailAddressEntry
+  extends AttioValueBase<'email-address'> {
   original_email_address: string;
   email_address: string;
   email_domain: string;
@@ -77,13 +81,15 @@ export interface AttioEmailAddressEntry extends AttioValueBase<'email-address'> 
   email_local_specifier: string;
 }
 
-export interface AttioPhoneNumberValueEntry extends AttioValueBase<'phone-number'> {
+export interface AttioPhoneNumberValueEntry
+  extends AttioValueBase<'phone-number'> {
   country_code: string;
   original_phone_number: string;
   phone_number: string;
 }
 
-export interface AttioPersonalNameValueEntry extends AttioValueBase<'personal-name'> {
+export interface AttioPersonalNameValueEntry
+  extends AttioValueBase<'personal-name'> {
   first_name: string;
   last_name: string;
   full_name: string;
@@ -154,16 +160,16 @@ export interface GetRecordResponse<TValuesMap = AttioValuesMap> {
  * See: https://developers.attio.com/reference
  */
 export type AttioComparisonOperator =
-  | '$eq'        // Equal to
+  | '$eq' // Equal to
   | '$not_empty' // Has any value defined
-  | '$in'        // Value is in the given set
-  | '$contains'  // String contains (case-insensitive)
+  | '$in' // Value is in the given set
+  | '$contains' // String contains (case-insensitive)
   | '$starts_with' // String starts with
-  | '$ends_with'   // String ends with
-  | '$lt'        // Less than
-  | '$lte'       // Less than or equal
-  | '$gte'       // Greater than or equal
-  | '$gt';       // Greater than
+  | '$ends_with' // String ends with
+  | '$lt' // Less than
+  | '$lte' // Less than or equal
+  | '$gte' // Greater than or equal
+  | '$gt'; // Greater than
 
 /**
  * Logical operators for combining multiple filter conditions.
@@ -180,14 +186,18 @@ export type AttioLogicalOperator = '$and' | '$or' | '$not';
  */
 export interface AttioFilterCondition {
   [attribute: string]:
-  | string
-  | number
-  | boolean
-  | Array<string | number>
-  | Record<string, unknown>
-  | {
-    [K in AttioComparisonOperator]?: string | number | boolean | Array<string | number>;
-  };
+    | string
+    | number
+    | boolean
+    | Array<string | number>
+    | Record<string, unknown>
+    | {
+        [K in AttioComparisonOperator]?:
+          | string
+          | number
+          | boolean
+          | Array<string | number>;
+      };
 }
 
 /**
@@ -222,7 +232,10 @@ export interface AttioLogicalFilter {
 /**
  * Union type representing all possible filter structures supported by Attio API.
  */
-export type AttioFilter = AttioFilterCondition | AttioLogicalFilter | AttioPathFilter;
+export type AttioFilter =
+  | AttioFilterCondition
+  | AttioLogicalFilter
+  | AttioPathFilter;
 
 // Helper types for common filter patterns
 export interface AttioTextAttributeFilter {
@@ -324,7 +337,9 @@ export interface AttioLinkedCompanyByDomain {
   domains: Array<{ domain: string }>;
 }
 
-export type AttioCompanyLink = AttioLinkedCompanyById | AttioLinkedCompanyByDomain;
+export type AttioCompanyLink =
+  | AttioLinkedCompanyById
+  | AttioLinkedCompanyByDomain;
 
 export interface AttioPhoneNumberEntry {
   original_phone_number: string;
@@ -400,29 +415,43 @@ export class AttioAPI {
   }
 
   async getObject(object: AttioObjectSlug): Promise<AttioObjectMeta> {
-    const res = await this.request(`${this.baseUrl}/objects/${encodeURIComponent(object)}`);
+    const res = await this.request(
+      `${this.baseUrl}/objects/${encodeURIComponent(object)}`
+    );
     return res.data as AttioObjectMeta;
   }
 
-  async assertRecord<TRequestValues extends Record<string, unknown>, TValuesMap = AttioValuesMap>(
+  async assertRecord<
+    TRequestValues extends Record<string, unknown>,
+    TValuesMap = AttioValuesMap,
+  >(
     object: AttioObjectSlug,
     values: TRequestValues
   ): Promise<CreateRecordResponse<TValuesMap>> {
-    const res = await this.request(`${this.baseUrl}/objects/${encodeURIComponent(object)}/records`, {
-      method: 'PUT',
-      body: JSON.stringify({ data: { values } }),
-    });
+    const res = await this.request(
+      `${this.baseUrl}/objects/${encodeURIComponent(object)}/records`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ data: { values } }),
+      }
+    );
     return res as CreateRecordResponse<TValuesMap>;
   }
 
-  async createRecord<TRequestValues extends Record<string, unknown>, TValuesMap = AttioValuesMap>(
+  async createRecord<
+    TRequestValues extends Record<string, unknown>,
+    TValuesMap = AttioValuesMap,
+  >(
     object: AttioObjectSlug,
     values: TRequestValues
   ): Promise<CreateRecordResponse<TValuesMap>> {
-    const res = await this.request(`${this.baseUrl}/objects/${encodeURIComponent(object)}/records`, {
-      method: 'POST',
-      body: JSON.stringify({ data: { values } }),
-    });
+    const res = await this.request(
+      `${this.baseUrl}/objects/${encodeURIComponent(object)}/records`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ data: { values } }),
+      }
+    );
     return res as CreateRecordResponse<TValuesMap>;
   }
 
@@ -436,25 +465,28 @@ export class AttioAPI {
     return res as GetRecordResponse<TValues>;
   }
 
-  async upsertCompanyRecord(
-    values: AttioCompanyValues
-  ) {
+  async upsertCompanyRecord(values: AttioCompanyValues) {
     const payload: Record<string, unknown> = { ...values };
-    return await this.assertRecord<AttioCompanyValues, AttioCompanyRecordValues>('companies', payload);
+    return await this.assertRecord<
+      AttioCompanyValues,
+      AttioCompanyRecordValues
+    >('companies', payload);
   }
 
-  async createCompanyRecord(
-    values: AttioCompanyValues
-  ) {
+  async createCompanyRecord(values: AttioCompanyValues) {
     const payload: Record<string, unknown> = { ...values };
-    return await this.createRecord<AttioCompanyValues, AttioCompanyRecordValues>('companies', payload);
+    return await this.createRecord<
+      AttioCompanyValues,
+      AttioCompanyRecordValues
+    >('companies', payload);
   }
 
-  async upsertPersonRecord(
-    values: AttioPersonValues
-  ) {
+  async upsertPersonRecord(values: AttioPersonValues) {
     const payload: Record<string, unknown> = { ...values };
-    return await this.assertRecord<AttioPersonValues, AttioPersonRecordValues>('people', payload);
+    return await this.assertRecord<AttioPersonValues, AttioPersonRecordValues>(
+      'people',
+      payload
+    );
   }
 
   async queryRecords<TValuesMap = AttioValuesMap>(

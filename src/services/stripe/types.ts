@@ -1,4 +1,4 @@
-import type Stripe from "stripe";
+import type Stripe from 'stripe';
 
 /**
  * Type representing the cached data about a Stripe subscription
@@ -18,10 +18,10 @@ export type StripeSubscription =
       } | null;
     }
   | {
-      status: "none";
+      status: 'none';
     };
 
-export type SubscriptionInterval = "month" | "year" | (string & {});
+export type SubscriptionInterval = 'month' | 'year' | (string & {});
 
 export type PromotionCodeData = {
   id: string;

@@ -1,8 +1,8 @@
-import type { Nullable } from "../../utils/type-utils";
-import type { AbstractKeyValueService } from "../key-value/abstract-key-value";
-import type { AbstractLogger } from "../logging/abstract-logger";
-import type { SignedValue } from "./abstract-signed-value";
-import { SignedValueService } from "./signed-value-service";
+import type { Nullable } from '../../utils/type-utils';
+import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import type { AbstractLogger } from '../logging/abstract-logger';
+import type { SignedValue } from './abstract-signed-value';
+import { SignedValueService } from './signed-value-service';
 
 /**
  * KV-backed signed value service that transparently signs values on storage
@@ -28,14 +28,14 @@ export class KvSignedValueService {
   ) {
     this.kvService = kvService;
     this.signedValueService = new SignedValueService();
-    this.integrityPrefix = options.integrityPrefix || "integrity:";
+    this.integrityPrefix = options.integrityPrefix || 'integrity:';
     this.logger = options.logger;
   }
 
   /**
    * Generate the storage key with namespace and prefix
    */
-  private getStorageKey(key: string, namespace = "default"): string {
+  private getStorageKey(key: string, namespace = 'default'): string {
     return `${this.integrityPrefix}${namespace}:${key}`;
   }
 
@@ -51,7 +51,7 @@ export class KvSignedValueService {
     key: string,
     value: T,
     secret: string,
-    namespace = "default",
+    namespace = 'default',
     ttlSeconds?: number
   ): Promise<void> {
     const storageKey = this.getStorageKey(key, namespace);
@@ -73,7 +73,7 @@ export class KvSignedValueService {
   async get<T>(
     key: string,
     secret: string,
-    namespace = "default"
+    namespace = 'default'
   ): Promise<Nullable<T>> {
     const storageKey = this.getStorageKey(key, namespace);
 
@@ -111,7 +111,7 @@ export class KvSignedValueService {
    * @param key - The key to delete
    * @param namespace - Optional namespace the value was stored under
    */
-  async delete(key: string, namespace = "default"): Promise<void> {
+  async delete(key: string, namespace = 'default'): Promise<void> {
     const storageKey = this.getStorageKey(key, namespace);
     await this.kvService.delete(storageKey);
   }
@@ -121,7 +121,7 @@ export class KvSignedValueService {
    * @param key - The key to check
    * @param namespace - Optional namespace to check in
    */
-  async exists(key: string, namespace = "default"): Promise<boolean> {
+  async exists(key: string, namespace = 'default'): Promise<boolean> {
     const storageKey = this.getStorageKey(key, namespace);
     return await this.kvService.exists(storageKey);
   }

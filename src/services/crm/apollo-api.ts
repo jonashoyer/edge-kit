@@ -1,6 +1,6 @@
-import { fetchExt } from "../../utils/fetch-utils";
+import { fetchExt } from '../../utils/fetch-utils';
 
-const DEFAULT_APOLLO_BASE_URL = "https://api.apollo.io/api/v1";
+const DEFAULT_APOLLO_BASE_URL = 'https://api.apollo.io/api/v1';
 
 export interface ApolloContact {
   id: string;
@@ -117,7 +117,7 @@ export class ApolloClient {
    */
   async getLabels(page = 1, perPage = 100): Promise<ApolloLabelsResponse> {
     const response = await this.request<ApolloLabel[] | ApolloLabelsResponse>(
-      "GET",
+      'GET',
       `/labels?page=${page}&per_page=${perPage}`
     );
 
@@ -149,13 +149,13 @@ export class ApolloClient {
     perPage: number;
   }): Promise<ApolloSearchResponse> {
     return await this.request<ApolloSearchResponse>(
-      "POST",
-      "/contacts/search",
+      'POST',
+      '/contacts/search',
       {
         contact_label_ids: [params.labelId],
         page: params.page,
         per_page: params.perPage,
-        sort_by_field: "contact_created_at",
+        sort_by_field: 'contact_created_at',
       }
     );
   }
@@ -171,7 +171,7 @@ export class ApolloClient {
   ): Promise<void> {
     if (updates.length === 0) return;
 
-    await this.request("POST", "/contacts/bulk_update", {
+    await this.request('POST', '/contacts/bulk_update', {
       contact_attributes: updates,
       async: true,
     });
@@ -183,24 +183,24 @@ export class ApolloClient {
   async searchOutreachEmails(params: {
     emailerCampaignIds?: string[];
     emailerMessageStats?: string[];
-    emailerMessageDateRangeMode?: "due_at" | "completed_at";
+    emailerMessageDateRangeMode?: 'due_at' | 'completed_at';
     emailerMessageDateRangeMin?: string;
     emailerMessageDateRangeMax?: string;
     page: number;
     perPage: number;
   }): Promise<ApolloOutreachEmailSearchResponse> {
     const query = this.buildQuery({
-      "emailer_campaign_ids[]": params.emailerCampaignIds,
-      "emailer_message_stats[]": params.emailerMessageStats,
+      'emailer_campaign_ids[]': params.emailerCampaignIds,
+      'emailer_message_stats[]': params.emailerMessageStats,
       emailer_message_date_range_mode: params.emailerMessageDateRangeMode,
-      "emailer_message_date_range[min]": params.emailerMessageDateRangeMin,
-      "emailer_message_date_range[max]": params.emailerMessageDateRangeMax,
+      'emailer_message_date_range[min]': params.emailerMessageDateRangeMin,
+      'emailer_message_date_range[max]': params.emailerMessageDateRangeMax,
       page: params.page,
       per_page: params.perPage,
     });
 
     return await this.request<ApolloOutreachEmailSearchResponse>(
-      "GET",
+      'GET',
       `/emailer_messages/search${query}`
     );
   }
@@ -211,16 +211,16 @@ export class ApolloClient {
   async updateSequenceContactStatus(params: {
     emailerCampaignIds: string[];
     contactIds: string[];
-    mode: "mark_as_finished" | "remove" | "stop";
+    mode: 'mark_as_finished' | 'remove' | 'stop';
   }): Promise<void> {
     const query = this.buildQuery({
-      "emailer_campaign_ids[]": params.emailerCampaignIds,
-      "contact_ids[]": params.contactIds,
+      'emailer_campaign_ids[]': params.emailerCampaignIds,
+      'contact_ids[]': params.contactIds,
       mode: params.mode,
     });
 
     await this.request(
-      "POST",
+      'POST',
       `/emailer_campaigns/remove_or_stop_contact_ids${query}`
     );
   }
@@ -240,13 +240,13 @@ export class ApolloClient {
     });
 
     return await this.request<ApolloSequenceSearchResponse>(
-      "POST",
+      'POST',
       `/emailer_campaigns/search${query}`
     );
   }
 
   private async request<T>(
-    method: "GET" | "POST",
+    method: 'GET' | 'POST',
     path: string,
     body?: Record<string, unknown>
   ): Promise<T> {
@@ -257,9 +257,9 @@ export class ApolloClient {
       init: {
         method,
         headers: {
-          "Content-Type": "application/json",
-          "Cache-Control": "no-cache",
-          "x-api-key": this.apiKey,
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache',
+          'x-api-key': this.apiKey,
         },
         body: body ? JSON.stringify(body) : undefined,
       },
@@ -291,20 +291,20 @@ export class ApolloClient {
       searchParams.append(key, String(value));
     }
     const query = searchParams.toString();
-    return query.length > 0 ? `?${query}` : "";
+    return query.length > 0 ? `?${query}` : '';
   }
 }
 
 /**
  * Apollo email_status values that are treated as verified.
  */
-export const APOLLO_VERIFIED_STATUSES = new Set(["verified"]);
+export const APOLLO_VERIFIED_STATUSES = new Set(['verified']);
 
 /**
  * Check if a contact's email is verified by Apollo.
  */
 export function isApolloVerified(contact: ApolloContact): boolean {
-  const status = contact.email_status?.toLowerCase() ?? "";
+  const status = contact.email_status?.toLowerCase() ?? '';
   return APOLLO_VERIFIED_STATUSES.has(status);
 }
 
@@ -312,7 +312,7 @@ export function isApolloVerified(contact: ApolloContact): boolean {
  * Extract a contact's email if it is a non-empty string.
  */
 export function getContactEmail(contact: ApolloContact): string | null {
-  return typeof contact.email === "string" && contact.email.length > 0
+  return typeof contact.email === 'string' && contact.email.length > 0
     ? contact.email
     : null;
 }

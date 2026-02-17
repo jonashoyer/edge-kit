@@ -1,9 +1,9 @@
-import { fetchExt } from "../../utils/fetch-utils";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import { fetchExt } from '../../utils/fetch-utils';
+import type { AbstractLogger } from '../logging/abstract-logger';
 import {
   AbstractAlertingService,
   type AlertOptions,
-} from "./abstract-alerting";
+} from './abstract-alerting';
 
 /**
  * PagerDuty implementation of the AbstractAlertingService.
@@ -11,7 +11,7 @@ import {
  */
 export class PagerDutyAlertingService extends AbstractAlertingService {
   private readonly routingKey: string;
-  private readonly apiUrl = "https://events.pagerduty.com/v2/enqueue";
+  private readonly apiUrl = 'https://events.pagerduty.com/v2/enqueue';
   constructor(routingKey: string, logger: AbstractLogger) {
     super(logger);
     this.routingKey = routingKey;
@@ -20,11 +20,11 @@ export class PagerDutyAlertingService extends AbstractAlertingService {
   async alert(message: string, options: AlertOptions): Promise<void> {
     const payload = {
       routing_key: this.routingKey,
-      event_action: "trigger",
+      event_action: 'trigger',
       payload: {
         summary: message,
         severity: options.severity,
-        source: options.source || "Application",
+        source: options.source || 'Application',
         custom_details: options.tags,
       },
     };
@@ -32,8 +32,8 @@ export class PagerDutyAlertingService extends AbstractAlertingService {
     await fetchExt({
       url: this.apiUrl,
       init: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
     });

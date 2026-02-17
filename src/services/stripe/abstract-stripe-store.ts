@@ -1,9 +1,9 @@
-import type { Nullable } from "../../utils/type-utils";
+import type { Nullable } from '../../utils/type-utils';
 import type {
   OrganizationSubscriptionData,
   StripeSubscription,
   SubscriptionOfferData,
-} from "./types";
+} from './types';
 
 /**
  * Abstract class defining the interface for Stripe storage operations

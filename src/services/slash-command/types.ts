@@ -1,11 +1,11 @@
 export type CommandStatus =
-  | "received"
-  | "acknowledged"
-  | "processing"
-  | "completed"
-  | "failed"
-  | "cancelled"
-  | "expired";
+  | 'received'
+  | 'acknowledged'
+  | 'processing'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'expired';
 
 export interface Progress {
   step: number;
@@ -100,7 +100,7 @@ export interface CommandDefinition<
 }
 
 export interface CommandEnvelope<TPayload = unknown> {
-  platform: "slack";
+  platform: 'slack';
   commandName: string;
   payload: TPayload;
   userId: string;

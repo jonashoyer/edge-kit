@@ -1,6 +1,6 @@
-import pino from "pino";
+import pino from 'pino';
 
-import { AbstractLogger, type LogMetadata } from "./abstract-logger";
+import { AbstractLogger, type LogMetadata } from './abstract-logger';
 
 /**
  * Pino implementation of AbstractLogger with Axiom transport.
@@ -12,9 +12,9 @@ export class AxiomPinoLogger extends AbstractLogger {
   constructor(options: { dataset: string; token: string }) {
     super();
     this.logger = pino(
-      { level: "info" },
+      { level: 'info' },
       pino.transport({
-        target: "@axiomhq/pino",
+        target: '@axiomhq/pino',
         options: {
           dataset: options.dataset,
           token: options.token,
@@ -25,7 +25,7 @@ export class AxiomPinoLogger extends AbstractLogger {
 
   log(
     message: string,
-    level: "info" | "warn" | "error",
+    level: 'info' | 'warn' | 'error',
     metadata?: LogMetadata
   ): void {
     this.logger[level](metadata, message);

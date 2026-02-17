@@ -48,11 +48,14 @@ export const zFile = (opts?: ZFileOptions) =>
       (file) => {
         return !opts?.maxSize || sizeInMB(file.size) <= opts.maxSize;
       },
-      `The maximum size is ${opts?.maxSize ?? 'N/A'}MB`,
+      `The maximum size is ${opts?.maxSize ?? 'N/A'}MB`
     )
     .superRefine((file: File, ctx) => {
       if (opts?.acceptedTypes && !opts.acceptedTypes.includes(file.type)) {
-        ctx.addIssue({ code: 'custom', message: `File type is not supported (${file.type})` });
+        ctx.addIssue({
+          code: 'custom',
+          message: `File type is not supported (${file.type})`,
+        });
       }
     });
 

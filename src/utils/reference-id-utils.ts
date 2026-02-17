@@ -4,7 +4,7 @@
 /** biome-ignore-all lint/style/noMagicNumbers: Adv random number generator */
 /** biome-ignore-all lint/style/noParameterAssign: Adv random number generator */
 
-const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 const MAX_INDEX = 6759; // 26*26*10 - 1
 
 // Linear Congruential Generator (LCG) parameters for bijective mapping

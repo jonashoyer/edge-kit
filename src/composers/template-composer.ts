@@ -44,11 +44,14 @@ type TplString = string & {
 };
 
 function applyDedenting(lines: string[], mindent: number) {
-  return lines.map((line) => (line.startsWith(' ') || line.startsWith('\t') ? line.slice(mindent) : line));
+  return lines.map((line) =>
+    line.startsWith(' ') || line.startsWith('\t') ? line.slice(mindent) : line
+  );
 }
 
 function createTpl(options: TplOptions) {
-  tpl.withOptions = (newOptions: TplOptions): Tpl => createTpl({ ...options, ...newOptions });
+  tpl.withOptions = (newOptions: TplOptions): Tpl =>
+    createTpl({ ...options, ...newOptions });
 
   tpl.getHash = (tplStr: string) => {
     const str = tplStr as unknown as TplString;
@@ -56,7 +59,9 @@ function createTpl(options: TplOptions) {
       return str[hashSymbol];
     }
 
-    const hash = (options.hashFn ?? fnv1a64B64)(str[placeholderSymbol].join('_TPL$_'));
+    const hash = (options.hashFn ?? fnv1a64B64)(
+      str[placeholderSymbol].join('_TPL$_')
+    );
     str[hashSymbol] = hash;
     return hash;
   };
@@ -67,7 +72,10 @@ function createTpl(options: TplOptions) {
   function tpl(strings: TemplateStringsArray, ...values: unknown[]): string;
   function tpl(strings: TemplateStringsArray | string, ...values: unknown[]) {
     const raw = typeof strings === 'string' ? [strings] : strings.raw;
-    const { escapeSpecialCharacters = Array.isArray(strings), trimWhitespace = true } = options;
+    const {
+      escapeSpecialCharacters = Array.isArray(strings),
+      trimWhitespace = true,
+    } = options;
 
     // Process raw template parts
     let placholderParts = raw.map((part) => {
@@ -82,22 +90,29 @@ function createTpl(options: TplOptions) {
     });
 
     // Calculate minimum indentation for each part
-    const minDent = getMinDent(placholderParts.flatMap((part) => part.split('\n')));
+    const minDent = getMinDent(
+      placholderParts.flatMap((part) => part.split('\n'))
+    );
 
     // Apply dedenting to each part
     if (minDent !== null) {
-      placholderParts = placholderParts.map((part) => applyDedenting(part.split('\n'), minDent).join('\n'));
+      placholderParts = placholderParts.map((part) =>
+        applyDedenting(part.split('\n'), minDent).join('\n')
+      );
     }
 
     // Apply whitespace trimming to parts
     if (trimWhitespace && placholderParts.length > 0) {
       placholderParts[0] = placholderParts[0].trimStart();
-      placholderParts[placholderParts.length - 1] = placholderParts[placholderParts.length - 1].trimEnd();
+      placholderParts[placholderParts.length - 1] =
+        placholderParts[placholderParts.length - 1].trimEnd();
     }
 
     // Handle escaped newlines in parts
     if (escapeSpecialCharacters) {
-      placholderParts = placholderParts.map((part) => part.replace(/\\n/g, '\n'));
+      placholderParts = placholderParts.map((part) =>
+        part.replace(/\\n/g, '\n')
+      );
     }
 
     // Now apply the values to get the final result

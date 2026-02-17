@@ -5,7 +5,7 @@ export class Semaphore {
 
   constructor(maxConcurrency: number) {
     if (!Number.isInteger(maxConcurrency) || maxConcurrency <= 0) {
-      throw new Error("Semaphore requires a positive integer capacity");
+      throw new Error('Semaphore requires a positive integer capacity');
     }
     this.capacity = maxConcurrency;
     this.available = maxConcurrency;

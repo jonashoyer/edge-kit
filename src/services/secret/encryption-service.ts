@@ -1,5 +1,10 @@
-import { arrayBufferToBase64Url, arrayBufferToString, base64UrlToArrayBuffer, stringToArrayBuffer } from "../../utils/buffer-utils";
-import { generateRandomBuffer } from "../../utils/crypto-utils";
+import {
+  arrayBufferToBase64Url,
+  arrayBufferToString,
+  base64UrlToArrayBuffer,
+  stringToArrayBuffer,
+} from '../../utils/buffer-utils';
+import { generateRandomBuffer } from '../../utils/crypto-utils';
 
 /**
  * Structure of encrypted data
@@ -68,7 +73,10 @@ export class EncryptionService {
   /**
    * Derives an encryption key from the master key and salt using PBKDF2
    */
-  private async deriveKey(salt: BufferSource, pbkdf2Iterations?: number): Promise<CryptoKey> {
+  private async deriveKey(
+    salt: BufferSource,
+    pbkdf2Iterations?: number
+  ): Promise<CryptoKey> {
     const masterCryptoKey = await this.getMasterKeyForPbkdf2();
     return crypto.subtle.deriveKey(
       {
@@ -124,8 +132,14 @@ export class EncryptionService {
     // Return encrypted data with all metadata needed for decryption
     return {
       data,
-      nonce: nonce.buffer.slice(nonce.byteOffset, nonce.byteOffset + nonce.byteLength),
-      salt: salt.buffer.slice(salt.byteOffset, salt.byteOffset + salt.byteLength),
+      nonce: nonce.buffer.slice(
+        nonce.byteOffset,
+        nonce.byteOffset + nonce.byteLength
+      ),
+      salt: salt.buffer.slice(
+        salt.byteOffset,
+        salt.byteOffset + salt.byteLength
+      ),
       algorithm: {
         name: 'AES-GCM',
         pbkdf2Iterations: this.pbkdf2Iterations,
@@ -161,10 +175,11 @@ export class EncryptionService {
       // If decryption fails, it could indicate tampering (authentication tag mismatch)
       // or data corruption, or the wrong key was used
       console.error('Decryption failed:', error);
-      throw new Error('Failed to decrypt data. It may have been tampered with or the encryption key is incorrect.');
+      throw new Error(
+        'Failed to decrypt data. It may have been tampered with or the encryption key is incorrect.'
+      );
     }
   }
-
 
   async encryptStringified(value: string): Promise<string> {
     const encryptedData = await this.encrypt(value);
@@ -172,23 +187,26 @@ export class EncryptionService {
   }
 
   async decryptStringified(value: string): Promise<string> {
-    const regex = /^\#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
+    const regex =
+      /^#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
 
     const match = regex.exec(value);
     if (!match) {
       throw new Error('Invalid encrypted data');
     }
 
-    const [algorithmName, pbkdf2Iterations, data, nonce, salt] = match.slice(1) as [string, string, string, string, string];
+    const [algorithmName, pbkdf2Iterations, data, nonce, salt] = match.slice(
+      1
+    ) as [string, string, string, string, string];
     const encryptedData = await this.decrypt({
       data: base64UrlToArrayBuffer(data),
       nonce: base64UrlToArrayBuffer(nonce),
       salt: base64UrlToArrayBuffer(salt),
       algorithm: {
         name: algorithmName,
-        pbkdf2Iterations: parseInt(pbkdf2Iterations),
+        pbkdf2Iterations: Number.parseInt(pbkdf2Iterations),
       },
     });
     return encryptedData;
   }
-} 
+}

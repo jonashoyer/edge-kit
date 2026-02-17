@@ -1,10 +1,10 @@
-import { Axiom } from "@axiomhq/js";
+import { Axiom } from '@axiomhq/js';
 
-import type { AbstractLogger } from "../logging/abstract-logger";
+import type { AbstractLogger } from '../logging/abstract-logger';
 import {
   AbstractAlertingService,
   type AlertOptions,
-} from "./abstract-alerting";
+} from './abstract-alerting';
 
 /**
  * Axiom implementation of the AbstractAlertingService.

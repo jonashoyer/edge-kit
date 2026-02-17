@@ -1,9 +1,9 @@
-import { fetchExt } from "../../utils/fetch-utils";
-import { AbstractReranker, type RerankItem } from "./abstract-reranker";
+import { fetchExt } from '../../utils/fetch-utils';
+import { AbstractReranker, type RerankItem } from './abstract-reranker';
 
 export interface VoyageRerankerOptions {
   apiKey: string;
-  model: "rerank-2.5" | "rerank-2.5-lite" | (string & {}); // e.g. 'rerank-1', 'rerank-2'
+  model: 'rerank-2.5' | 'rerank-2.5-lite' | (string & {}); // e.g. 'rerank-1', 'rerank-2'
   baseUrl?: string; // default: https://api.voyageai.com/v1
 }
 
@@ -25,9 +25,9 @@ export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
 
   constructor(options: VoyageRerankerOptions) {
     super();
-    this.baseUrl = (options.baseUrl ?? "https://api.voyageai.com/v1").replace(
+    this.baseUrl = (options.baseUrl ?? 'https://api.voyageai.com/v1').replace(
       TRAILING_SLASH_REGEX,
-      ""
+      ''
     );
     this.apiKey = options.apiKey;
     this.model = options.model;
@@ -43,9 +43,9 @@ export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
     const res = await fetchExt({
       url: `${this.baseUrl}/rerank`,
       init: {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
           Authorization: `Bearer ${this.apiKey}`,
         },
         body: JSON.stringify({
@@ -59,7 +59,7 @@ export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
     });
 
     if (!res.ok) {
-      const text = await res.text().catch(() => "");
+      const text = await res.text().catch(() => '');
       throw new Error(
         `Voyage rerank failed: ${res.status} ${res.statusText} ${text}`
       );

@@ -13,7 +13,7 @@ export class NamespaceComposer<
     ...params: T[K] extends TemplateLiteralFn ? Parameters<T[K]> : []
   ): string {
     const definition = this.definitions[key];
-    if (typeof definition === "string") {
+    if (typeof definition === 'string') {
       return definition;
     }
     return this.resolveTemplateLiteral(definition, params);

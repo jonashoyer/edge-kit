@@ -1,9 +1,9 @@
-import Stripe from 'stripe';
+import type Stripe from 'stripe';
 
-import { AbstractLogger } from '../logging/abstract-logger';
-import { AbstractStripeStore } from './abstract-stripe-store';
-import { StripeSyncService } from './sync-service';
-import { StripeSubscription } from './types';
+import type { AbstractLogger } from '../logging/abstract-logger';
+import type { AbstractStripeStore } from './abstract-stripe-store';
+import type { StripeSyncService } from './sync-service';
+import type { StripeSubscription } from './types';
 
 export class StripeSubscriptionService {
   private store: AbstractStripeStore;
@@ -11,7 +11,12 @@ export class StripeSubscriptionService {
   private stripe: Stripe;
   private logger: AbstractLogger | undefined;
 
-  constructor(store: AbstractStripeStore, syncService: StripeSyncService, stripe: Stripe, logger?: AbstractLogger) {
+  constructor(
+    store: AbstractStripeStore,
+    syncService: StripeSyncService,
+    stripe: Stripe,
+    logger?: AbstractLogger
+  ) {
     this.store = store;
     this.syncService = syncService;
     this.stripe = stripe;
@@ -21,7 +26,9 @@ export class StripeSubscriptionService {
   /**
    * Get the current subscription data for a user
    */
-  async getUserSubscription(userId: string): Promise<StripeSubscription | null> {
+  async getUserSubscription(
+    userId: string
+  ): Promise<StripeSubscription | null> {
     try {
       return await this.store.getUserSubscriptionData(userId);
     } catch (error) {
@@ -46,7 +53,10 @@ export class StripeSubscriptionService {
     }
 
     // Consider active statuses
-    const activeStatuses: Array<StripeSubscription['status']> = ['active', 'trialing'];
+    const activeStatuses: Array<StripeSubscription['status']> = [
+      'active',
+      'trialing',
+    ];
 
     return activeStatuses.includes(subscription.status);
   }
@@ -61,14 +71,21 @@ export class StripeSubscriptionService {
         return false;
       }
 
-      const subscriptionData = await this.store.getCustomerSubscriptionData(stripeCustomerId);
-      if (!subscriptionData || subscriptionData.status === 'none' || !('subscriptionId' in subscriptionData)) {
+      const subscriptionData =
+        await this.store.getCustomerSubscriptionData(stripeCustomerId);
+      if (
+        !subscriptionData ||
+        subscriptionData.status === 'none' ||
+        !('subscriptionId' in subscriptionData)
+      ) {
         return false;
       }
 
       // Check for null subscriptionId
       if (!subscriptionData.subscriptionId) {
-        this.logger?.warn('No subscription ID found for cancellation', { userId });
+        this.logger?.warn('No subscription ID found for cancellation', {
+          userId,
+        });
         return false;
       }
 
@@ -101,7 +118,8 @@ export class StripeSubscriptionService {
         return false;
       }
 
-      const subscriptionData = await this.store.getCustomerSubscriptionData(stripeCustomerId);
+      const subscriptionData =
+        await this.store.getCustomerSubscriptionData(stripeCustomerId);
       if (
         !subscriptionData ||
         subscriptionData.status === 'none' ||
@@ -113,7 +131,9 @@ export class StripeSubscriptionService {
 
       // Check for null subscriptionId
       if (!subscriptionData.subscriptionId) {
-        this.logger?.warn('No subscription ID found for resumption', { userId });
+        this.logger?.warn('No subscription ID found for resumption', {
+          userId,
+        });
         return false;
       }
 
@@ -139,7 +159,10 @@ export class StripeSubscriptionService {
   /**
    * Create a customer portal session to manage subscription
    */
-  async createCustomerPortalSession(userId: string, returnUrl: string): Promise<string | null> {
+  async createCustomerPortalSession(
+    userId: string,
+    returnUrl: string
+  ): Promise<string | null> {
     try {
       const stripeCustomerId = await this.store.getStripeCustomerId(userId);
       if (!stripeCustomerId) {
@@ -153,7 +176,10 @@ export class StripeSubscriptionService {
 
       return session.url;
     } catch (error) {
-      this.logger?.error('Failed to create customer portal session', { userId, error });
+      this.logger?.error('Failed to create customer portal session', {
+        userId,
+        error,
+      });
       throw error;
     }
   }

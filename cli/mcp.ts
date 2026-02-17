@@ -1,20 +1,20 @@
 /** biome-ignore-all lint/suspicious/noConsole: console is allowed */
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
-import { z } from "zod";
+} from '@modelcontextprotocol/sdk/types.js';
+import { z } from 'zod';
 import {
   DependencyResolver,
   FeatureRegistry,
   featureBundleToXml,
   featureListToXml,
-} from "./mcp-utils.js";
-import { USAGE_GUIDELINES } from "./resources/usage-guidelines.js";
+} from './mcp-utils.js';
+import { USAGE_GUIDELINES } from './resources/usage-guidelines.js';
 
 // Initialize registry
 const registry = new FeatureRegistry();
@@ -22,9 +22,10 @@ const resolver = new DependencyResolver();
 
 const server = new Server(
   {
-    name: "edge-kit-mcp-server",
-    title: "Edge Kit MCP Server - The standardized and unified component and functionality library",
-    version: "1.0.0",
+    name: 'edge-kit-mcp-server',
+    title:
+      'Edge Kit MCP Server - The standardized and unified component and functionality library',
+    version: '1.0.0',
   },
   {
     capabilities: {
@@ -39,25 +40,28 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
   return {
     tools: [
       {
-        name: "list_features",
-        description: "Discover available features in the Edge Kit library. Returns a list of services (e.g., 'stripe', 's3-storage'), utilities, and composers with their IDs and descriptions. Use this to find the right component before calling `get_feature`.",
+        name: 'list_features',
+        description:
+          "Discover available features in the Edge Kit library. Returns a list of services (e.g., 'stripe', 's3-storage'), utilities, and composers with their IDs and descriptions. Use this to find the right component before calling `get_feature`.",
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {},
         },
       },
       {
-        name: "get_feature",
-        description: "Retrieve the complete source code, local dependencies, and required npm packages for a specific feature by its ID (e.g., 'stripe'). Returns a bundle containing all necessary files to implement the feature in a target codebase.",
+        name: 'get_feature',
+        description:
+          "Retrieve the complete source code, local dependencies, and required npm packages for a specific feature by its ID (e.g., 'stripe'). Returns a bundle containing all necessary files to implement the feature in a target codebase.",
         inputSchema: {
-          type: "object",
+          type: 'object',
           properties: {
-            feature_id: { 
-              type: "string", 
-              description: "The ID of the feature to retrieve (e.g., 'stripe', 'storage/s3-storage')" 
+            feature_id: {
+              type: 'string',
+              description:
+                "The ID of the feature to retrieve (e.g., 'stripe', 'storage/s3-storage')",
             },
           },
-          required: ["feature_id"],
+          required: ['feature_id'],
         },
       },
     ],
@@ -68,19 +72,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   // Ensure registry is initialized
   await registry.init();
 
-  if (request.params.name === "list_features") {
+  if (request.params.name === 'list_features') {
     const features = registry.list();
     return {
       content: [
         {
-          type: "text",
+          type: 'text',
           text: featureListToXml(features),
         },
       ],
     };
   }
 
-  if (request.params.name === "get_feature") {
+  if (request.params.name === 'get_feature') {
     const args = z
       .object({
         feature_id: z.string(),
@@ -89,25 +93,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     const feature = registry.get(args.feature_id);
     if (!feature) {
-      throw new Error(`Feature "${args.feature_id}" not found. Use list_features to see available options.`);
+      throw new Error(
+        `Feature "${args.feature_id}" not found. Use list_features to see available options.`
+      );
     }
 
     const bundle = resolver.resolve(feature.entryPoint);
-    
+
     // Attach the feature metadata to the bundle
     bundle.feature = feature;
 
     return {
       content: [
         {
-          type: "text",
+          type: 'text',
           text: featureBundleToXml(bundle),
         },
       ],
     };
   }
 
-  throw new Error("Tool not found");
+  throw new Error('Tool not found');
 });
 
 // Resources
@@ -115,35 +121,36 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
   return {
     resources: [
       {
-        uri: "edge-kit://guidelines/usage",
-        name: "Usage Guidelines",
-        mimeType: "text/markdown",
-        description: "Instructions on how to integrate Edge Kit features into your codebase",
+        uri: 'edge-kit://guidelines/usage',
+        name: 'Usage Guidelines',
+        mimeType: 'text/markdown',
+        description:
+          'Instructions on how to integrate Edge Kit features into your codebase',
       },
     ],
   };
 });
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  if (request.params.uri === "edge-kit://guidelines/usage") {
+  if (request.params.uri === 'edge-kit://guidelines/usage') {
     return {
       contents: [
         {
-          uri: "edge-kit://guidelines/usage",
-          mimeType: "text/markdown",
+          uri: 'edge-kit://guidelines/usage',
+          mimeType: 'text/markdown',
           text: USAGE_GUIDELINES,
         },
       ],
     };
   }
 
-  throw new Error("Resource not found");
+  throw new Error('Resource not found');
 });
 
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error("Edge Kit MCP Server running on stdio");
+  console.error('Edge Kit MCP Server running on stdio');
 }
 
 main();

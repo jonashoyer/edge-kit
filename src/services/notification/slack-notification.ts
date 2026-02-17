@@ -1,14 +1,14 @@
 /** biome-ignore-all lint/style/noMagicNumbers: SlackNotificationService */
-import { format } from "node:util";
+import { format } from 'node:util';
 
-import { fetchExt } from "../../utils/fetch-utils";
-import type { AbstractLogger } from "../logging/abstract-logger";
+import { fetchExt } from '../../utils/fetch-utils';
+import type { AbstractLogger } from '../logging/abstract-logger';
 import {
   AbstractNotificationService,
   type NotificationPayload,
   type NotificationResponse,
   type TextNotification,
-} from "./abstract-notification";
+} from './abstract-notification';
 
 export type SlackBlock = Record<string, unknown>;
 export type SlackBlockElement = Record<string, unknown>;
@@ -49,11 +49,11 @@ export class SlackNotificationService extends AbstractNotificationService {
     const body = this.buildBody(payload);
 
     const data = await this.slackApi<NotificationResponse>(
-      "chat.postMessage",
+      'chat.postMessage',
       body
     );
 
-    this.logger?.info("Slack message sent", {
+    this.logger?.info('Slack message sent', {
       channel: data.channel,
       ts: data.ts,
     });
@@ -65,11 +65,11 @@ export class SlackNotificationService extends AbstractNotificationService {
     ts: string,
     payload: { blocks?: unknown[]; text?: string }
   ): Promise<void> {
-    await this.slackApi("chat.update", {
+    await this.slackApi('chat.update', {
       channel: channelId,
       ts,
       blocks: payload.blocks,
-      text: payload.text ?? " ",
+      text: payload.text ?? ' ',
     });
   }
 
@@ -78,10 +78,10 @@ export class SlackNotificationService extends AbstractNotificationService {
     userId: string,
     payload: { text?: string; blocks?: unknown[] }
   ): Promise<void> {
-    await this.slackApi("chat.postEphemeral", {
+    await this.slackApi('chat.postEphemeral', {
       channel: channelId,
       user: userId,
-      text: payload.text ?? " ",
+      text: payload.text ?? ' ',
       blocks: payload.blocks,
     });
   }
@@ -97,8 +97,8 @@ export class SlackNotificationService extends AbstractNotificationService {
   // Formatting helpers
   createButton(text: string, url: string): SlackBlockElement {
     return {
-      type: "button",
-      text: { type: "plain_text", text },
+      type: 'button',
+      text: { type: 'plain_text', text },
       url,
     };
   }
@@ -109,8 +109,8 @@ export class SlackNotificationService extends AbstractNotificationService {
     value: string
   ): SlackBlockElement {
     return {
-      type: "button",
-      text: { type: "plain_text", text },
+      type: 'button',
+      text: { type: 'plain_text', text },
       action_id: actionId,
       value,
     };
@@ -118,13 +118,13 @@ export class SlackNotificationService extends AbstractNotificationService {
 
   createSection(text: string): SlackBlock {
     return {
-      type: "section",
-      text: { type: "mrkdwn", text },
+      type: 'section',
+      text: { type: 'mrkdwn', text },
     };
   }
 
   createDivider(): SlackBlock {
-    return { type: "divider" };
+    return { type: 'divider' };
   }
 
   private buildBody(payload: NotificationPayload): Record<string, unknown> {
@@ -138,7 +138,7 @@ export class SlackNotificationService extends AbstractNotificationService {
   private async slackApi<
     T extends Record<string, unknown> = Record<string, unknown>,
   >(
-    method: "chat.postMessage" | "chat.update" | "chat.postEphemeral",
+    method: 'chat.postMessage' | 'chat.update' | 'chat.postEphemeral',
     body: Record<string, unknown>
   ): Promise<T> {
     const res = await fetchExt({
@@ -147,9 +147,9 @@ export class SlackNotificationService extends AbstractNotificationService {
       retries: this.retries,
       retryDelay: this.retryDelay,
       init: {
-        method: "POST",
+        method: 'POST',
         headers: {
-          "Content-type": "application/json; charset=utf-8",
+          'Content-type': 'application/json; charset=utf-8',
           Authorization: `Bearer ${this.botToken}`,
         },
         body: JSON.stringify(body),
@@ -164,7 +164,7 @@ export class SlackNotificationService extends AbstractNotificationService {
 
     const data = (await res.json()) as SlackApiResponse<T>;
     if (!data.ok) {
-      const message = `Slack API error (${method}): ${data.error ?? "unknown"}`;
+      const message = `Slack API error (${method}): ${data.error ?? 'unknown'}`;
       this.logger?.error(message);
       throw new Error(message);
     }
