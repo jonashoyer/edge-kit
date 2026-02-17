@@ -34,6 +34,7 @@
     "@aws-sdk/s3-request-presigner": "^3.670.0",
     "@axiomhq/js": "^1.2.0",
     "@axiomhq/pino": "^1.2.0",
+    "@azure-rest/ai-document-intelligence": "^1.1.0",
     "@huggingface/transformers": "^3.5.1",
     "@mastra/core": "^1.0.4",
     "@mastra/rag": "^2.0.0",
