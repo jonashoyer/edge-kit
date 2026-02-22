@@ -88,13 +88,70 @@ import { AxiomPinoLogger } from '../services/logging/axiom-pino-logger';
 const logger = new AxiomPinoLogger({
   token: process.env.AXIOM_TOKEN!,
   dataset: 'my-application-logs',
-  pinoOptions: {
-    level: 'info',
-  },
 });
 
 // Usage is identical to AxiomLogger
 logger.info('User signed in', { userId: '123' });
+```
+
+### FileLogger
+
+An in-memory buffered file logger that uploads JSONL logs to object storage on
+`close()`.
+
+**Location**: `src/services/logging/file-logger.ts`
+
+**Dependencies**:
+
+- `AbstractStorage` implementation
+
+**Usage**:
+
+```typescript
+import { FileLogger } from '../services/logging/file-logger';
+
+const logger = new FileLogger({
+  key: 'logs/jobs/import-123.jsonl',
+  storage: objectStorage,
+  metadata: { jobType: 'import' },
+});
+
+logger.info('import.started', { documentId: 'doc_1' });
+logger.warn('import.skipped', { reason: 'ALREADY_EXISTS' });
+
+const result = await logger.close();
+// { key, url, expiresAt, entryCount }
+```
+
+### KvFileLogger
+
+A durable KV-mediated logger. Entries are first written to KV and then
+materialized to object storage when closed. This is suitable for distributed
+workflows and retry-heavy jobs.
+
+**Location**: `src/services/logging/kv-file-logger.ts`
+
+**Dependencies**:
+
+- `AbstractStorage` implementation
+- `AbstractKeyValueService` implementation
+
+**Usage**:
+
+```typescript
+import { KvFileLogger } from '../services/logging/kv-file-logger';
+
+const logger = new KvFileLogger({
+  key: `logs/workflows/sync/${event.id}.jsonl`,
+  kv,
+  storage: objectStorage,
+  metadata: { workflow: 'sync-users' },
+});
+
+logger.info('sync.started', { organizationId: 'org_1' });
+
+const result = await logger.close();
+// close() is idempotent and safe across retries/processes
 ```
 
 ## Common Operations

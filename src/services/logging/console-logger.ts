@@ -1,4 +1,8 @@
-import { AbstractLogger, type LogMetadata } from './abstract-logger';
+import {
+  AbstractLogger,
+  type LogLevel,
+  type LogMetadata,
+} from './abstract-logger';
 
 /**
  * Simple console implementation of AbstractLogger.
@@ -6,25 +10,9 @@ import { AbstractLogger, type LogMetadata } from './abstract-logger';
  * Useful for local development.
  */
 export class ConsoleLogger extends AbstractLogger {
-  log(
-    message: string,
-    level: 'info' | 'warn' | 'error',
-    metadata?: LogMetadata
-  ): void {
+  override log(message: string, level: LogLevel, metadata?: LogMetadata): void {
     const logMessage = `[${level.toUpperCase()}] ${message}`;
-    // biome-ignore lint/suspicious/noConsole: This is a console logger
-    console[level](logMessage, metadata);
-  }
-
-  info(message: string, metadata?: LogMetadata): void {
-    this.log(message, 'info', metadata);
-  }
-
-  warn(message: string, metadata?: LogMetadata): void {
-    this.log(message, 'warn', metadata);
-  }
-
-  error(message: string, metadata?: LogMetadata): void {
-    this.log(message, 'error', metadata);
+    const normalizedMetadata = AbstractLogger.serializeLogMetadata(metadata);
+    console[level](logMessage, normalizedMetadata);
   }
 }

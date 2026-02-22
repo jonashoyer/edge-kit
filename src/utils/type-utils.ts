@@ -83,10 +83,9 @@ export type PopUnion<U> =
 
 export type IsUnion<T> = [T] extends [UnionToIntersection<T>] ? false : true;
 
-export type UnionToArray<T, A extends unknown[] = []> =
-  IsUnion<T> extends true
-    ? UnionToArray<Exclude<T, PopUnion<T>>, [PopUnion<T>, ...A]>
-    : [T, ...A];
+export type UnionToArray<T, A extends unknown[] = []> = IsUnion<T> extends true
+  ? UnionToArray<Exclude<T, PopUnion<T>>, [PopUnion<T>, ...A]>
+  : [T, ...A];
 
 export function betterTypeof(data: unknown) {
   if (typeof data === 'number') {

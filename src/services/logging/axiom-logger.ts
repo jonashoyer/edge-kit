@@ -1,12 +1,21 @@
 import { Axiom } from '@axiomhq/js';
 
-import type { AbstractLogger, LogMetadata } from './abstract-logger';
+import {
+  AbstractLogger,
+  type LogLevel,
+  type LogMetadata,
+} from './abstract-logger';
+
+export interface AxiomLoggerOptions {
+  token: string;
+  dataset: string;
+}
 
 /**
  * Axiom implementation of AbstractLogger.
  * Ingests logs directly into an Axiom dataset using the `@axiomhq/js` client.
  */
-export class AxiomLogger implements AbstractLogger {
+export class AxiomLogger extends AbstractLogger {
   private readonly client: Axiom;
   private readonly dataset: string;
 
@@ -14,37 +23,32 @@ export class AxiomLogger implements AbstractLogger {
    * @param token Axiom token
    * @param dataset Axiom dataset (e.g. 'main')
    */
-  constructor(token: string, dataset: string) {
+  constructor(options: AxiomLoggerOptions);
+  constructor(token: string, dataset: string);
+  constructor(tokenOrOptions: AxiomLoggerOptions | string, dataset?: string) {
+    super();
+    const options =
+      typeof tokenOrOptions === 'string'
+        ? { token: tokenOrOptions, dataset: dataset ?? '' }
+        : tokenOrOptions;
+    if (!options.dataset) {
+      throw new Error('AxiomLogger dataset is required');
+    }
     this.client = new Axiom({
-      token,
+      token: options.token,
     });
-    this.dataset = dataset;
+    this.dataset = options.dataset;
   }
 
-  log(
-    message: string,
-    level: 'info' | 'warn' | 'error',
-    metadata?: LogMetadata
-  ) {
+  override log(message: string, level: LogLevel, metadata?: LogMetadata): void {
+    const normalizedMetadata = AbstractLogger.serializeLogMetadata(metadata);
     this.client.ingest(this.dataset, [
       {
         level,
         message,
-        ...metadata,
+        ...(normalizedMetadata ?? {}),
         timestamp: new Date().toISOString(),
       },
     ]);
-  }
-
-  info(message: string, metadata?: LogMetadata) {
-    this.log(message, 'info', metadata);
-  }
-
-  warn(message: string, metadata?: LogMetadata) {
-    this.log(message, 'warn', metadata);
-  }
-
-  error(message: string, metadata?: LogMetadata) {
-    this.log(message, 'error', metadata);
   }
 }

@@ -1,4 +1,5 @@
 import { serializeError } from '../../utils/error-utils';
+import { Stringify } from '../../utils/stringify-utils';
 
 export type LoggablePrimitive = string | number | boolean | null | undefined;
 export type LogMetadata = Record<
@@ -46,7 +47,7 @@ export abstract class AbstractLogger implements StandardLogger {
       return value;
     }
     try {
-      return JSON.stringify(value);
+      return Stringify.stringify(value);
     } catch {
       return String(value);
     }

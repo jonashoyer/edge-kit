@@ -10,6 +10,8 @@ import type {
 } from './fetch-utils';
 import { fetchExt } from './fetch-utils';
 
+// https://httpbin.org/status/{http_status_code}
+
 describe('fetchExt', () => {
   it('stringifies object body and sets content-type if missing', async () => {
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
@@ -333,7 +335,7 @@ test('fetchExt types: overloads and parameter are not any', () => {
   expectTypeOf(fetchExt).parameter(0).not.toBeAny();
 
   type ExpectTextSig = (
-    options: FetchExtExpectTextOptions
+    options: FetchExtExpectTextOptions & { url: string }
   ) => Promise<{ response: Response; data: string }>;
   const expectTextSig: ExpectTextSig = fetchExt;
   expectTypeOf(expectTextSig).returns.toEqualTypeOf<
@@ -341,7 +343,7 @@ test('fetchExt types: overloads and parameter are not any', () => {
   >();
 
   type ExpectBlobSig = (
-    options: FetchExtExpectBlobOptions
+    options: FetchExtExpectBlobOptions & { url: string }
   ) => Promise<{ response: Response; data: Blob }>;
   const expectBlobSig: ExpectBlobSig = fetchExt;
   expectTypeOf(expectBlobSig).returns.toEqualTypeOf<
@@ -350,7 +352,7 @@ test('fetchExt types: overloads and parameter are not any', () => {
 
   type OkShape = { ok: boolean };
   type ExpectJsonSig = (
-    options: FetchExtExpectJsonOptions<OkShape>
+    options: FetchExtExpectJsonOptions<OkShape> & { url: string }
   ) => Promise<FetchExtJsonResult<OkShape>>;
   const expectJsonSig: ExpectJsonSig = fetchExt;
   expectTypeOf(expectJsonSig).returns.toEqualTypeOf<
