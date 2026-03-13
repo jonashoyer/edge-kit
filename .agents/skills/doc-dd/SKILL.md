@@ -7,7 +7,6 @@ description: >
   feature, making an architectural change, or modifying code that crosses
   feature boundaries or introduces cross-cutting concerns. Also use when the
   user explicitly asks to create or update ADRs or FEATURE.md files.
-metadata.internal: true
 ---
 
 ## Folder Structure

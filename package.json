@@ -40,6 +40,7 @@
     "@mastra/rag": "^2.0.0",
     "@modelcontextprotocol/sdk": "^1.17.3",
     "@notionhq/client": "^5.1.0",
+    "@toon-format/toon": "^2.1.0",
     "@tryfabric/martian": "^1.2.4",
     "@types/better-sqlite3": "^7.6.13",
     "@types/react": "^19.0.10",

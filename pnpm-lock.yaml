@@ -44,6 +44,9 @@ importers:
       '@notionhq/client':
         specifier: ^5.1.0
         version: 5.1.0
+      '@toon-format/toon':
+        specifier: ^2.1.0
+        version: 2.1.0
       '@tryfabric/martian':
         specifier: ^1.2.4
         version: 1.2.4
@@ -1806,6 +1809,9 @@ packages:
 
   '@swc/helpers@0.5.15':
     resolution: {integrity: sha512-JQ5TuMi45Owi4/BIMAJBoSQoOJu12oOk/gADqlcUL9JEdHB8vyjUSsxqeNXnmXHjYKMi2WcYtezGEEhqUI/E2g==}
+
+  '@toon-format/toon@2.1.0':
+    resolution: {integrity: sha512-JwWptdF5eOA0HaQxbKAzkpQtR4wSWTEfDlEy/y3/4okmOAX1qwnpLZMmtEWr+ncAhTTY1raCKH0kteHhSXnQqg==}
 
   '@tryfabric/martian@1.2.4':
     resolution: {integrity: sha512-g7SP7beaxrjxLnW//vskra07a1jsJowqp07KMouxh4gCwaF+ItHbRZN8O+1dhJivBi3VdasT71BPyk+8wzEreQ==}
@@ -5669,6 +5675,8 @@ snapshots:
   '@swc/helpers@0.5.15':
     dependencies:
       tslib: 2.8.0
+
+  '@toon-format/toon@2.1.0': {}
 
   '@tryfabric/martian@1.2.4':
     dependencies:

@@ -1,9 +1,19 @@
+import type { EncodeOptions } from '@toon-format/toon';
+import { encode } from '@toon-format/toon';
 import { ml } from '../utils/string-utils';
 
 export type PromptTemplateParams<T extends string> = Record<
   ExtractVariables<T>,
   string
 >;
+
+export type PromptFormat = 'toon' | 'xml' | 'list' | 'keyValue';
+
+export type PromptFormatOptions = {
+  format?: PromptFormat;
+  rootName?: string;
+  toon?: EncodeOptions;
+};
 
 export type PromptComposerComponent = {
   data: unknown;
@@ -32,6 +42,14 @@ function build<T extends string>(
   return replace(template, params);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stringifyValue(value: unknown): string {
+  return String(value);
+}
+
 function composer<
   T extends string,
   U extends Record<string, PromptComposerComponent>,
@@ -54,7 +72,42 @@ function composer<
 }
 
 /**
- * Converts an array to a list string.
+ * Formats structured prompt data for LLM input.
+ * Defaults to TOON for compact, structured encoding.
+ */
+function format(data: unknown, options: PromptFormatOptions = {}): string {
+  const { format = 'toon', rootName = 'root', toon } = options;
+
+  if (format === 'toon') {
+    return encode(data, toon);
+  }
+
+  if (format === 'xml') {
+    return jsonToXml(data, rootName);
+  }
+
+  if (format === 'list') {
+    if (!Array.isArray(data)) {
+      throw new Error(
+        'PromptComposer.format with format "list" requires an array input.'
+      );
+    }
+    return arrayToList(data);
+  }
+
+  if (!isRecord(data)) {
+    throw new Error(
+      'PromptComposer.format with format "keyValue" requires an object input.'
+    );
+  }
+
+  return objectToKeyValue(data);
+}
+
+/**
+ * Legacy convenience helper for simple array rendering.
+ * Prefer `PromptComposer.format(data)` for LLM-oriented payloads.
+ *
  * @param arr - The array to convert.
  * @returns The list string.
  * @example
@@ -66,11 +119,13 @@ function composer<
  * // - cherry
  */
 function arrayToList(arr: unknown[]): string {
-  return arr.map((item) => `- ${item}`).join('\n');
+  return arr.map((item) => `- ${stringifyValue(item)}`).join('\n');
 }
 
 /**
- * Converts an object to a key-value string.
+ * Legacy convenience helper for flat object rendering.
+ * Prefer `PromptComposer.format(data)` for LLM-oriented payloads.
+ *
  * @param obj - The object to convert.
  * @returns The key-value string.
  * @example
@@ -82,7 +137,7 @@ function arrayToList(arr: unknown[]): string {
  */
 function objectToKeyValue(obj: Record<string, unknown>): string {
   return Object.entries(obj)
-    .map(([key, value]) => `${key}: ${value}`)
+    .map(([key, value]) => `${key}: ${stringifyValue(value)}`)
     .join('\n');
 }
 
@@ -143,6 +198,7 @@ function escapeXml(str: string): string {
 export const PromptComposer = {
   build,
   composer,
+  format,
   arrayToList,
   objectToKeyValue,
   jsonToXml,

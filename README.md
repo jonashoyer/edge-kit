@@ -113,7 +113,63 @@ const key = ns.key("session", "123"); // "session:123"
 
 ### [Prompt Composer](./src/composers/prompt-composer.ts)
 
-Build structured LLM prompts with template substitution.
+Build structured LLM prompts with template substitution and TOON-first data formatting.
+
+```typescript
+import { PromptComposer } from "./src/composers/prompt-composer";
+
+const prompt = PromptComposer.composer(
+  `
+  Summarize these users:
+  {{users}}
+  `,
+  {
+    users: {
+      data: [
+        { id: 1, name: "Alice", role: "admin" },
+        { id: 2, name: "Bob", role: "editor" },
+      ],
+      converter: (data) => PromptComposer.format(data),
+    },
+  },
+  {}
+);
+```
+
+Primitive arrays render compactly:
+
+```typescript
+PromptComposer.format(["alpha", "beta", "gamma"]);
+// [3]: alpha,beta,gamma
+```
+
+Uniform object arrays render as TOON tables:
+
+```typescript
+PromptComposer.format([
+  { id: 1, name: "Alice" },
+  { id: 2, name: "Bob" },
+]);
+// [2]{id,name}:
+//   1,Alice
+//   2,Bob
+```
+
+Nested objects stay structured without hand-written serializers:
+
+```typescript
+PromptComposer.format({
+  team: { name: "Edge", active: true },
+  tags: ["prompt", "toon"],
+});
+// team:
+//   name: Edge
+//   active: true
+// tags[2]: prompt,toon
+```
+
+Use `PromptComposer.format(data, { format: "xml" })` when your prompt contract is XML-specific.
+Use `mdSchema()` from `markdown-utils.ts` when you need schema-driven Markdown/XML presentation rather than compact raw data encoding.
 
 ## 🧰 Utilities
 
