@@ -1,14 +1,34 @@
 import {
   DeleteObjectCommand,
+  DeleteObjectsCommand,
   GetObjectCommand,
   HeadObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-import { AbstractStorage, type StorageOptions } from './abstract-storage';
+import {
+  AbstractStorage,
+  storageMetadataToStrings,
+  type StorageBody,
+  type StorageListPageOptions,
+  type StorageOptions,
+  type StorageWriteOptions,
+  type StorageWritePresignedUrlOptions,
+} from './abstract-storage';
+
+const createCompatiblePresignedPost = async (
+  client: S3Client,
+  options: Parameters<typeof createPresignedPost>[1]
+) => {
+  return await createPresignedPost(
+    client as unknown as Parameters<typeof createPresignedPost>[0],
+    options
+  );
+};
 
 interface S3StorageOptions extends StorageOptions {
   bucket: string;
@@ -24,13 +44,17 @@ interface S3StorageOptions extends StorageOptions {
 export class S3Storage extends AbstractStorage {
   private readonly client: S3Client;
   private readonly bucket: string;
+  private readonly endpoint?: string;
 
-  private readonly presignedTtl = 3600;
+  private readonly presignedTtlSeconds = 3600;
+  private readonly presignedTtlMs = this.presignedTtlSeconds * 1000;
 
   constructor(options: S3StorageOptions) {
     super(options);
     this.bucket = options.bucket;
+    this.endpoint = options.endpoint;
     this.client = new S3Client({
+      endpoint: options.endpoint,
       region: options.region,
       credentials: {
         accessKeyId: options.accessKeyId,
@@ -39,12 +63,20 @@ export class S3Storage extends AbstractStorage {
     });
   }
 
-  async write(key: string, data: Buffer): Promise<void> {
+  async write(
+    key: string,
+    data: StorageBody,
+    opts?: StorageWriteOptions
+  ): Promise<void> {
+    const body = data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+
     await this.client.send(
       new PutObjectCommand({
         Bucket: this.bucket,
         Key: key,
-        Body: data,
+        Body: body,
+        ContentType: opts?.contentType,
+        Metadata: storageMetadataToStrings(opts?.metadata),
       })
     );
   }
@@ -68,14 +100,60 @@ export class S3Storage extends AbstractStorage {
     );
   }
 
-  async list(prefix?: string): Promise<string[]> {
+  async exists(key: string): Promise<boolean> {
+    try {
+      await this.client.send(
+        new HeadObjectCommand({
+          Bucket: this.bucket,
+          Key: key,
+        })
+      );
+      return true;
+    } catch (error) {
+      if (this.isNotFoundError(error)) {
+        return false;
+      }
+
+      throw error;
+    }
+  }
+
+  override async deleteMany(keys: string[]): Promise<void> {
+    if (keys.length === 0) {
+      return;
+    }
+
+    await this.client.send(
+      new DeleteObjectsCommand({
+        Bucket: this.bucket,
+        Delete: {
+          Objects: keys.map((key) => ({ Key: key })),
+          Quiet: false,
+        },
+      })
+    );
+  }
+
+  async listPage(
+    prefix?: string,
+    options?: StorageListPageOptions
+  ): Promise<{ keys: string[]; continuationToken?: string }> {
     const response = await this.client.send(
       new ListObjectsV2Command({
         Bucket: this.bucket,
         Prefix: prefix,
+        MaxKeys: options?.maxKeys,
+        ContinuationToken: options?.continuationToken,
       })
     );
-    return response.Contents?.map((object) => object.Key!) ?? [];
+
+    return {
+      keys:
+        response.Contents?.map((object) => object.Key).filter(
+          (key): key is string => typeof key === 'string'
+        ) ?? [],
+      continuationToken: response.NextContinuationToken,
+    };
   }
 
   async createReadPresignedUrl(key: string) {
@@ -84,36 +162,68 @@ export class S3Storage extends AbstractStorage {
       Key: key,
     });
     const url = await getSignedUrl(this.client, command, {
-      expiresIn: Math.round(this.presignedTtl / 1000),
+      expiresIn: this.presignedTtlSeconds,
     });
 
     return {
       url,
-      expiresAt: Date.now() + this.presignedTtl,
+      expiresAt: Date.now() + this.presignedTtlMs,
     };
   }
 
   async createWritePresignedUrl(
     key: string,
-    opts: { contentType: string; bytesLimit: number }
+    opts: StorageWritePresignedUrlOptions
   ) {
-    // FIXME: Add support for bytesLimit
-    const command = new PutObjectCommand({
+    const maxBytes = opts.maxBytes ?? opts.bytesLimit;
+    const minBytes = opts.minBytes ?? 0;
+
+    if (this.isBackblazeEndpoint()) {
+      const command = new PutObjectCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: opts.contentType,
+      });
+
+      const url = await getSignedUrl(this.client, command, {
+        expiresIn: this.presignedTtlSeconds,
+      });
+
+      return {
+        url,
+        method: 'PUT' as const,
+        expiresAt: Date.now() + this.presignedTtlMs,
+      };
+    }
+
+    const conditions = [
+      { 'Content-Type': opts.contentType },
+    ] as NonNullable<Parameters<typeof createPresignedPost>[1]['Conditions']>;
+    if (maxBytes !== undefined) {
+      conditions.push(
+        ['content-length-range', minBytes, maxBytes] as unknown as (typeof conditions)[number]
+      );
+    }
+
+    const { url, fields } = await createCompatiblePresignedPost(this.client, {
       Bucket: this.bucket,
       Key: key,
-      ContentType: opts.contentType,
-    });
-
-    const url = await getSignedUrl(this.client, command, {
-      expiresIn: this.presignedTtl,
+      Conditions: conditions,
+      Fields: {
+        'Content-Type': opts.contentType,
+        key,
+      },
+      Expires: this.presignedTtlSeconds,
     });
 
     return {
       url,
+      fields,
       method: 'POST' as const,
-      expiresAt: Date.now() + this.presignedTtl,
+      expiresAt: Date.now() + this.presignedTtlMs,
     };
   }
+
   async objectMetadata<TMeta = never>(key: string) {
     const headCommand = new HeadObjectCommand({
       Bucket: this.bucket,
@@ -129,5 +239,31 @@ export class S3Storage extends AbstractStorage {
       lastModified: head.LastModified ? head.LastModified.getTime() : undefined,
       meta: (head.Metadata ?? undefined) as TMeta,
     };
+  }
+
+  private isBackblazeEndpoint(): boolean {
+    return (
+      typeof this.endpoint === 'string' &&
+      this.endpoint.includes('backblazeb2')
+    );
+  }
+
+  private isNotFoundError(error: unknown): boolean {
+    if (!(error && typeof error === 'object')) {
+      return false;
+    }
+
+    const record = error as {
+      name?: string;
+      Code?: string;
+      $metadata?: { httpStatusCode?: number };
+    };
+
+    return (
+      record.name === 'NotFound' ||
+      record.name === 'NoSuchKey' ||
+      record.Code === 'NotFound' ||
+      record.$metadata?.httpStatusCode === 404
+    );
   }
 }

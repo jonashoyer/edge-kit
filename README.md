@@ -51,6 +51,7 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 
 - [S3](./src/services/storage/s3-storage.ts)
 - [Cloudflare R2](./src/services/storage/r2-storage.ts)
+- [Contextualizer](./src/services/contextualizer/index.ts)
 
 ### Key-Value Store
 
@@ -89,6 +90,11 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 
 - [AI cache middleware](./src/services/llm/ai-cache-middleware.ts)
 - [Optimistic LLM warm-up](./src/services/llm/optimistic-llm.ts)
+- [AI diagnostics](./src/services/llm/ai-diagnostics.ts)
+
+### Health
+
+- [Health probe helpers](./src/services/health/index.ts)
 
 ### Feature Flags & Waitlist
 

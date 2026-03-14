@@ -2,7 +2,15 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { AbstractStorage, type StorageOptions } from './abstract-storage';
+import {
+  AbstractStorage,
+  storageBodyToUint8Array,
+  type StorageBody,
+  type StorageListPageOptions,
+  type StorageOptions,
+  type StorageWriteOptions,
+  type StorageWritePresignedUrlOptions,
+} from './abstract-storage';
 
 interface LocalStorageOptions extends StorageOptions {
   basePath: string;
@@ -73,10 +81,14 @@ export class LocalStorage extends AbstractStorage {
     return subfolder ? path.join(basePath, subfolder) : basePath;
   }
 
-  async write(key: string, data: Buffer): Promise<void> {
+  async write(
+    key: string,
+    data: StorageBody,
+    _opts?: StorageWriteOptions
+  ): Promise<void> {
     const filePath = this.getFilePath(key);
     await this.ensureDirectoryExists(filePath);
-    await fs.writeFile(filePath, data);
+    await fs.writeFile(filePath, await storageBodyToUint8Array(data));
   }
 
   async read(key: string): Promise<Buffer> {
@@ -89,7 +101,40 @@ export class LocalStorage extends AbstractStorage {
     await fs.unlink(filePath);
   }
 
-  async list(prefix?: string): Promise<string[]> {
+  async exists(key: string): Promise<boolean> {
+    try {
+      await fs.access(this.getFilePath(key));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  override async deleteMany(keys: string[]): Promise<void> {
+    await Promise.all(
+      keys.map(async (key) => {
+        try {
+          await this.delete(key);
+        } catch (error) {
+          if (
+            error &&
+            typeof error === 'object' &&
+            'code' in error &&
+            error.code === 'ENOENT'
+          ) {
+            return;
+          }
+
+          throw error;
+        }
+      })
+    );
+  }
+
+  async listPage(
+    prefix?: string,
+    options?: StorageListPageOptions
+  ): Promise<{ keys: string[]; continuationToken?: string }> {
     const searchPath = prefix
       ? path.join(this.basePath, prefix)
       : this.basePath;
@@ -97,12 +142,24 @@ export class LocalStorage extends AbstractStorage {
     try {
       await fs.access(searchPath);
     } catch {
-      return [];
+      return {
+        keys: [],
+      };
     }
 
-    const result: string[] = [];
-    await this.listFilesRecursively(searchPath, result, this.basePath);
-    return result;
+    const keys: string[] = [];
+    await this.listFilesRecursively(searchPath, keys, this.basePath);
+    const startIndex = options?.continuationToken
+      ? Number.parseInt(options.continuationToken, 10)
+      : 0;
+    const maxKeys = options?.maxKeys ?? keys.length;
+    const pageKeys = keys.slice(startIndex, startIndex + maxKeys);
+    const nextIndex = startIndex + pageKeys.length;
+
+    return {
+      keys: pageKeys,
+      continuationToken: nextIndex < keys.length ? String(nextIndex) : undefined,
+    };
   }
 
   createReadPresignedUrl(key: string) {
@@ -114,16 +171,19 @@ export class LocalStorage extends AbstractStorage {
     });
   }
 
-  createWritePresignedUrl(key: string) {
+  createWritePresignedUrl(
+    key: string,
+    _opts: StorageWritePresignedUrlOptions
+  ) {
     return Promise.resolve({
       url: `file://${this.getFilePath(key)}`,
-      method: 'POST' as const,
+      method: 'PUT' as const,
       expiresAt: Number.POSITIVE_INFINITY,
     });
   }
 
   async objectMetadata<TMeta extends never = never>(key: string) {
-    const meta = await fs.stat(key);
+    const meta = await fs.stat(this.getFilePath(key));
 
     return {
       contentLength: meta.size,

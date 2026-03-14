@@ -26,7 +26,35 @@ export class OcrServiceCollection {
     url: string;
     contentType: string;
   }): Promise<OcrExtractResult> {
-    const provider = this.resolve(source.contentType);
-    return provider.extract(source);
+    const providers = this.providers.filter((provider) =>
+      provider.supportsContentType(source.contentType)
+    );
+
+    if (providers.length === 0) {
+      throw new OcrError(
+        'NO_PROVIDER',
+        `No OCR provider found for content type: ${source.contentType}`
+      );
+    }
+
+    const errors: string[] = [];
+
+    for (const provider of providers) {
+      try {
+        return await provider.extract(source);
+      } catch (error) {
+        if (error instanceof OcrError) {
+          errors.push(`${provider.provider}: ${error.message}`);
+          continue;
+        }
+
+        throw error;
+      }
+    }
+
+    throw new OcrError(
+      'PROVIDER_ERROR',
+      `All OCR providers failed: ${errors.join(' | ')}`
+    );
   }
 }

@@ -1,27 +1,55 @@
 /** biome-ignore-all lint/suspicious/useAwait: better-sqlite3 is sync */
 import type Database from 'better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type { SQLiteTable } from 'drizzle-orm/sqlite-core';
+import type { AnySQLiteColumn, SQLiteTable } from 'drizzle-orm/sqlite-core';
 import { loadSqliteVec } from '../../db/sqlite-vec-loader';
 import { CustomError } from '../../utils/custom-error';
 import {
   AbstractVectorDatabase,
+  type VectorContentProvider,
   type VectorDatabaseOptions,
   type VectorEntry,
   type VectorQueryOptions,
 } from './abstract-vector-database';
 
-type DrizzleDatabase = BetterSQLite3Database<any>;
+type DrizzleDatabase = BetterSQLite3Database<Record<string, never>> &
+  Partial<{
+    $client: Database.Database;
+    driver: {
+      database: Database.Database;
+    };
+  }>;
 
-export interface DrizzleSqliteVectorOptions extends VectorDatabaseOptions {
+type SqliteVectorColumn = Pick<AnySQLiteColumn, 'name'>;
+
+type DrizzleSqliteVectorColumns = {
+  id: SqliteVectorColumn;
+  namespace: SqliteVectorColumn;
+  embedding: SqliteVectorColumn;
+  metadata: SqliteVectorColumn;
+};
+
+type VecQueryRow = {
+  id: string;
+  distance: number;
+};
+
+type BaseQueryRow = {
+  id: string;
+  embedding?: Buffer | null;
+  metadata?: string | null;
+};
+
+type LoadedVectorEntry<TMetadata> = {
+  vector?: number[];
+  metadata?: TMetadata;
+};
+
+export interface DrizzleSqliteVectorOptions
+  extends VectorDatabaseOptions<true> {
   db: DrizzleDatabase;
   table: SQLiteTable;
-  columns: {
-    id: any;
-    namespace: any;
-    embedding: any;
-    metadata: any;
-  };
+  columns: DrizzleSqliteVectorColumns;
   dim: number;
   vecTableName?: string; // defaults to `${tableName}_vec`
   extensionPath?: string;
@@ -31,53 +59,118 @@ export interface DrizzleSqliteVectorOptions extends VectorDatabaseOptions {
  * @deprecated Use `LibSQLVector` from `@mastra/core/vector/libsql` instead
  */
 export class DrizzleSqliteVectorDatabase<
-  TMetadata = Record<string, any>,
-> extends AbstractVectorDatabase<TMetadata, number[]> {
-  private readonly db: DrizzleDatabase;
+  TMetadata = Record<string, unknown>,
+> extends AbstractVectorDatabase<TMetadata, number[], true> {
+  readonly getContent: VectorContentProvider;
   private readonly table: SQLiteTable;
-  private readonly columns: DrizzleSqliteVectorOptions['columns'];
+  private readonly columns: DrizzleSqliteVectorColumns;
   private readonly dim: number;
   private readonly vecTableName: string;
   private readonly sqlite: Database.Database;
 
   constructor(options: DrizzleSqliteVectorOptions) {
     super(options);
-    this.db = options.db;
+    this.getContent = options.getContent;
     this.table = options.table;
     this.columns = options.columns;
     this.dim = options.dim;
     this.vecTableName = options.vecTableName ?? `${this.table._.name}_vec`;
-
-    // Extract better-sqlite3 instance
     this.sqlite = this.extractSqliteInstance(options.db);
 
     try {
       loadSqliteVec(this.sqlite, { extensionPath: options.extensionPath });
     } catch (error) {
       throw new CustomError(
-        `Failed to initialize sqlite-vec: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to initialize sqlite-vec: ${DrizzleSqliteVectorDatabase.getErrorMessage(error)}`,
         'SQLITE_VEC_INIT_ERROR'
       );
     }
   }
 
+  private static getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Unknown error';
+  }
+
   /**
-   * Extracts the underlying better-sqlite3 instance from Drizzle database.
+   * Extracts the underlying better-sqlite3 instance from a Drizzle database.
    */
   private extractSqliteInstance(db: DrizzleDatabase): Database.Database {
-    // Check if it's a BetterSQLite3Database
-    if (
-      'driver' in db &&
-      db.driver &&
-      typeof db.driver === 'object' &&
-      'database' in db.driver
-    ) {
-      return db.driver.database as Database.Database;
+    if ('$client' in db && db.$client) {
+      return db.$client;
     }
+
+    if ('driver' in db && db.driver?.database) {
+      return db.driver.database;
+    }
+
     throw new CustomError(
       'DrizzleSqliteVectorDatabase requires better-sqlite3 driver',
       'UNSUPPORTED_DRIVER'
     );
+  }
+
+  private static serializeVector(vector: number[]): Buffer {
+    return Buffer.from(new Float32Array(vector).buffer);
+  }
+
+  private static deserializeVector(
+    buffer: Buffer | null | undefined
+  ): number[] | undefined {
+    if (!buffer) {
+      return undefined;
+    }
+
+    return Array.from(
+      new Float32Array(
+        buffer.buffer,
+        buffer.byteOffset,
+        buffer.byteLength / Float32Array.BYTES_PER_ELEMENT
+      )
+    );
+  }
+
+  private static getOriginalId(namespace: string, id: string): string {
+    const prefix = `${namespace}:`;
+    if (!id.startsWith(prefix)) {
+      return id;
+    }
+
+    return id.slice(prefix.length);
+  }
+
+  private static getVecId(namespace: string, id: string): string {
+    return `${namespace}:${id}`;
+  }
+
+  private buildVectorEntry<
+    TIncludeVectors extends boolean,
+    TIncludeMetadata extends boolean,
+  >(
+    id: string,
+    includeVectors: TIncludeVectors,
+    includeMetadata: TIncludeMetadata,
+    data?: LoadedVectorEntry<TMetadata>
+  ): VectorEntry<number[], TMetadata, TIncludeVectors, TIncludeMetadata> {
+    const entry: {
+      id: string;
+      vector?: number[];
+      metadata?: TMetadata;
+    } = { id };
+
+    if (includeVectors) {
+      entry.vector = data?.vector;
+    }
+
+    if (includeMetadata) {
+      entry.metadata = data?.metadata;
+    }
+
+    return entry as VectorEntry<
+      number[],
+      TMetadata,
+      TIncludeVectors,
+      TIncludeMetadata
+    >;
   }
 
   /**
@@ -98,7 +191,7 @@ export class DrizzleSqliteVectorDatabase<
       this.sqlite.exec(vecTableSql);
     } catch (error) {
       throw new CustomError(
-        `Failed to create vector indexes: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to create vector indexes: ${DrizzleSqliteVectorDatabase.getErrorMessage(error)}`,
         'INDEX_CREATION_ERROR'
       );
     }
@@ -108,9 +201,10 @@ export class DrizzleSqliteVectorDatabase<
     namespace: string,
     entries: VectorEntry<number[], TMetadata, true, true>[]
   ): Promise<void> {
-    if (entries.length === 0) return Promise.resolve();
+    if (entries.length === 0) {
+      return Promise.resolve();
+    }
 
-    // Validate dimensions
     for (const entry of entries) {
       if (entry.vector.length !== this.dim) {
         throw new CustomError(
@@ -121,7 +215,6 @@ export class DrizzleSqliteVectorDatabase<
     }
 
     const transaction = this.sqlite.transaction(() => {
-      // Prepare statements for base table and vec table
       const idCol = this.columns.id.name;
       const nsCol = this.columns.namespace.name;
       const embCol = this.columns.embedding.name;
@@ -136,25 +229,19 @@ export class DrizzleSqliteVectorDatabase<
           ${metaCol} = excluded.${metaCol}
       `);
 
-      const vecDelete = this.sqlite.prepare(`
-        DELETE FROM ${this.vecTableName} WHERE id = ?
-      `);
-
       const vecInsert = this.sqlite.prepare(`
-        INSERT INTO ${this.vecTableName} (id, namespace, embedding)
+        INSERT OR REPLACE INTO ${this.vecTableName} (id, namespace, embedding)
         VALUES (?, ?, ?)
       `);
 
-      // Execute inserts
       for (const entry of entries) {
-        const embeddingBuffer = Buffer.from(
-          new Float32Array(entry.vector).buffer
+        const embeddingBuffer = DrizzleSqliteVectorDatabase.serializeVector(
+          entry.vector
         );
         const metadataJson = JSON.stringify(entry.metadata ?? null);
+        const vecId = DrizzleSqliteVectorDatabase.getVecId(namespace, entry.id);
 
         baseInsert.run(entry.id, namespace, embeddingBuffer, metadataJson);
-        const vecId = `${namespace}:${entry.id}`;
-        vecDelete.run(vecId);
         vecInsert.run(
           vecId,
           namespace,
@@ -167,7 +254,7 @@ export class DrizzleSqliteVectorDatabase<
       transaction();
     } catch (error) {
       throw new CustomError(
-        `Failed to upsert vectors: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to upsert vectors: ${DrizzleSqliteVectorDatabase.getErrorMessage(error)}`,
         'UPSERT_ERROR'
       );
     }
@@ -193,9 +280,8 @@ export class DrizzleSqliteVectorDatabase<
     const includeMetadata = opts?.includeMetadata ?? false;
 
     try {
-      // Query the vec0 virtual table for nearest neighbors
       const vecQuery = this.sqlite.prepare(`
-        SELECT id, namespace, distance
+        SELECT id, distance
         FROM ${this.vecTableName}
         WHERE namespace = ?
           AND embedding MATCH ?
@@ -207,36 +293,34 @@ export class DrizzleSqliteVectorDatabase<
         namespace,
         JSON.stringify(vector),
         topK
-      ) as Array<{
-        id: string;
-        namespace: string;
-        distance: number;
-      }>;
+      ) as VecQueryRow[];
 
       if (vecResults.length === 0) {
         return Promise.resolve([]);
       }
 
-      // If no additional data needed, return vec results
       if (!(includeVectors || includeMetadata)) {
-        return vecResults.map((result) => {
-          const entry: any = { id: result.id };
-          if (includeVectors) entry.vector = undefined;
-          if (includeMetadata) entry.metadata = undefined;
-          return entry;
-        }) as VectorEntry<number[], TMetadata, TIncludeVectors>[];
+        return vecResults.map((result) =>
+          this.buildVectorEntry(
+            DrizzleSqliteVectorDatabase.getOriginalId(namespace, result.id),
+            includeVectors,
+            includeMetadata
+          )
+        ) as VectorEntry<number[], TMetadata, TIncludeVectors>[];
       }
 
-      // Fetch additional data from base table
-      const ids = vecResults.map((r) => r.id);
-      const originalIds = ids.map((id) =>
-        id.includes(':') ? id.split(':').slice(1).join(':') : id
+      const originalIds = vecResults.map((result) =>
+        DrizzleSqliteVectorDatabase.getOriginalId(namespace, result.id)
       );
       const placeholders = originalIds.map(() => '?').join(',');
 
       const selectFields = ['id'];
-      if (includeVectors) selectFields.push('embedding');
-      if (includeMetadata) selectFields.push('metadata');
+      if (includeVectors) {
+        selectFields.push('embedding');
+      }
+      if (includeMetadata) {
+        selectFields.push('metadata');
+      }
 
       const baseQuery = this.sqlite.prepare(`
         SELECT ${selectFields.join(', ')}
@@ -244,27 +328,18 @@ export class DrizzleSqliteVectorDatabase<
         WHERE id IN (${placeholders}) AND namespace = ?
       `);
 
-      const baseResults = baseQuery.all(...originalIds, namespace) as Array<{
-        id: string;
-        embedding?: Buffer;
-        metadata?: string;
-      }>;
+      const baseResults = baseQuery.all(
+        ...originalIds,
+        namespace
+      ) as BaseQueryRow[];
 
-      // Create lookup map
-      const baseMap = new Map(
+      const baseMap = new Map<string, LoadedVectorEntry<TMetadata>>(
         baseResults.map((row) => [
           row.id,
           {
-            vector:
-              includeVectors && row.embedding
-                ? Array.from(
-                    new Float32Array(
-                      row.embedding.buffer,
-                      row.embedding.byteOffset,
-                      row.embedding.byteLength / 4
-                    )
-                  )
-                : undefined,
+            vector: includeVectors
+              ? DrizzleSqliteVectorDatabase.deserializeVector(row.embedding)
+              : undefined,
             metadata:
               includeMetadata && row.metadata
                 ? (JSON.parse(row.metadata) as TMetadata)
@@ -273,21 +348,22 @@ export class DrizzleSqliteVectorDatabase<
         ])
       );
 
-      // Combine results maintaining vec0 order
       return vecResults.map((vecResult) => {
-        // Extract original ID from namespace-prefixed ID
-        const originalId = vecResult.id.includes(':')
-          ? vecResult.id.split(':').slice(1).join(':')
-          : vecResult.id;
-        const baseData = baseMap.get(originalId);
-        const entry: any = { id: originalId };
-        if (includeVectors) entry.vector = baseData?.vector;
-        if (includeMetadata) entry.metadata = baseData?.metadata;
-        return entry;
+        const originalId = DrizzleSqliteVectorDatabase.getOriginalId(
+          namespace,
+          vecResult.id
+        );
+
+        return this.buildVectorEntry(
+          originalId,
+          includeVectors,
+          includeMetadata,
+          baseMap.get(originalId)
+        );
       }) as VectorEntry<number[], TMetadata, TIncludeVectors>[];
     } catch (error) {
       throw new CustomError(
-        `Failed to query vectors: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to query vectors: ${DrizzleSqliteVectorDatabase.getErrorMessage(error)}`,
         'QUERY_ERROR'
       );
     }
@@ -305,18 +381,23 @@ export class DrizzleSqliteVectorDatabase<
       TIncludeMetadata
     > | null)[]
   > {
-    if (ids.length === 0) return Promise.resolve([]);
+    if (ids.length === 0) {
+      return Promise.resolve([]);
+    }
 
     const includeVectors = opts?.includeVectors ?? false;
     const includeMetadata = opts?.includeMetadata ?? false;
 
     try {
       const placeholders = ids.map(() => '?').join(',');
-
-      // Use raw SQL to avoid type conflicts
       const selectFields = ['id'];
-      if (includeVectors) selectFields.push('embedding');
-      if (includeMetadata) selectFields.push('metadata');
+
+      if (includeVectors) {
+        selectFields.push('embedding');
+      }
+      if (includeMetadata) {
+        selectFields.push('metadata');
+      }
 
       const results = this.sqlite
         .prepare(`
@@ -324,65 +405,51 @@ export class DrizzleSqliteVectorDatabase<
         FROM ${this.table._.name}
         WHERE id IN (${placeholders}) AND namespace = ?
       `)
-        .all(...ids, namespace) as Array<{
-        id: string;
-        embedding?: Buffer;
-        metadata?: string;
-      }>;
+        .all(...ids, namespace) as BaseQueryRow[];
 
-      // Create lookup map
-      const resultMap = new Map(
+      const resultMap = new Map<
+        string,
+        VectorEntry<number[], TMetadata, TIncludeVectors, TIncludeMetadata>
+      >(
         results.map((row) => [
           row.id,
-          {
-            id: row.id,
-            vector:
-              includeVectors && row.embedding
-                ? Array.from(
-                    new Float32Array(
-                      row.embedding.buffer,
-                      row.embedding.byteOffset,
-                      row.embedding.byteLength / 4
-                    )
-                  )
-                : undefined,
+          this.buildVectorEntry(row.id, includeVectors, includeMetadata, {
+            vector: includeVectors
+              ? DrizzleSqliteVectorDatabase.deserializeVector(row.embedding)
+              : undefined,
             metadata:
               includeMetadata && row.metadata
                 ? (JSON.parse(row.metadata) as TMetadata)
                 : undefined,
-          },
+          }),
         ])
       );
 
-      // Return results in requested order, null for missing ids
-      return ids.map((id) => resultMap.get(id) ?? null) as (VectorEntry<
-        number[],
-        TMetadata,
-        TIncludeVectors,
-        TIncludeMetadata
-      > | null)[];
+      return ids.map((id) => resultMap.get(id) ?? null);
     } catch (error) {
       throw new CustomError(
-        `Failed to list vectors: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to list vectors: ${DrizzleSqliteVectorDatabase.getErrorMessage(error)}`,
         'LIST_ERROR'
       );
     }
   }
 
   async delete(namespace: string, ids: string[]): Promise<void> {
-    if (ids.length === 0) return Promise.resolve();
+    if (ids.length === 0) {
+      return Promise.resolve();
+    }
 
     try {
       const transaction = this.sqlite.transaction(() => {
-        // Delete from base table
         const baseDelete = this.sqlite.prepare(`
           DELETE FROM ${this.table._.name}
           WHERE id IN (${ids.map(() => '?').join(',')}) AND namespace = ?
         `);
         baseDelete.run(...ids, namespace);
 
-        // Delete from vec table using namespace-prefixed IDs
-        const vecIds = ids.map((id) => `${namespace}:${id}`);
+        const vecIds = ids.map((id) =>
+          DrizzleSqliteVectorDatabase.getVecId(namespace, id)
+        );
         const vecDelete = this.sqlite.prepare(`
           DELETE FROM ${this.vecTableName}
           WHERE id IN (${vecIds.map(() => '?').join(',')})
@@ -393,7 +460,7 @@ export class DrizzleSqliteVectorDatabase<
       transaction();
     } catch (error) {
       throw new CustomError(
-        `Failed to delete vectors: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        `Failed to delete vectors: ${DrizzleSqliteVectorDatabase.getErrorMessage(error)}`,
         'DELETE_ERROR'
       );
     }

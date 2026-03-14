@@ -1,5 +1,44 @@
 # LLM Services
 
+## AI diagnostics
+
+Edge Kit includes generic AI diagnostics utilities under
+`src/services/llm/ai-diagnostics.ts`. They normalize `ai` SDK parse and
+validation failures into a stable structure you can log, return to an admin
+UI, or wrap in your own workflow errors.
+
+Public surface:
+
+```ts
+type AiDiagnosticIssue = {
+  path: string;
+  message: string;
+  expected?: string;
+  received?: string;
+};
+
+type AiDiagnostics = {
+  stage: string;
+  errorType: string;
+  summary: string;
+  finishReason?: string;
+  issues: AiDiagnosticIssue[];
+  rawTextSnippet?: string;
+  rawObjectPreview?: string;
+};
+
+class AiDiagnosticError extends Error {
+  readonly diagnostics: AiDiagnostics;
+}
+
+buildAiDiagnosticsFromError(...)
+getAiDiagnostics(...)
+isAiDiagnosticError(...)
+```
+
+Use this when a workflow needs structured diagnostics instead of opaque AI
+provider exceptions.
+
 ## Notion MCP (HTTP client) integration
 
 Edge Kit includes a small service for connecting to an MCP server over Streamable HTTP and exposing its tools to AI SDK calls.

@@ -1,30 +1,76 @@
 # Storage Services
 
-Edge Kit provides abstract and concrete implementations for cloud storage services, allowing you to store and retrieve files in various cloud storage providers.
+Edge Kit provides abstract and concrete implementations for object storage
+services, allowing you to store and retrieve files across S3-compatible
+providers and the local filesystem.
 
 ## Overview
 
 The storage services allow you to:
 
-- Upload files to cloud storage
-- Download files from cloud storage
-- Delete files from cloud storage
-- List files in cloud storage
-- Generate pre-signed URLs for temporary access
+- Write files to object storage
+- Read files from object storage
+- Check whether an object exists
+- Delete one or many objects
+- List objects or list paginated object pages
+- Generate read and write pre-signed URLs
+- Read object metadata
 
 ## Abstract Storage Service
 
 The `AbstractStorage` class defines the interface that all storage implementations must follow:
 
 ```typescript
-export abstract class AbstractStorage {
-  constructor(protected options: StorageOptions) {}
+type StorageBody = string | Uint8Array | ArrayBuffer | Blob;
 
-  abstract upload(key: string, data: Buffer): Promise<void>;
-  abstract download(key: string): Promise<Buffer>;
+type StorageWriteOptions = {
+  contentType?: string;
+  metadata?: Record<string, unknown>;
+};
+
+type StorageWritePresignedUrlOptions = {
+  contentType: string;
+  maxBytes?: number;
+  minBytes?: number;
+  bytesLimit?: number; // compatibility alias
+};
+
+abstract class AbstractStorage {
+  abstract write(
+    key: string,
+    data: StorageBody,
+    opts?: StorageWriteOptions
+  ): Promise<void>;
+  abstract read(key: string): Promise<Buffer>;
   abstract delete(key: string): Promise<void>;
+  abstract exists(key: string): Promise<boolean>;
+  abstract deleteMany(keys: string[]): Promise<void>;
   abstract list(prefix?: string): Promise<string[]>;
-  abstract getPresignedUrl(key: string, expiresIn: number): Promise<string>;
+  abstract listPage(
+    prefix?: string,
+    options?: { maxKeys?: number; continuationToken?: string }
+  ): Promise<{ keys: string[]; continuationToken?: string }>;
+  abstract createReadPresignedUrl(
+    key: string
+  ): Promise<{ url: string; expiresAt: number }>;
+  abstract createWritePresignedUrl(
+    key: string,
+    opts: StorageWritePresignedUrlOptions
+  ): Promise<{
+    url: string;
+    fields?: Record<string, string>;
+    method: 'POST' | 'PUT';
+    expiresAt: number;
+  }>;
+  abstract objectMetadata<TMeta = never>(
+    key: string
+  ): Promise<{
+    contentLength: number;
+    contentType?: string;
+    etag?: string;
+    lastModified?: number;
+    meta: TMeta;
+  }>;
 }
 ```
 
@@ -55,20 +101,23 @@ const storage = new S3Storage({
   region: 'us-east-1',
 });
 
-// Upload a file
-await storage.upload('path/to/file.txt', Buffer.from('Hello World'));
+// Write a file
+await storage.write('path/to/file.txt', Buffer.from('Hello World'));
 
-// Download a file
-const data = await storage.download('path/to/file.txt');
+// Read a file
+const data = await storage.read('path/to/file.txt');
 
 // Delete a file
 await storage.delete('path/to/file.txt');
 
+// Check whether a file exists
+const exists = await storage.exists('path/to/file.txt');
+
 // List files with a prefix
 const files = await storage.list('path/to/');
 
-// Generate a pre-signed URL (valid for 1 hour)
-const url = await storage.getPresignedUrl('path/to/file.txt', 3600);
+// Generate a read pre-signed URL
+const { url } = await storage.createReadPresignedUrl('path/to/file.txt');
 ```
 
 ### R2Storage
@@ -100,34 +149,36 @@ await storage.upload('path/to/file.txt', Buffer.from('Hello World'));
 
 ## Common Operations
 
-### Uploading Files
+### Writing Files
 
-Upload a file to the storage service:
+Write a file to the storage service:
 
 ```typescript
-// Upload a text file
-await storage.upload('path/to/file.txt', Buffer.from('Hello World'));
+// Write a text file
+await storage.write('path/to/file.txt', Buffer.from('Hello World'));
 
-// Upload a JSON file
+// Write a JSON file
 const data = { name: 'Example', value: 42 };
-await storage.upload('path/to/file.json', Buffer.from(JSON.stringify(data)));
+await storage.write('path/to/file.json', Buffer.from(JSON.stringify(data)), {
+  contentType: 'application/json',
+});
 
-// Upload a binary file
+// Write a binary file
 const binaryData = await fs.readFile('local-file.pdf');
-await storage.upload('path/to/file.pdf', binaryData);
+await storage.write('path/to/file.pdf', binaryData);
 ```
 
-### Downloading Files
+### Reading Files
 
-Download a file from the storage service:
+Read a file from the storage service:
 
 ```typescript
-// Download a file
-const buffer = await storage.download('path/to/file.txt');
+// Read a file
+const buffer = await storage.read('path/to/file.txt');
 const content = buffer.toString('utf-8');
 
-// Download and parse JSON
-const jsonBuffer = await storage.download('path/to/file.json');
+// Read and parse JSON
+const jsonBuffer = await storage.read('path/to/file.json');
 const jsonData = JSON.parse(jsonBuffer.toString('utf-8'));
 ```
 
@@ -139,9 +190,9 @@ Storage services use key prefixes to simulate folders:
 // List all files in a "folder"
 const files = await storage.list('users/123/');
 
-// Delete all files in a "folder" (one by one)
+// Delete all files in a "folder"
 const filesToDelete = await storage.list('users/123/');
-await Promise.all(filesToDelete.map((file) => storage.delete(file)));
+await storage.deleteMany(filesToDelete);
 ```
 
 ### Pre-signed URLs
@@ -149,14 +200,17 @@ await Promise.all(filesToDelete.map((file) => storage.delete(file)));
 Generate temporary URLs for direct access:
 
 ```typescript
-// Generate a URL valid for 1 hour
-const url = await storage.getPresignedUrl('path/to/file.jpg', 3600);
+// Generate a read URL
+const { url } = await storage.createReadPresignedUrl('path/to/file.jpg');
 
 // Use in HTML
 const html = `<img src="${url}" alt="My Image">`;
 
-// Share temporary download link
-const downloadLink = await storage.getPresignedUrl('documents/report.pdf', 86400); // 24 hours
+// Generate a direct-upload URL
+const upload = await storage.createWritePresignedUrl('documents/report.pdf', {
+  contentType: 'application/pdf',
+  maxBytes: 10 * 1024 * 1024,
+});
 ```
 
 ## Best Practices
@@ -191,11 +245,16 @@ const userProfileKey = `users/${userId}/profile.json`;
 const userDocumentKey = `users/${userId}/documents/${documentId}.pdf`;
 ```
 
-4. **Content Type Handling**: Consider storing content type metadata for files:
+4. **Metadata Handling**: Prefer object metadata when your provider supports it:
 
 ```typescript
-// Store content type in a separate metadata file or in your application database
-await storage.upload(`${key}.meta`, Buffer.from(JSON.stringify({ contentType: 'application/pdf' })));
+await storage.write(key, buffer, {
+  contentType: 'application/pdf',
+  metadata: {
+    source: 'reports',
+    reportId,
+  },
+});
 ```
 
 ## Custom Implementations
@@ -215,24 +274,35 @@ export class MyStorage extends AbstractStorage {
     // Initialize your storage client
   }
 
-  async upload(key: string, data: Buffer): Promise<void> {
-    // Implement upload logic
+  async write(key: string, data: StorageBody): Promise<void> {
+    // Implement write logic
   }
 
-  async download(key: string): Promise<Buffer> {
-    // Implement download logic
+  async read(key: string): Promise<Buffer> {
+    // Implement read logic
   }
 
   async delete(key: string): Promise<void> {
     // Implement delete logic
   }
 
-  async list(prefix?: string): Promise<string[]> {
-    // Implement list logic
+  async exists(key: string): Promise<boolean> {
+    // Implement exists logic
   }
 
-  async getPresignedUrl(key: string, expiresIn: number): Promise<string> {
-    // Implement pre-signed URL generation
+  async listPage(prefix?: string): Promise<{ keys: string[] }> {
+    // Implement paginated list logic
+  }
+
+  async createReadPresignedUrl(key: string) {
+    // Implement read pre-signed URL generation
+  }
+
+  async createWritePresignedUrl(
+    key: string,
+    opts: StorageWritePresignedUrlOptions
+  ) {
+    // Implement write pre-signed URL generation
   }
 }
 ```

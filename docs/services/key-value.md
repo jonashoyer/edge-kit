@@ -37,7 +37,11 @@ export abstract class AbstractKeyValueService {
   abstract mdelete(keys: string[]): Promise<void>;
 
   // Helper methods
-  async withCache<T>(key: string, callback: () => Promise<T>): Promise<T>;
+  async withCache<T>(
+    key: string,
+    callback: () => Promise<T>,
+    options?: { ttlSeconds?: number; bypassCache?: boolean }
+  ): Promise<T>;
 }
 ```
 
@@ -197,6 +201,19 @@ const data = await kv.withCache('expensive-operation', async () => {
   // This function will only be called if the key doesn't exist
   console.log('Cache miss, performing expensive operation');
   return await expensiveOperation();
+}, {
+  ttlSeconds: 300,
+});
+```
+
+You can bypass the cache for a specific request while keeping the same call
+shape:
+
+```typescript
+const freshData = await kv.withCache('expensive-operation', async () => {
+  return await expensiveOperation();
+}, {
+  bypassCache: true,
 });
 ```
 

@@ -6,6 +6,28 @@ import {
 } from '../../utils/buffer-utils';
 import { generateRandomBuffer } from '../../utils/crypto-utils';
 
+const ENCRYPTED_STRING_REGEX =
+  /^#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
+
+export class InvalidEncryptedDataError extends Error {
+  constructor(message = 'Invalid encrypted data') {
+    super(message);
+    this.name = 'InvalidEncryptedDataError';
+  }
+}
+
+export class DecryptionFailedError extends Error {
+  readonly cause?: unknown;
+
+  constructor(cause?: unknown) {
+    super(
+      'Failed to decrypt data. It may have been tampered with or the encryption key is incorrect.'
+    );
+    this.name = 'DecryptionFailedError';
+    this.cause = cause;
+  }
+}
+
 /**
  * Structure of encrypted data
  */
@@ -33,9 +55,9 @@ export interface EncryptedData {
  */
 export class EncryptionService {
   private masterKeyMaterial: BufferSource;
-  private pbkdf2Iterations: number;
-  private nonceLength: number;
-  private saltLength: number;
+  private readonly pbkdf2Iterations: number;
+  private readonly nonceLength: number;
+  private readonly saltLength: number;
 
   /**
    * Creates a new BasicEncryptionService
@@ -174,10 +196,7 @@ export class EncryptionService {
     } catch (error) {
       // If decryption fails, it could indicate tampering (authentication tag mismatch)
       // or data corruption, or the wrong key was used
-      console.error('Decryption failed:', error);
-      throw new Error(
-        'Failed to decrypt data. It may have been tampered with or the encryption key is incorrect.'
-      );
+      throw new DecryptionFailedError(error);
     }
   }
 
@@ -187,12 +206,9 @@ export class EncryptionService {
   }
 
   async decryptStringified(value: string): Promise<string> {
-    const regex =
-      /^#(AES-\w{3}):(\d+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+):([a-zA-Z0-9_-]+)$/;
-
-    const match = regex.exec(value);
+    const match = ENCRYPTED_STRING_REGEX.exec(value);
     if (!match) {
-      throw new Error('Invalid encrypted data');
+      throw new InvalidEncryptedDataError();
     }
 
     const [algorithmName, pbkdf2Iterations, data, nonce, salt] = match.slice(
@@ -204,7 +220,7 @@ export class EncryptionService {
       salt: base64UrlToArrayBuffer(salt),
       algorithm: {
         name: algorithmName,
-        pbkdf2Iterations: Number.parseInt(pbkdf2Iterations),
+        pbkdf2Iterations: Number.parseInt(pbkdf2Iterations, 10),
       },
     });
     return encryptedData;

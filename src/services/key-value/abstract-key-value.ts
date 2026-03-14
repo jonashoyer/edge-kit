@@ -28,16 +28,30 @@ export abstract class AbstractKeyValueService {
   ): Promise<void>;
   abstract mdelete(keys: string[]): Promise<void>;
 
-  async withCache<T>(key: string, callback: () => Promise<T>): Promise<T> {
-    const cached = await this.get(key);
-    if (cached !== null) {
-      return cached as T;
+  async withCache<T>(
+    key: string,
+    callback: () => Promise<T>,
+    options?: { ttlSeconds?: number; bypassCache?: boolean }
+  ): Promise<T> {
+    if (!options?.bypassCache) {
+      const cached = await this.get(key);
+      if (cached !== null) {
+        return cached as T;
+      }
     }
 
     const value = await callback();
-    if (value) {
-      await this.set(key, value);
+    if (value !== undefined) {
+      await this.set(key, value, options?.ttlSeconds);
     }
     return value;
+  }
+
+  static async noopWithCache<T>(
+    _key: string,
+    callback: () => Promise<T>,
+    _options?: { ttlSeconds?: number; bypassCache?: boolean }
+  ): Promise<T> {
+    return await callback();
   }
 }
