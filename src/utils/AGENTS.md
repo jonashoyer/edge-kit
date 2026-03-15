@@ -11,6 +11,7 @@ Cross-cutting utilities reused by services.
 | Types                        | `type-utils.ts`                            |
 | Crypto / signatures          | `crypto-utils.ts`, `signature-utils.ts`    |
 | IDs                          | `id-generator.ts`, `reference-id-utils.ts` |
+| Filesystem paths             | `path-utils.ts`                            |
 | Markdown/XML schema building | `markdown-utils.ts`                        |
 
 ## Conventions

@@ -2,14 +2,15 @@ import { promises as fs } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
+import { getNormalizedRelativePath } from '../../utils/path-utils';
 import {
   AbstractStorage,
-  storageBodyToUint8Array,
   type StorageBody,
   type StorageListPageOptions,
   type StorageOptions,
   type StorageWriteOptions,
   type StorageWritePresignedUrlOptions,
+  storageBodyToUint8Array,
 } from './abstract-storage';
 
 interface LocalStorageOptions extends StorageOptions {
@@ -158,7 +159,8 @@ export class LocalStorage extends AbstractStorage {
 
     return {
       keys: pageKeys,
-      continuationToken: nextIndex < keys.length ? String(nextIndex) : undefined,
+      continuationToken:
+        nextIndex < keys.length ? String(nextIndex) : undefined,
     };
   }
 
@@ -171,10 +173,7 @@ export class LocalStorage extends AbstractStorage {
     });
   }
 
-  createWritePresignedUrl(
-    key: string,
-    _opts: StorageWritePresignedUrlOptions
-  ) {
+  createWritePresignedUrl(key: string, _opts: StorageWritePresignedUrlOptions) {
     return Promise.resolve({
       url: `file://${this.getFilePath(key)}`,
       method: 'PUT' as const,
@@ -220,10 +219,7 @@ export class LocalStorage extends AbstractStorage {
       if (entry.isDirectory()) {
         await this.listFilesRecursively(fullPath, result, basePath);
       } else {
-        // Convert absolute path to relative path from basePath
-        const relativePath = path.relative(basePath, fullPath);
-        // Normalize path separators to forward slashes like S3
-        result.push(relativePath.replace(/\\/g, '/'));
+        result.push(getNormalizedRelativePath(basePath, fullPath));
       }
     }
   }

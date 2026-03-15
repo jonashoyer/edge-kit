@@ -96,10 +96,68 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 
 - [Health probe helpers](./src/services/health/index.ts)
 
+### Developer Tooling
+
+- [Dev Launcher](./src/cli/dev-launcher/index.ts): Manifest-driven local
+  dev launcher for repo and monorepo scripts with a plain runner and Ink TUI.
+
 ### Feature Flags & Waitlist
 
 - [Client-side Feature Flag](./src/services/feature-flag/feature-flag.ts)
 - [Key-Value Waitlist](./src/services/waitlist/key-value-waitlist.ts)
+
+## 🖥️ Dev Launcher
+
+Edge Kit now includes a generic manifest-driven dev launcher that can supervise
+local scripts across a single-package repo or PNPM monorepo.
+
+Run the example repo command:
+
+```bash
+pnpm cli dev
+pnpm cli dev --preset default
+pnpm cli dev --services mcp,tests
+pnpm cli dev --no-tui
+```
+
+Minimal `dev-cli.config.json`:
+
+```json
+{
+  "version": 1,
+  "packageManager": "pnpm",
+  "services": [
+    {
+      "id": "app",
+      "label": "App",
+      "target": {
+        "kind": "root-script",
+        "script": "dev"
+      }
+    },
+    {
+      "id": "api",
+      "label": "API",
+      "target": {
+        "kind": "workspace-script",
+        "packageName": "@repo/api",
+        "script": "dev"
+      }
+    }
+  ],
+  "presets": [
+    {
+      "id": "default",
+      "label": "Default",
+      "serviceIds": ["app", "api"]
+    }
+  ]
+}
+```
+
+The TUI keeps the dashboard split for overview, but Enter on a selected
+service opens a focused log mode that renders only that service log so scroll
+and terminal text selection stay isolated.
 
 ## 🎼 Composers
 

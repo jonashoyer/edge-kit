@@ -5,6 +5,7 @@ Core TypeScript toolkit modules.
 ## Structure
 
 - `services/`: copy-paste services (most code lives here)
+- `cli/`: reusable CLI infrastructure and launcher modules
 - `utils/`: cross-cutting utilities used by services
 - `composers/`: composition helpers (prompt/template/namespace)
 - `db/`, `database/`: database helpers/types
@@ -14,6 +15,7 @@ Core TypeScript toolkit modules.
 | Task                           | Location                                                   |
 | ------------------------------ | ---------------------------------------------------------- |
 | Add a new service              | `services/<name>/` (prefer abstract base + provider impls) |
+| Add reusable CLI infrastructure | `cli/`                                                     |
 | Shared helper / type           | `utils/` (check here before creating new utility)          |
 | Compose prompts/keys/templates | `composers/`                                               |
 | SQLite/Drizzle helpers         | `db/`, `database/`                                         |

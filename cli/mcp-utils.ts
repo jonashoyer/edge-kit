@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import { jsonToXml } from '../src/utils/markdown-utils.js';
+import { getNormalizedRelativePath } from '../src/utils/path-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -229,7 +230,7 @@ export class DependencyResolver {
     }
 
     const content = fs.readFileSync(filePath, 'utf-8');
-    const relPath = path.relative(PROJECT_ROOT, filePath);
+    const relPath = getNormalizedRelativePath(PROJECT_ROOT, filePath);
     this.files.push({ path: relPath, content });
 
     const sourceFile = ts.createSourceFile(

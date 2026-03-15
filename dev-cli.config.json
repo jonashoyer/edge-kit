@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "packageManager": "pnpm",
+  "ui": {
+    "logBufferLines": 240
+  },
+  "services": [
+    {
+      "id": "tests",
+      "label": "Tests",
+      "description": "Run Vitest in watch mode",
+      "target": {
+        "kind": "root-script",
+        "script": "test"
+      }
+    }
+  ],
+  "presets": [
+    {
+      "id": "default",
+      "label": "Default",
+      "description": "Vitest watch mode",
+      "serviceIds": ["tests"]
+    }
+  ]
+}
