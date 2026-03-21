@@ -1,24 +1,20 @@
 # Storage Services
 
-Edge Kit provides abstract and concrete implementations for object storage
-services, allowing you to store and retrieve files across S3-compatible
-providers and the local filesystem.
+Edge Kit provides object-storage abstractions plus concrete providers for
+S3-compatible backends and the local filesystem.
 
 ## Overview
 
-The storage services allow you to:
+The storage family is split into:
 
-- Write files to object storage
-- Read files from object storage
-- Check whether an object exists
-- Delete one or many objects
-- List objects or list paginated object pages
-- Generate read and write pre-signed URLs
-- Read object metadata
+- object-level operations on `AbstractStorage`
+- optional browse support on `storage.explorer`
+- directory-style convenience helpers in `StorageInventoryService`
+
+This keeps the base provider contract small while still allowing providers
+that support listing to expose browsing.
 
 ## Abstract Storage Service
-
-The `AbstractStorage` class defines the interface that all storage implementations must follow:
 
 ```typescript
 type StorageBody = string | Uint8Array | ArrayBuffer | Blob;
@@ -35,7 +31,22 @@ type StorageWritePresignedUrlOptions = {
   bytesLimit?: number; // compatibility alias
 };
 
+type StorageExplorerListPageOptions = {
+  maxKeys?: number;
+  continuationToken?: string;
+};
+
+type StorageExplorerCapability = {
+  listPage(
+    prefix?: string,
+    options?: StorageExplorerListPageOptions
+  ): Promise<{ keys: string[]; continuationToken?: string }>;
+  list(prefix?: string): Promise<string[]>;
+};
+
 abstract class AbstractStorage {
+  readonly explorer?: StorageExplorerCapability;
+
   abstract write(
     key: string,
     data: StorageBody,
@@ -44,12 +55,7 @@ abstract class AbstractStorage {
   abstract read(key: string): Promise<Buffer>;
   abstract delete(key: string): Promise<void>;
   abstract exists(key: string): Promise<boolean>;
-  abstract deleteMany(keys: string[]): Promise<void>;
-  abstract list(prefix?: string): Promise<string[]>;
-  abstract listPage(
-    prefix?: string,
-    options?: { maxKeys?: number; continuationToken?: string }
-  ): Promise<{ keys: string[]; continuationToken?: string }>;
+  async deleteMany(keys: string[]): Promise<void>;
   abstract createReadPresignedUrl(
     key: string
   ): Promise<{ url: string; expiresAt: number }>;
@@ -74,26 +80,11 @@ abstract class AbstractStorage {
 }
 ```
 
-## Available Implementations
+## Explorer Capability
 
-Edge Kit provides the following storage implementations:
-
-### S3Storage
-
-A storage implementation for AWS S3.
-
-**Location**: `src/services/storage/s3-storage.ts`
-
-**Dependencies**:
-
-- `@aws-sdk/client-s3`
-- `@aws-sdk/s3-request-presigner`
-
-**Usage**:
+Providers that support flat key listing expose `storage.explorer`.
 
 ```typescript
-import { S3Storage } from '../services/storage/s3-storage';
-
 const storage = new S3Storage({
   bucket: 'my-bucket',
   accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -101,208 +92,163 @@ const storage = new S3Storage({
   region: 'us-east-1',
 });
 
-// Write a file
-await storage.write('path/to/file.txt', Buffer.from('Hello World'));
+const page = await storage.explorer?.listPage('users/123/', {
+  maxKeys: 50,
+});
 
-// Read a file
-const data = await storage.read('path/to/file.txt');
-
-// Delete a file
-await storage.delete('path/to/file.txt');
-
-// Check whether a file exists
-const exists = await storage.exists('path/to/file.txt');
-
-// List files with a prefix
-const files = await storage.list('path/to/');
-
-// Generate a read pre-signed URL
-const { url } = await storage.createReadPresignedUrl('path/to/file.txt');
+const keys = await storage.explorer?.list('users/123/');
 ```
+
+Explorer support returns flat keys only. It does not model folders or mixed
+directory/file entry types.
+
+## Browse Helper
+
+Use `StorageInventoryService` when you want a directory-like projection over
+flat keys.
+
+```typescript
+import { StorageInventoryService } from '../services/storage/storage-inventory';
+
+const inventory = new StorageInventoryService({ storage });
+
+const listing = await inventory.listDirectory('users/123/');
+
+// {
+//   prefix: 'users/123/',
+//   directories: ['docs'],
+//   objects: [{ key: 'users/123/avatar.png', name: 'avatar.png' }]
+// }
+```
+
+This directory view is derived from flat keys. It is a convenience projection,
+not a filesystem guarantee.
+
+## Available Implementations
+
+### S3Storage
+
+AWS S3-compatible storage provider with object operations plus optional
+explorer support.
+
+**Location**: `src/services/storage/s3-storage.ts`
 
 ### R2Storage
 
-A storage implementation for Cloudflare R2.
+Cloudflare R2 provider built on top of the S3-compatible implementation.
 
 **Location**: `src/services/storage/r2-storage.ts`
 
-**Dependencies**:
+### LocalStorage
 
-- `@aws-sdk/client-s3` (R2 is S3-compatible)
-- `@aws-sdk/s3-request-presigner`
+Local filesystem-backed storage provider for development and testing.
 
-**Usage**:
-
-```typescript
-import { R2Storage } from '../services/storage/r2-storage';
-
-const storage = new R2Storage({
-  bucket: 'my-bucket',
-  accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  accountId: process.env.CLOUDFLARE_ACCOUNT_ID!,
-});
-
-// Usage is identical to S3Storage
-await storage.upload('path/to/file.txt', Buffer.from('Hello World'));
-```
+**Location**: `src/services/storage/local-storage.ts`
 
 ## Common Operations
 
-### Writing Files
-
-Write a file to the storage service:
+### Writing files
 
 ```typescript
-// Write a text file
-await storage.write('path/to/file.txt', Buffer.from('Hello World'));
-
-// Write a JSON file
-const data = { name: 'Example', value: 42 };
-await storage.write('path/to/file.json', Buffer.from(JSON.stringify(data)), {
+await storage.write('reports/summary.json', JSON.stringify({ ok: true }), {
   contentType: 'application/json',
+  metadata: {
+    source: 'reports',
+  },
 });
-
-// Write a binary file
-const binaryData = await fs.readFile('local-file.pdf');
-await storage.write('path/to/file.pdf', binaryData);
 ```
 
-### Reading Files
-
-Read a file from the storage service:
+### Reading files
 
 ```typescript
-// Read a file
-const buffer = await storage.read('path/to/file.txt');
-const content = buffer.toString('utf-8');
-
-// Read and parse JSON
-const jsonBuffer = await storage.read('path/to/file.json');
-const jsonData = JSON.parse(jsonBuffer.toString('utf-8'));
+const buffer = await storage.read('reports/summary.json');
+const content = JSON.parse(buffer.toString('utf8'));
 ```
 
-### Working with Folders
-
-Storage services use key prefixes to simulate folders:
+### Browsing keys
 
 ```typescript
-// List all files in a "folder"
-const files = await storage.list('users/123/');
-
-// Delete all files in a "folder"
-const filesToDelete = await storage.list('users/123/');
-await storage.deleteMany(filesToDelete);
+const keys = await storage.explorer?.list('users/123/');
 ```
 
-### Pre-signed URLs
-
-Generate temporary URLs for direct access:
+### Browsing directory projections
 
 ```typescript
-// Generate a read URL
-const { url } = await storage.createReadPresignedUrl('path/to/file.jpg');
+const inventory = new StorageInventoryService({ storage });
+const listing = await inventory.listDirectory('users/123/');
+```
 
-// Use in HTML
-const html = `<img src="${url}" alt="My Image">`;
+### Presigned URLs
 
-// Generate a direct-upload URL
+```typescript
+const readUrl = await storage.createReadPresignedUrl('images/logo.png');
+
 const upload = await storage.createWritePresignedUrl('documents/report.pdf', {
   contentType: 'application/pdf',
   maxBytes: 10 * 1024 * 1024,
 });
 ```
 
-## Best Practices
-
-1. **Error Handling**: Always handle potential errors from storage operations:
-
-```typescript
-try {
-  await storage.upload('path/to/file.txt', buffer);
-} catch (error) {
-  console.error('Failed to upload file:', error);
-  // Handle error appropriately
-}
-```
-
-2. **Using Environment Variables**: Store sensitive credentials in environment variables:
-
-```typescript
-const storage = new S3Storage({
-  bucket: process.env.S3_BUCKET!,
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  region: process.env.AWS_REGION!,
-});
-```
-
-3. **File Organization**: Use a consistent key structure for better organization:
-
-```typescript
-// Example key structure
-const userProfileKey = `users/${userId}/profile.json`;
-const userDocumentKey = `users/${userId}/documents/${documentId}.pdf`;
-```
-
-4. **Metadata Handling**: Prefer object metadata when your provider supports it:
-
-```typescript
-await storage.write(key, buffer, {
-  contentType: 'application/pdf',
-  metadata: {
-    source: 'reports',
-    reportId,
-  },
-});
-```
-
 ## Custom Implementations
 
-You can create your own storage implementation by extending the `AbstractStorage` class:
+You can create a custom provider by extending `AbstractStorage`. Add
+`explorer` only if your provider supports flat key listing.
 
 ```typescript
-import { AbstractStorage, StorageOptions } from '../services/storage/abstract-storage';
+import type {
+  StorageBody,
+  StorageExplorerCapability,
+  StorageOptions,
+  StorageWritePresignedUrlOptions,
+} from '../services/storage/abstract-storage';
+import { AbstractStorage } from '../services/storage/abstract-storage';
 
 interface MyStorageOptions extends StorageOptions {
   customOption: string;
 }
 
 export class MyStorage extends AbstractStorage {
+  override readonly explorer?: StorageExplorerCapability;
+
   constructor(options: MyStorageOptions) {
     super(options);
-    // Initialize your storage client
   }
 
-  async write(key: string, data: StorageBody): Promise<void> {
-    // Implement write logic
-  }
+  async write(key: string, data: StorageBody): Promise<void> {}
 
   async read(key: string): Promise<Buffer> {
-    // Implement read logic
+    return Buffer.alloc(0);
   }
 
-  async delete(key: string): Promise<void> {
-    // Implement delete logic
-  }
+  async delete(key: string): Promise<void> {}
 
   async exists(key: string): Promise<boolean> {
-    // Implement exists logic
-  }
-
-  async listPage(prefix?: string): Promise<{ keys: string[] }> {
-    // Implement paginated list logic
+    return false;
   }
 
   async createReadPresignedUrl(key: string) {
-    // Implement read pre-signed URL generation
+    return {
+      url: `https://example.test/${key}`,
+      expiresAt: Date.now() + 60_000,
+    };
   }
 
   async createWritePresignedUrl(
     key: string,
     opts: StorageWritePresignedUrlOptions
   ) {
-    // Implement write pre-signed URL generation
+    return {
+      url: `https://example.test/${key}`,
+      method: 'PUT' as const,
+      expiresAt: Date.now() + 60_000,
+    };
+  }
+
+  async objectMetadata() {
+    return {
+      contentLength: 0,
+      meta: undefined as never,
+    };
   }
 }
 ```

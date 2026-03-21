@@ -10,14 +10,22 @@ export interface StorageWriteOptions {
   metadata?: Record<string, unknown>;
 }
 
-export interface StorageListPageOptions {
+export interface StorageExplorerListPageOptions {
   maxKeys?: number;
   continuationToken?: string;
 }
 
-export interface StorageListPageResult {
+export interface StorageExplorerListPageResult {
   keys: string[];
   continuationToken?: string;
+}
+
+export interface StorageExplorerCapability {
+  listPage(
+    prefix?: string,
+    options?: StorageExplorerListPageOptions
+  ): Promise<StorageExplorerListPageResult>;
+  list(prefix?: string): Promise<string[]>;
 }
 
 export interface StorageWritePresignedUrlOptions {
@@ -76,11 +84,14 @@ export const storageBodyToUint8Array = async (
 
 /**
  * Abstract base class for object storage services.
- * Defines standard methods for reading, writing, deleting, and listing objects.
- * Also supports generating presigned URLs for direct client access.
+ * Defines standard methods for reading, writing, deleting, and inspecting
+ * individual objects. Optional browse behavior hangs off `storage.explorer`
+ * when the provider supports flat key listing.
  */
 export abstract class AbstractStorage {
   protected options: StorageOptions;
+  readonly explorer?: StorageExplorerCapability;
+
   constructor(options: StorageOptions) {
     this.options = options;
   }
@@ -98,24 +109,6 @@ export abstract class AbstractStorage {
       await this.delete(key);
     }
   }
-
-  async list(prefix?: string): Promise<string[]> {
-    const keys: string[] = [];
-    let continuationToken: string | undefined;
-
-    do {
-      const page = await this.listPage(prefix, { continuationToken });
-      keys.push(...page.keys);
-      continuationToken = page.continuationToken;
-    } while (continuationToken);
-
-    return keys;
-  }
-
-  abstract listPage(
-    prefix?: string,
-    options?: StorageListPageOptions
-  ): Promise<StorageListPageResult>;
 
   abstract createReadPresignedUrl(
     key: string

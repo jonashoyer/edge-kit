@@ -6,7 +6,8 @@ import { getNormalizedRelativePath } from '../../utils/path-utils';
 import {
   AbstractStorage,
   type StorageBody,
-  type StorageListPageOptions,
+  type StorageExplorerCapability,
+  type StorageExplorerListPageOptions,
   type StorageOptions,
   type StorageWriteOptions,
   type StorageWritePresignedUrlOptions,
@@ -24,10 +25,34 @@ interface LocalStorageOptions extends StorageOptions {
  */
 export class LocalStorage extends AbstractStorage {
   private readonly basePath: string;
+  override readonly explorer: StorageExplorerCapability;
 
   constructor(options: LocalStorageOptions) {
     super(options);
     this.basePath = options.basePath;
+    this.explorer = {
+      list: async (prefix?: string) => {
+        return await this.listAllKeys(prefix);
+      },
+      listPage: async (
+        prefix?: string,
+        options?: StorageExplorerListPageOptions
+      ) => {
+        const keys = await this.listAllKeys(prefix);
+        const startIndex = options?.continuationToken
+          ? Number.parseInt(options.continuationToken, 10)
+          : 0;
+        const maxKeys = options?.maxKeys ?? keys.length;
+        const pageKeys = keys.slice(startIndex, startIndex + maxKeys);
+        const nextIndex = startIndex + pageKeys.length;
+
+        return {
+          keys: pageKeys,
+          continuationToken:
+            nextIndex < keys.length ? String(nextIndex) : undefined,
+        };
+      },
+    };
   }
 
   /**
@@ -132,36 +157,22 @@ export class LocalStorage extends AbstractStorage {
     );
   }
 
-  async listPage(
-    prefix?: string,
-    options?: StorageListPageOptions
-  ): Promise<{ keys: string[]; continuationToken?: string }> {
-    const searchPath = prefix
-      ? path.join(this.basePath, prefix)
-      : this.basePath;
-
+  private async listAllKeys(prefix?: string): Promise<string[]> {
     try {
-      await fs.access(searchPath);
+      await fs.access(this.basePath);
     } catch {
-      return {
-        keys: [],
-      };
+      return [];
     }
 
     const keys: string[] = [];
-    await this.listFilesRecursively(searchPath, keys, this.basePath);
-    const startIndex = options?.continuationToken
-      ? Number.parseInt(options.continuationToken, 10)
-      : 0;
-    const maxKeys = options?.maxKeys ?? keys.length;
-    const pageKeys = keys.slice(startIndex, startIndex + maxKeys);
-    const nextIndex = startIndex + pageKeys.length;
+    await this.listFilesRecursively(this.basePath, keys, this.basePath);
+    keys.sort((left, right) => left.localeCompare(right));
 
-    return {
-      keys: pageKeys,
-      continuationToken:
-        nextIndex < keys.length ? String(nextIndex) : undefined,
-    };
+    if (!prefix) {
+      return keys;
+    }
+
+    return keys.filter((key) => key.startsWith(prefix));
   }
 
   createReadPresignedUrl(key: string) {

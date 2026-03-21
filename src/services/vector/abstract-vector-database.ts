@@ -3,14 +3,25 @@ export type VectorContentProvider = (
   ids: string[]
 ) => Promise<(string | null)[]>;
 
-export type VectorDatabaseOptions<TContentCabability extends boolean = false> =
-  {
-    getContent: TContentCabability extends true ? VectorContentProvider : never;
-  };
+export type VectorDatabaseOptions<TContentCapability extends boolean = false> =
+  TContentCapability extends true
+    ? {
+        getContent: VectorContentProvider;
+      }
+    : {
+        getContent?: undefined;
+      };
+
+export type VectorDatabaseWithContent<
+  TMetadata = Record<string, unknown>,
+  TVector = number[],
+> = AbstractVectorDatabase<TMetadata, TVector, true> & {
+  getContent: VectorContentProvider;
+};
 
 export interface VectorEntry<
   TVector = number[],
-  TMetadata = Record<string, any>,
+  TMetadata = Record<string, unknown>,
   TIncludeVectors extends boolean = false,
   TIncludeMetadata extends boolean = false,
 > {
@@ -33,13 +44,20 @@ export interface VectorQueryOptions<
  * Supports namespace isolation, metadata storage, and top-k similarity search.
  */
 export abstract class AbstractVectorDatabase<
-  TMetadata = Record<string, any>,
+  TMetadata = Record<string, unknown>,
   TVector = number[],
-  TContentCabability extends boolean = false,
+  TContentCapability extends boolean = false,
 > {
-  protected options: VectorDatabaseOptions<TContentCabability>;
-  constructor(options: VectorDatabaseOptions<TContentCabability>) {
+  protected options: VectorDatabaseOptions<TContentCapability>;
+  readonly getContent: TContentCapability extends true
+    ? VectorContentProvider
+    : undefined;
+
+  constructor(options: VectorDatabaseOptions<TContentCapability>) {
     this.options = options;
+    this.getContent = options.getContent as TContentCapability extends true
+      ? VectorContentProvider
+      : undefined;
   }
 
   abstract upsert(

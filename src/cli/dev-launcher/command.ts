@@ -1,5 +1,9 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI command output is intentional. */
 import { Command } from 'commander';
+import type { DevActionSuggestion } from './action-runner';
+import { getDevPreflightActionSuggestions } from './action-runner';
+import type { LoadedDevActionsConfig } from './actions-config';
+import { loadDevActionsConfig } from './actions-config';
 import {
   getPresetServiceIds,
   loadDevLauncherManifest,
@@ -10,6 +14,7 @@ import { startDevLauncherTuiSession } from './tui';
 import type { LoadedDevLauncherManifest } from './types';
 
 export interface DevLauncherCommandOptions {
+  actionsConfig?: string;
   config?: string;
   noTui?: boolean;
   preset?: string;
@@ -22,6 +27,15 @@ export interface DevLauncherCommandRuntime {
     configPath?: string;
     cwd?: string;
   }) => LoadedDevLauncherManifest;
+  loadActionsConfig: (options?: {
+    actionsConfigPath?: string;
+    cwd?: string;
+    optional?: boolean;
+  }) => Promise<LoadedDevActionsConfig | null>;
+  getPreflightSuggestions: (
+    manifest: LoadedDevLauncherManifest,
+    actionsConfig: LoadedDevActionsConfig
+  ) => Promise<DevActionSuggestion[]>;
   runPlainDevSession: (
     manifest: LoadedDevLauncherManifest,
     initialServiceIds?: string[]
@@ -37,6 +51,12 @@ export interface DevLauncherCommandRuntime {
 const defaultRuntime: DevLauncherCommandRuntime = {
   isInteractiveTuiSupported: () => {
     return Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  },
+  getPreflightSuggestions: async (manifest, actionsConfig) => {
+    return await getDevPreflightActionSuggestions(manifest, actionsConfig);
+  },
+  loadActionsConfig: async (options) => {
+    return await loadDevActionsConfig(options);
   },
   loadManifest: (options) => loadDevLauncherManifest(options),
   runPlainDevSession: async (manifest, initialServiceIds) => {
@@ -99,6 +119,20 @@ export const runDevLauncherCommand = async (
   });
   const initialServiceIds = resolveInitialServiceIds(manifest, options);
   const useTui = !options.noTui && runtime.isInteractiveTuiSupported();
+  const actionsConfig = await runtime.loadActionsConfig({
+    actionsConfigPath: options.actionsConfig,
+    optional: true,
+  });
+
+  if (actionsConfig) {
+    const suggestions = await runtime.getPreflightSuggestions(
+      manifest,
+      actionsConfig
+    );
+    for (const suggestion of suggestions) {
+      runtime.stdout.write(`${suggestion.message}\n`);
+    }
+  }
 
   if (useTui) {
     return await runtime.startDevLauncherTuiSession(
@@ -127,6 +161,10 @@ export const createDevLauncherCommand = (
       'Launch and supervise local development services from dev-cli.config.json'
     )
     .option('--config <path>', 'Path to a dev-cli.config.json file')
+    .option(
+      '--actions-config <path>',
+      'Path to a dev-cli.actions.ts/.mts/.js/.mjs file'
+    )
     .option('--preset <id>', 'Launch a named preset from the manifest')
     .option('--services <ids>', 'Launch a comma-separated list of service ids')
     .option('--no-tui', 'Use the plain runner instead of the Ink TUI')

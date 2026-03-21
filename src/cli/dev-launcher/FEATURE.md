@@ -1,8 +1,8 @@
 # Feature: Dev Launcher
 
 **Status:** `Active`
-**Last Reviewed:** 2026-03-14
-**Related ADRs:** [ADR-0003]
+**Last Reviewed:** 2026-03-18
+**Related ADRs:** [ADR-0003], [ADR-0006], [ADR-0007]
 **PRD:** N/A
 
 ---
@@ -14,7 +14,10 @@ development launcher for single-package repos and PNPM monorepos. It loads an
 explicit `dev-cli.config.json`, resolves root and workspace script targets,
 supervises one child process per selected service, and exposes both a plain
 runner and an Ink TUI with a focused single-service log mode for clean
-copy/select behavior.
+copy/select behavior plus an optional per-service browser-open shortcut. It
+also provides a separate TypeScript-defined actions subsystem for one-shot
+developer tasks through `dev-cli.actions.ts` and the `pnpm cli action ...`
+command family.
 
 ---
 
@@ -23,6 +26,8 @@ copy/select behavior.
 - Keep local dev orchestration explicit and copy-paste ready.
 - Support root scripts, workspace scripts, and raw commands without
   hardcoding one repo's service registry.
+- Support repo-specific one-shot developer actions without hardcoding them into
+  the service manifest or TUI.
 - Share one process supervisor across plain and TUI modes.
 - Make the focused log view the supported copy/select surface in terminal mode.
 
@@ -30,8 +35,14 @@ copy/select behavior.
 
 ## Implementation Constraints
 
-- DO treat `dev-cli.config.json` as the only v1 source of truth for services
-  and presets.
+- DO keep `dev-cli.config.json` as the source of truth for long-running
+  services and presets.
+- DO keep `dev-cli.actions.ts` / `.mts` / `.js` / `.mjs` as the separate local
+  TS/JS source of truth for one-shot developer actions.
+- DO use keyed maps as the config contract:
+  - `servicesById`
+  - `presetsById`
+  - `actionsById`
 - DO keep the reusable runtime in `src/cli/dev-launcher/`; `cli/index.ts`
   is only an example consumer.
 - DO support exactly three target kinds in v1:
@@ -46,9 +57,17 @@ copy/select behavior.
   stop, fail, and restart events.
 - DO provide a focused single-service log mode with no sidebar text while it is
   active.
+- DO allow services to declare an optional `openUrl` that the TUI can open
+  with a keyboard shortcut.
 - DO provide plain-mode startup selection and non-TTY fallback.
+- DO allow actions to define `suggestInDev`, `impactPolicy`, `isAvailable`,
+  and `run` hooks through `defineDevActions(...)`.
+- DO keep actions CLI-only in this phase.
+- DO let `pnpm cli dev` print advisory preflight action suggestions without
+  executing them or blocking startup.
 - DO NOT add script auto-discovery, recent-preset persistence, auto-respawn,
   readiness checks, or persistent log files in this phase.
+- DO NOT add a TUI action picker or action hotkeys in this phase.
 
 ---
 
@@ -58,6 +77,14 @@ copy/select behavior.
   - `loadDevLauncherManifest(...)`
   - `normalizeSelectedServiceIds(...)`
   - `getPresetServiceIds(...)`
+- Actions:
+  - `defineDevActions(...)`
+  - `loadDevActionsConfig(...)`
+  - `resolveDevActionsConfigPath(...)`
+  - `listDevActions(...)`
+  - `runDevAction(...)`
+  - `getDevPreflightActionSuggestions(...)`
+  - `getPnpmInstallState(...)`
 - Repo/workspace helpers:
   - `resolveDevLauncherConfigPath(...)`
   - `listWorkspacePackageDirectories(...)`
@@ -70,7 +97,10 @@ copy/select behavior.
   - `runPlainDevSession(...)`
   - `startDevLauncherTuiSession(...)`
 - Example command factory:
+  - `createDevLauncherActionCommand(...)`
   - `createDevLauncherCommand(...)`
+  - `runDevActionListCommand(...)`
+  - `runDevActionRunCommand(...)`
   - `runDevLauncherCommand(...)`
 
 Manifest contract:
@@ -79,12 +109,41 @@ Manifest contract:
 {
   "version": 1,
   "packageManager": "pnpm",
-  "services": [],
-  "presets": [],
+  "servicesById": {
+    "app": {
+      "label": "App",
+      "openUrl": "http://localhost:3000",
+      "target": {
+        "kind": "root-script",
+        "script": "dev"
+      }
+    }
+  },
+  "presetsById": {},
   "ui": {
     "logBufferLines": 240
   }
 }
+```
+
+Actions module contract:
+
+```ts
+export default defineDevActions({
+  actionsById: {
+    'install-deps': {
+      label: 'Install dependencies',
+      suggestInDev: true,
+      impactPolicy: 'stop-all',
+      async isAvailable(ctx) {
+        return { available: true, reason: 'node_modules is stale.' };
+      },
+      async run(ctx) {
+        await ctx.pnpm(['install'], { stdio: 'inherit' });
+      },
+    },
+  },
+});
 ```
 
 ---
@@ -101,11 +160,26 @@ Implemented: a shared process supervisor with one child per service, bounded
 log buffers, lifecycle markers, and explicit stop/restart behavior.
 
 Implemented: a terminal TUI with startup preset selection, split dashboard,
-and focused log mode that renders only the selected service log.
+focused log mode that renders only the selected service log, and an `o`
+shortcut that opens a selected service's configured `openUrl`.
 
 Implemented: plain-mode startup prompts plus automatic non-TTY fallback.
 
 Implemented: example repo command surface through `pnpm cli dev`.
+
+Implemented: a TS/JS actions registry loader with upward lookup and
+`--actions-config` override support for `.ts`, `.mts`, `.js`, and `.mjs`
+files.
+
+Implemented: CLI-only action listing and execution through
+`pnpm cli action list` and `pnpm cli action run <id>`.
+
+Implemented: `pnpm cli dev` now evaluates only `suggestInDev` actions and
+prints non-blocking preflight suggestions before entering TUI or plain mode.
+
+Implemented: the repo ships `dev-cli.actions.ts` with an `install-deps`
+example action backed by `getPnpmInstallState(...)` and organized under
+`dev-cli/actions/`.
 
 ---
 
@@ -116,5 +190,9 @@ Implemented: example repo command surface through `pnpm cli dev`.
 - Do not mix repo-specific business logic into `src/cli/dev-launcher/`.
 - Do not treat the split dashboard as the clean copy/select surface.
 - Do not infer services from `package.json` or `pnpm-workspace.yaml` in v1.
+- Do not move one-shot actions into `dev-cli.config.json`.
+- Do not hardcode install, migration, or database workflows into
+  `pnpm cli dev`; define them as actions instead.
+- Do not add remote action/plugin loading in this phase.
 - Do not add local recent-preset storage or auto-restart loops without a new
   ADR.

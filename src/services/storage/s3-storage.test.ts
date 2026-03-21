@@ -4,11 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { S3Storage } from './s3-storage';
 
-const {
-  sendMock,
-  clientOptions,
-  commandInputs,
-} = vi.hoisted(() => ({
+const { sendMock, clientOptions, commandInputs } = vi.hoisted(() => ({
   sendMock: vi.fn(),
   clientOptions: [] as unknown[],
   commandInputs: new Map<string, unknown[]>(),
@@ -146,7 +142,7 @@ describe('S3Storage', () => {
     expect(sendMock).not.toHaveBeenCalled();
   });
 
-  it('returns paginated list results', async () => {
+  it('exposes paginated list results through explorer', async () => {
     const storage = new S3Storage({
       bucket: 'bucket',
       region: 'eu-west-1',
@@ -159,7 +155,7 @@ describe('S3Storage', () => {
       NextContinuationToken: 'next-token',
     });
 
-    const result = await storage.listPage('docs/', {
+    const result = await storage.explorer.listPage('docs/', {
       maxKeys: 2,
       continuationToken: 'start',
     });
@@ -168,6 +164,29 @@ describe('S3Storage', () => {
       keys: ['a.txt', 'b.txt'],
       continuationToken: 'next-token',
     });
+  });
+
+  it('aggregates list results through explorer.list()', async () => {
+    const storage = new S3Storage({
+      bucket: 'bucket',
+      region: 'eu-west-1',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret',
+    });
+
+    sendMock
+      .mockResolvedValueOnce({
+        Contents: [{ Key: 'docs/a.txt' }],
+        NextContinuationToken: 'next-token',
+      })
+      .mockResolvedValueOnce({
+        Contents: [{ Key: 'docs/b.txt' }],
+      });
+
+    await expect(storage.explorer.list('docs/')).resolves.toEqual([
+      'docs/a.txt',
+      'docs/b.txt',
+    ]);
   });
 
   it('creates POST presigned upload URLs and supports the bytesLimit alias', async () => {

@@ -3,6 +3,8 @@ import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
+  GetPromptRequestSchema,
+  ListPromptsRequestSchema,
   ListResourcesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
@@ -14,6 +16,10 @@ import {
   featureBundleToXml,
   featureListToXml,
 } from './mcp-utils.js';
+import {
+  COPY_PASTE_INTEGRATION_PROMPT,
+  renderCopyPasteIntegrationPrompt,
+} from './prompts/copy-paste-integration.js';
 import { USAGE_GUIDELINES } from './resources/usage-guidelines.js';
 
 // Initialize registry
@@ -24,13 +30,14 @@ const server = new Server(
   {
     name: 'edge-kit-mcp-server',
     title:
-      'Edge Kit MCP Server - The standardized and unified component and functionality library',
+      'Edge Kit MCP Server - The standardized and unified Copy-paste-ready TypeScript feature component and functionality collection',
     version: '1.0.0',
   },
   {
     capabilities: {
       tools: {},
       resources: {},
+      prompts: {},
     },
   }
 );
@@ -42,7 +49,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'list_features',
         description:
-          "Discover available features in the Edge Kit library. Returns a list of services (e.g., 'stripe', 's3-storage'), utilities, and composers with their IDs and descriptions. Use this to find the right component before calling `get_feature`.",
+          "Discover copy-paste-ready Edge Kit features. Returns services (e.g., 'stripe', 's3-storage'), utilities, and composers with their IDs and descriptions so you can choose what source code to copy into a target repository.",
         inputSchema: {
           type: 'object',
           properties: {},
@@ -51,7 +58,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       {
         name: 'get_feature',
         description:
-          "Retrieve the complete source code, local dependencies, and required npm packages for a specific feature by its ID (e.g., 'stripe'). Returns a bundle containing all necessary files to implement the feature in a target codebase.",
+          "Retrieve the complete source code, local dependencies, and required third-party npm packages for a specific feature by its ID (e.g., 'stripe'). Copy the returned files into the target codebase; do not import `edge-kit` as a package.",
         inputSchema: {
           type: 'object',
           properties: {
@@ -62,6 +69,37 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
             },
           },
           required: ['feature_id'],
+        },
+      },
+    ],
+  };
+});
+
+server.setRequestHandler(ListPromptsRequestSchema, async () => {
+  return {
+    prompts: [COPY_PASTE_INTEGRATION_PROMPT],
+  };
+});
+
+server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+  if (request.params.name !== COPY_PASTE_INTEGRATION_PROMPT.name) {
+    throw new Error('Prompt not found');
+  }
+
+  const featureId = request.params.arguments?.feature_id;
+  const targetPath = request.params.arguments?.target_path;
+
+  return {
+    description: COPY_PASTE_INTEGRATION_PROMPT.description,
+    messages: [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text: renderCopyPasteIntegrationPrompt({
+            featureId,
+            targetPath,
+          }),
         },
       },
     ],
@@ -125,7 +163,7 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
         name: 'Usage Guidelines',
         mimeType: 'text/markdown',
         description:
-          'Instructions on how to integrate Edge Kit features into your codebase',
+          'Instructions for copying Edge Kit feature bundles into a target codebase',
       },
     ],
   };

@@ -12,12 +12,13 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 import {
   AbstractStorage,
-  storageMetadataToStrings,
   type StorageBody,
-  type StorageListPageOptions,
+  type StorageExplorerCapability,
+  type StorageExplorerListPageOptions,
   type StorageOptions,
   type StorageWriteOptions,
   type StorageWritePresignedUrlOptions,
+  storageMetadataToStrings,
 } from './abstract-storage';
 
 const createCompatiblePresignedPost = async (
@@ -45,6 +46,7 @@ export class S3Storage extends AbstractStorage {
   private readonly client: S3Client;
   private readonly bucket: string;
   private readonly endpoint?: string;
+  override readonly explorer: StorageExplorerCapability;
 
   private readonly presignedTtlSeconds = 3600;
   private readonly presignedTtlMs = this.presignedTtlSeconds * 1000;
@@ -61,6 +63,43 @@ export class S3Storage extends AbstractStorage {
         secretAccessKey: options.secretAccessKey,
       },
     });
+    this.explorer = {
+      list: async (prefix?: string) => {
+        const keys: string[] = [];
+        let continuationToken: string | undefined;
+
+        do {
+          const page = await this.explorer.listPage(prefix, {
+            continuationToken,
+          });
+          keys.push(...page.keys);
+          continuationToken = page.continuationToken;
+        } while (continuationToken);
+
+        return keys;
+      },
+      listPage: async (
+        prefix?: string,
+        pageOptions?: StorageExplorerListPageOptions
+      ) => {
+        const response = await this.client.send(
+          new ListObjectsV2Command({
+            Bucket: this.bucket,
+            Prefix: prefix,
+            MaxKeys: pageOptions?.maxKeys,
+            ContinuationToken: pageOptions?.continuationToken,
+          })
+        );
+
+        return {
+          keys:
+            response.Contents?.map((object) => object.Key).filter(
+              (key): key is string => typeof key === 'string'
+            ) ?? [],
+          continuationToken: response.NextContinuationToken,
+        };
+      },
+    };
   }
 
   async write(
@@ -134,28 +173,6 @@ export class S3Storage extends AbstractStorage {
     );
   }
 
-  async listPage(
-    prefix?: string,
-    options?: StorageListPageOptions
-  ): Promise<{ keys: string[]; continuationToken?: string }> {
-    const response = await this.client.send(
-      new ListObjectsV2Command({
-        Bucket: this.bucket,
-        Prefix: prefix,
-        MaxKeys: options?.maxKeys,
-        ContinuationToken: options?.continuationToken,
-      })
-    );
-
-    return {
-      keys:
-        response.Contents?.map((object) => object.Key).filter(
-          (key): key is string => typeof key === 'string'
-        ) ?? [],
-      continuationToken: response.NextContinuationToken,
-    };
-  }
-
   async createReadPresignedUrl(key: string) {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
@@ -196,13 +213,15 @@ export class S3Storage extends AbstractStorage {
       };
     }
 
-    const conditions = [
-      { 'Content-Type': opts.contentType },
-    ] as NonNullable<Parameters<typeof createPresignedPost>[1]['Conditions']>;
+    const conditions = [{ 'Content-Type': opts.contentType }] as NonNullable<
+      Parameters<typeof createPresignedPost>[1]['Conditions']
+    >;
     if (maxBytes !== undefined) {
-      conditions.push(
-        ['content-length-range', minBytes, maxBytes] as unknown as (typeof conditions)[number]
-      );
+      conditions.push([
+        'content-length-range',
+        minBytes,
+        maxBytes,
+      ] as unknown as (typeof conditions)[number]);
     }
 
     const { url, fields } = await createCompatiblePresignedPost(this.client, {
@@ -243,8 +262,7 @@ export class S3Storage extends AbstractStorage {
 
   private isBackblazeEndpoint(): boolean {
     return (
-      typeof this.endpoint === 'string' &&
-      this.endpoint.includes('backblazeb2')
+      typeof this.endpoint === 'string' && this.endpoint.includes('backblazeb2')
     );
   }
 

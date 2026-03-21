@@ -13,55 +13,29 @@ import type {
 const createManifest = (): LoadedDevLauncherManifest => ({
   configPath: '/repo/dev-cli.config.json',
   packageManager: 'pnpm',
-  presets: [
-    {
-      id: 'default',
-      label: 'Default',
-      serviceIds: ['app'],
-    },
-  ],
+  presetIdsInOrder: ['default'],
   presetsById: {
     default: {
-      id: 'default',
       label: 'Default',
       serviceIds: ['app'],
     },
   },
   repoRoot: '/repo',
   serviceIdsInOrder: ['app', 'api'],
-  services: [
-    {
-      id: 'app',
-      label: 'App',
-      target: {
-        kind: 'root-script',
-        script: 'dev:app',
-      },
-    },
-    {
-      id: 'api',
-      label: 'API',
-      target: {
-        kind: 'root-script',
-        script: 'dev:api',
-      },
-    },
-  ],
   servicesById: {
+    app: {
+      label: 'App',
+      openUrl: 'http://localhost:3000',
+      target: {
+        kind: 'root-script',
+        script: 'dev:app',
+      },
+    },
     api: {
-      id: 'api',
       label: 'API',
       target: {
         kind: 'root-script',
         script: 'dev:api',
-      },
-    },
-    app: {
-      id: 'app',
-      label: 'App',
-      target: {
-        kind: 'root-script',
-        script: 'dev:app',
       },
     },
   },
@@ -261,6 +235,66 @@ describe('DevLauncherDashboardApp', () => {
 
     expect(lastFrame()).toContain('Dev dashboard');
     expect(lastFrame()).toContain('All logs');
+  });
+
+  it('opens the selected service url from the dashboard', async () => {
+    const controller = new FakeController(
+      createSnapshot({
+        managedServiceIds: ['app'],
+        statuses: {
+          app: 'running',
+        },
+      })
+    );
+    const openExternalUrl = vi.fn(async () => undefined);
+    const { stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['app']}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+        openExternalUrl={openExternalUrl}
+      />
+    );
+
+    await flush();
+    stdin.write('\u001B[B');
+    await flush();
+    stdin.write('o');
+    await flush();
+
+    expect(openExternalUrl).toHaveBeenCalledWith('http://localhost:3000');
+  });
+
+  it('opens the focused service url with the open shortcut', async () => {
+    const controller = new FakeController(
+      createSnapshot({
+        managedServiceIds: ['app'],
+        statuses: {
+          app: 'running',
+        },
+      })
+    );
+    const openExternalUrl = vi.fn(async () => undefined);
+    const { stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['app']}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+        openExternalUrl={openExternalUrl}
+      />
+    );
+
+    await flush();
+    stdin.write('\u001B[B');
+    await flush();
+    stdin.write('\r');
+    await flush();
+    stdin.write('o');
+    await flush();
+
+    expect(openExternalUrl).toHaveBeenCalledWith('http://localhost:3000');
   });
 
   it('keeps focused-mode scrolling isolated from dashboard selection', async () => {

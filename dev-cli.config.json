@@ -4,9 +4,8 @@
   "ui": {
     "logBufferLines": 240
   },
-  "services": [
-    {
-      "id": "tests",
+  "servicesById": {
+    "tests": {
       "label": "Tests",
       "description": "Run Vitest in watch mode",
       "target": {
@@ -14,13 +13,12 @@
         "script": "test"
       }
     }
-  ],
-  "presets": [
-    {
-      "id": "default",
+  },
+  "presetsById": {
+    "default": {
       "label": "Default",
       "description": "Vitest watch mode",
       "serviceIds": ["tests"]
     }
-  ]
+  }
 }

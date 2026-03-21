@@ -41,7 +41,7 @@ export type UpstashSearchQueryOptions = {
  * Supports full-text search and metadata filtering.
  */
 export class UpstashSearchService<
-  TContent extends UpstashSearchContent = UpstashSearchContent,
+  _TContent extends UpstashSearchContent = UpstashSearchContent,
   TMeta extends ChunkedDocumentMeta = ChunkedDocumentMeta,
 > extends AbstractRetriever<TMeta> {
   private readonly client: Search;
@@ -79,8 +79,14 @@ export class UpstashSearchService<
   async fetch(
     namespace: string,
     ids: string[]
-  ): Promise<Array<{ id: string; content: unknown; metadata?: TMeta } | null>> {
-    const index = this.client.index<unknown, TMeta>(namespace);
+  ): Promise<
+    Array<{
+      id: string;
+      content: UpstashSearchContent;
+      metadata?: TMeta;
+    } | null>
+  > {
+    const index = this.client.index<UpstashSearchContent, TMeta>(namespace);
     return await index.fetch(ids);
   }
 

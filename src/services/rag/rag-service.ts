@@ -17,7 +17,7 @@ export interface RagChunkMetadataBase {
   source?: string;
   tags?: string[];
   text?: string;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface Reranker<TMeta = RagChunkMetadataBase> {
@@ -162,7 +162,10 @@ export class RagService<
       } as TMeta,
     }));
 
-    await this.vectorDb.upsert(namespace, entries as any);
+    await this.vectorDb.upsert(
+      namespace,
+      entries as VectorEntry<number[], TMeta, true, true>[]
+    );
   }
 
   withContent(): RagService<TMeta, VectorDatabaseWithContent<TMeta, number[]>> {
@@ -178,10 +181,10 @@ export class RagService<
   async search(
     this: RagService<TMeta, VectorDatabaseWithContent<TMeta, number[]>>,
     options: SearchOptions & { rerank: true }
-  ): Promise<VectorEntry<number[], TMeta, any>[]>;
+  ): Promise<VectorEntry<number[], TMeta, boolean, boolean>[]>;
   async search(
     options: SearchOptions
-  ): Promise<VectorEntry<number[], TMeta, any>[]> {
+  ): Promise<VectorEntry<number[], TMeta, boolean, boolean>[]> {
     const topK = options.topK ?? 8;
     const shouldRerank = options.rerank === true && this.reranker !== undefined;
     const candidateTopKDefault = shouldRerank ? topK * 4 : topK;
@@ -222,8 +225,9 @@ export class RagService<
     // Map reranked order back to results
     return reranked
       .map((it) => results.find((entry) => entry.id === it.id))
-      .filter((entry): entry is VectorEntry<number[], TMeta, boolean, false> =>
-        Boolean(entry)
+      .filter(
+        (entry): entry is VectorEntry<number[], TMeta, boolean, boolean> =>
+          Boolean(entry)
       );
   }
 

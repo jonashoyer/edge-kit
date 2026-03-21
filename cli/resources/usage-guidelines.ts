@@ -23,7 +23,14 @@ title: Usage Guidelines
 sidebar_position: 1
 ---
 
-You are integrating code from the Edge Kit library into a target codebase. Follow these instructions exactly when processing output from the \`get_feature\` tool.
+You are integrating copy-paste-ready source code from Edge Kit into a target codebase. Follow these instructions exactly when processing output from the \`get_feature\` tool.
+
+## Copy-Paste Contract
+
+- Treat Edge Kit output as source code to copy into the target repository.
+- Do **not** add \`edge-kit\` as a dependency.
+- Do **not** write imports from \`edge-kit\`, this MCP server, or this repository path.
+- The only packages you may install are third-party dependencies listed under \`<npmDependencies>\`.
 
 ## XML Bundle Structure
 
@@ -57,19 +64,7 @@ The \`get_feature\` tool returns XML with this structure:
 
 Execute these steps in order:
 
-### Step 1: Check NPM Dependencies
-
-1. Extract all \`<package-name>\` elements from \`<npmDependencies>\`.
-2. For each package, check if it exists in the target project's \`package.json\`.
-3. If missing, install it:
-   \`\`\`bash
-   npm install <package-name>
-   # or: pnpm add <package-name>
-   # or: yarn add <package-name>
-   \`\`\`
-4. If the package exists but with a different version, keep the existing version unless incompatible.
-
-### Step 2: Create Source Files
+### Step 1: Create Source Files
 
 For each \`<files>\` element in the \`<files>\` array:
 
@@ -81,7 +76,7 @@ For each \`<files>\` element in the \`<files>\` array:
    - For shared utilities (e.g., \`src/utils/type-utils.ts\`), check if existing exports are compatible.
 4. Create the file at the specified path, creating directories as needed.
 
-### Step 3: Adjust Import Paths
+### Step 2: Adjust Import Paths
 
 If the target project uses a different directory structure:
 
@@ -90,6 +85,20 @@ If the target project uses a different directory structure:
 3. Common adjustments:
    - \`src/services/\` → \`lib/services/\` or \`app/services/\`
    - \`src/utils/\` → \`lib/utils/\` or \`shared/\`
+4. Replace any imports that still point at Edge Kit or this repository with local target-project imports.
+
+### Step 3: Check NPM Dependencies
+
+1. Extract all \`<package-name>\` elements from \`<npmDependencies>\`.
+2. For each package, check if it exists in the target project's \`package.json\`.
+3. If missing, install it:
+   \`\`\`bash
+   npm install <package-name>
+   # or: pnpm add <package-name>
+   # or: yarn add <package-name>
+   \`\`\`
+4. If the package exists but with a different version, keep the existing version unless incompatible.
+5. Never install \`edge-kit\` itself as part of this workflow.
 
 ### Step 4: Configure the Service
 

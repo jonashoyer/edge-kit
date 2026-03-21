@@ -60,11 +60,15 @@ const getServiceListLabel = (
 export const buildPresetChoices = (
   manifest: LoadedDevLauncherManifest
 ): PromptChoice[] => {
-  const presetChoices = manifest.presets.map((preset) => ({
-    description: preset.description,
-    title: preset.label,
-    value: preset.id,
-  }));
+  const presetChoices = manifest.presetIdsInOrder.map((presetId) => {
+    const preset = manifest.presetsById[presetId];
+
+    return {
+      description: preset?.description,
+      title: preset?.label ?? presetId,
+      value: presetId,
+    };
+  });
 
   return [
     ...presetChoices,
@@ -79,11 +83,15 @@ export const buildPresetChoices = (
 export const buildServiceChoices = (
   manifest: LoadedDevLauncherManifest
 ): PromptMultiSelectChoice[] => {
-  return manifest.services.map((service) => ({
-    description: service.description,
-    title: service.label,
-    value: service.id,
-  }));
+  return manifest.serviceIdsInOrder.map((serviceId) => {
+    const service = manifest.servicesById[serviceId];
+
+    return {
+      description: service?.description,
+      title: service?.label ?? serviceId,
+      value: serviceId,
+    };
+  });
 };
 
 /**
@@ -100,9 +108,9 @@ export const promptForServiceSelection = async (
   }
 
   if (!runtime.canPrompt) {
-    const fallbackPreset = manifest.presets.at(0);
-    return fallbackPreset
-      ? getPresetServiceIds(manifest, fallbackPreset.id)
+    const fallbackPresetId = manifest.presetIdsInOrder.at(0);
+    return fallbackPresetId
+      ? getPresetServiceIds(manifest, fallbackPresetId)
       : null;
   }
 

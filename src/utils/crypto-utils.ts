@@ -6,15 +6,25 @@ const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array => {
     : new Uint8Array(data);
 };
 
+const toBufferSource = (data: string | ArrayBuffer): ArrayBuffer => {
+  const bytes = dataToUint8Array(data);
+  return Uint8Array.from(bytes).buffer;
+};
+
 export async function sha256(
   data: string | ArrayBuffer,
   salt?: Uint8Array
 ): Promise<ArrayBuffer> {
+  const value = dataToUint8Array(data);
   const buff = await crypto.subtle.digest(
     'SHA-256',
-    new Uint8Array([...dataToUint8Array(data), ...(salt ?? [])])
+    new Uint8Array([...value, ...(salt ?? [])]).buffer
   );
   return buff;
+}
+
+export async function sha1(data: string | ArrayBuffer): Promise<ArrayBuffer> {
+  return await crypto.subtle.digest('SHA-1', toBufferSource(data));
 }
 
 /**
@@ -30,6 +40,64 @@ export async function sha256Base64(
   const hashBuffer = await sha256(data, salt);
   return arrayBufferToBase64Url(hashBuffer);
 }
+
+const arrayBufferToHex = (buffer: ArrayBuffer): string => {
+  return Array.from(new Uint8Array(buffer))
+    .map((value) => value.toString(16).padStart(2, '0'))
+    .join('');
+};
+
+const importHmacKey = async (
+  secret: string,
+  algorithm: 'SHA-1' | 'SHA-256'
+) => {
+  const secretBytes = new TextEncoder().encode(secret);
+  return await crypto.subtle.importKey(
+    'raw',
+    secretBytes.buffer.slice(
+      secretBytes.byteOffset,
+      secretBytes.byteOffset + secretBytes.byteLength
+    ),
+    {
+      name: 'HMAC',
+      hash: algorithm,
+    },
+    false,
+    ['sign']
+  );
+};
+
+export async function hmacHex(
+  data: string | ArrayBuffer,
+  secret: string,
+  algorithm: 'sha1' | 'sha256'
+): Promise<string> {
+  const normalizedAlgorithm = algorithm === 'sha1' ? 'SHA-1' : 'SHA-256';
+  const key = await importHmacKey(secret, normalizedAlgorithm);
+  const signature = await crypto.subtle.sign('HMAC', key, toBufferSource(data));
+  return arrayBufferToHex(signature);
+}
+
+export const parseSignatureHeader = (
+  value: string,
+  prefix: string
+): string | null => {
+  if (!value.startsWith(prefix)) {
+    return null;
+  }
+
+  return value.slice(prefix.length);
+};
+
+export const verifyHmacHex = async (input: {
+  value: string;
+  secret: string;
+  algorithm: 'sha1' | 'sha256';
+  expectedHex: string;
+}): Promise<boolean> => {
+  const signature = await hmacHex(input.value, input.secret, input.algorithm);
+  return constantTimeEqual(signature, input.expectedHex);
+};
 
 /**
  * Hashes an IP address using SHA-256. Tip: a substring of 6 bytes is enough for a unique hash.

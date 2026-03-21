@@ -16,6 +16,7 @@ import { AbstractKeyValueService } from './abstract-key-value';
 
 export type BaseKeyValueTable<Dialect extends 'mysql' | 'pg' | 'sqlite'> =
   CreateTableConfig<
+    Dialect,
     {
       key: CreateColumnConfig<
         Dialect,
@@ -42,8 +43,7 @@ export type BaseKeyValueTable<Dialect extends 'mysql' | 'pg' | 'sqlite'> =
           notNull: boolean;
         }
       >;
-    },
-    Dialect
+    }
   >;
 
 export type MySqlKeyValueTable = MySqlTableWithColumns<

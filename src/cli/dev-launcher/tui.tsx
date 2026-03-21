@@ -2,6 +2,7 @@ import { Box, render, Text, useApp, useInput } from 'ink';
 /* biome-ignore lint/correctness/noUnusedImports: React must stay in scope for this JSX runtime path. */
 import React, { useEffect, useState } from 'react';
 import { getPresetServiceIds, normalizeSelectedServiceIds } from './manifest';
+import { openExternalUrl } from './open-url';
 import type { DevLauncherProcessController } from './process-manager';
 import { DevLauncherProcessManager } from './process-manager';
 import type {
@@ -42,6 +43,7 @@ export interface DevLauncherTuiSessionRuntime {
   createController: (
     manifest: LoadedDevLauncherManifest
   ) => DevLauncherProcessController;
+  openExternalUrl: (url: string) => Promise<void>;
   stderr: NodeJS.WriteStream;
   stdin: NodeJS.ReadStream;
   stdout: NodeJS.WriteStream;
@@ -51,11 +53,13 @@ interface DevLauncherDashboardAppProps {
   controller: DevLauncherProcessController;
   initialServiceIds?: string[];
   manifest: LoadedDevLauncherManifest;
+  openExternalUrl?: (url: string) => Promise<void>;
   onExitCode: (code: number) => void;
 }
 
 const defaultRuntime: DevLauncherTuiSessionRuntime = {
   createController: (manifest) => new DevLauncherProcessManager(manifest),
+  openExternalUrl: async (url) => openExternalUrl(url),
   stderr: process.stderr,
   stdin: process.stdin,
   stdout: process.stdout,
@@ -91,11 +95,11 @@ const getStartupOptions = (
   manifest: LoadedDevLauncherManifest
 ): StartupOption[] => {
   return [
-    ...manifest.presets.map((preset) => ({
-      description: preset.description,
+    ...manifest.presetIdsInOrder.map((presetId) => ({
+      description: manifest.presetsById[presetId]?.description,
       kind: 'preset' as const,
-      label: preset.label,
-      serviceIds: getPresetServiceIds(manifest, preset.id),
+      label: manifest.presetsById[presetId]?.label ?? presetId,
+      serviceIds: getPresetServiceIds(manifest, presetId),
     })),
     {
       description: 'Choose an ad hoc combination of declared services',
@@ -159,16 +163,64 @@ const isEscapeKey = (input: string, key: { escape?: boolean }): boolean => {
   return key.escape === true || input === '\u001B';
 };
 
+const getFocusedHelpText = (openUrl?: string): string => {
+  const controls = ['Esc dashboard'];
+
+  if (openUrl) {
+    controls.push('o open');
+  }
+
+  controls.push('r restart', 's start/stop', 'q quit');
+  return controls.join(', ');
+};
+
+const getDashboardHelpText = (openUrl?: string): string => {
+  const controls = ['Enter focus log', 'a adjust services'];
+
+  if (openUrl) {
+    controls.push('o open');
+  }
+
+  controls.push('r restart', 's start/stop', 'q quit');
+  return controls.join(', ');
+};
+
+const requestOpenServiceUrl = (options: {
+  manifest: LoadedDevLauncherManifest;
+  openExternalUrl: (url: string) => Promise<void>;
+  runAction: (label: string, action: () => Promise<void>) => void;
+  serviceId: string;
+  setFlashMessage: (message: string) => void;
+}): void => {
+  const service = options.manifest.servicesById[options.serviceId];
+  const openUrl = service?.openUrl;
+
+  if (!openUrl) {
+    options.setFlashMessage(
+      service
+        ? `No open URL configured for ${service.label}.`
+        : 'No open URL configured for this service.'
+    );
+    return;
+  }
+
+  options.runAction(`Opening ${openUrl}...`, async () => {
+    await options.openExternalUrl(openUrl);
+  });
+};
+
 /**
  * Ink application for the generic dev launcher. The focused log mode renders
  * only the selected service log so terminal text selection stays isolated.
  */
-export const DevLauncherDashboardApp = ({
+/* biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Dashboard state, render branches, and action wiring stay together so the TUI behavior remains explicit. */
+export function DevLauncherDashboardApp({
   controller,
   initialServiceIds,
   manifest,
+  openExternalUrl: openExternalUrlProp = openExternalUrl,
   onExitCode,
-}: DevLauncherDashboardAppProps) => {
+}: DevLauncherDashboardAppProps) {
   const { exit } = useApp();
   const [snapshot, setSnapshot] = useState<DevLauncherSupervisorSnapshot>(
     controller.getSnapshot()
@@ -249,6 +301,8 @@ export const DevLauncherDashboardApp = ({
     'all-logs',
     ...snapshot.managedServiceIds,
   ];
+  const selectedService =
+    selectedRowId === 'all-logs' ? null : manifest.servicesById[selectedRowId];
   const dashboardViewerLogs = getViewerLogs(snapshot, manifest, selectedRowId);
   const focusedViewerLogs =
     viewMode.kind === 'focused-log'
@@ -258,6 +312,10 @@ export const DevLauncherDashboardApp = ({
     viewMode.kind === 'focused-log'
       ? (focusedLogScrollOffsets[viewMode.serviceId] ?? 0)
       : 0;
+  const focusedService =
+    viewMode.kind === 'focused-log'
+      ? manifest.servicesById[viewMode.serviceId]
+      : null;
 
   const runAction = (label: string, action: () => Promise<void>): void => {
     if (isBusy) {
@@ -394,7 +452,7 @@ export const DevLauncherDashboardApp = ({
           ...currentOverlay,
           cursor: wrapCursor(
             currentOverlay.cursor - 1,
-            manifest.services.length
+            manifest.serviceIdsInOrder.length
           ),
         }));
         return;
@@ -405,16 +463,16 @@ export const DevLauncherDashboardApp = ({
           ...currentOverlay,
           cursor: wrapCursor(
             currentOverlay.cursor + 1,
-            manifest.services.length
+            manifest.serviceIdsInOrder.length
           ),
         }));
         return;
       }
 
       if (input === ' ') {
-        const selectedService = manifest.services.at(overlay.cursor);
-        if (selectedService) {
-          togglePendingService(selectedService.id);
+        const selectedServiceId = manifest.serviceIdsInOrder.at(overlay.cursor);
+        if (selectedServiceId) {
+          togglePendingService(selectedServiceId);
         }
         return;
       }
@@ -464,6 +522,17 @@ export const DevLauncherDashboardApp = ({
           }
 
           await controller.startService(viewMode.serviceId);
+        });
+        return;
+      }
+
+      if (input === 'o') {
+        requestOpenServiceUrl({
+          manifest,
+          openExternalUrl: openExternalUrlProp,
+          runAction,
+          serviceId: viewMode.serviceId,
+          setFlashMessage,
         });
         return;
       }
@@ -528,6 +597,17 @@ export const DevLauncherDashboardApp = ({
       return;
     }
 
+    if (input === 'o' && selectedRowId !== 'all-logs') {
+      requestOpenServiceUrl({
+        manifest,
+        openExternalUrl: openExternalUrlProp,
+        runAction,
+        serviceId: selectedRowId,
+        setFlashMessage,
+      });
+      return;
+    }
+
     if (input === 'k') {
       const maxScrollOffset = getMaxScrollOffset(
         dashboardViewerLogs,
@@ -557,7 +637,7 @@ export const DevLauncherDashboardApp = ({
     return (
       <Box flexDirection='column'>
         <Text color='cyan'>{service?.label ?? viewMode.serviceId} log</Text>
-        <Text dimColor>Esc dashboard, r restart, s start/stop, q quit</Text>
+        <Text dimColor>{getFocusedHelpText(focusedService?.openUrl)}</Text>
         <Box
           borderColor='cyan'
           borderStyle='round'
@@ -623,13 +703,14 @@ export const DevLauncherDashboardApp = ({
           marginTop={1}
           paddingX={1}
         >
-          {manifest.services.map((service, index) => {
-            const isSelected = overlay.pendingServiceIds.includes(service.id);
+          {manifest.serviceIdsInOrder.map((serviceId, index) => {
+            const service = manifest.servicesById[serviceId];
+            const isSelected = overlay.pendingServiceIds.includes(serviceId);
             return (
-              <Text key={service.id}>
+              <Text key={serviceId}>
                 {index === overlay.cursor ? '› ' : '  '}[
-                {isSelected ? 'x' : ' '}] {service.label}
-                {service.description ? ` — ${service.description}` : ''}
+                {isSelected ? 'x' : ' '}] {service?.label ?? serviceId}
+                {service?.description ? ` — ${service.description}` : ''}
               </Text>
             );
           })}
@@ -651,9 +732,7 @@ export const DevLauncherDashboardApp = ({
           ? 'No services selected'
           : 'Dev dashboard'}
       </Text>
-      <Text dimColor>
-        Enter focus log, a adjust services, r restart, s start/stop, q quit
-      </Text>
+      <Text dimColor>{getDashboardHelpText(selectedService?.openUrl)}</Text>
       <Box marginTop={1}>
         <Box
           borderColor='cyan'
@@ -710,7 +789,7 @@ export const DevLauncherDashboardApp = ({
       {flashMessage ? <Text color='yellow'>{flashMessage}</Text> : null}
     </Box>
   );
-};
+}
 
 /**
  * Starts the Ink TUI session and resolves when the app exits.
@@ -730,6 +809,7 @@ export const startDevLauncherTuiSession = async (
         onExitCode={(exitCode) => {
           resolve(exitCode);
         }}
+        openExternalUrl={runtime.openExternalUrl}
       />,
       {
         exitOnCtrlC: false,

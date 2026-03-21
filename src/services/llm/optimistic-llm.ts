@@ -5,6 +5,10 @@ import { fnv1a64B64 } from '../../utils/crypto-utils';
 import { stableStringify } from '../../utils/object-utils';
 import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
 
+const OBJECT_WARMUP_PROMPT =
+  'Return the smallest valid response for the schema.';
+const TEXT_WARMUP_PROMPT = 'Reply with a single token.';
+
 export interface OptimisticLlmServiceOptions {
   /**
    * TTL for a warmed prompt-prefix entry (in seconds). Default: 300s (5 minutes)
@@ -83,10 +87,11 @@ export class OptimisticLlmService {
     try {
       if (schema) {
         await this.warmByFirstChunk((signal) =>
-          streamObject<any>({
+          streamObject({
             model,
             schema,
             system: prefix,
+            prompt: OBJECT_WARMUP_PROMPT,
             maxOutputTokens: 1,
             abortSignal: signal,
           })
@@ -96,6 +101,7 @@ export class OptimisticLlmService {
           streamText({
             model,
             system: prefix,
+            prompt: TEXT_WARMUP_PROMPT,
             maxOutputTokens: 1,
             abortSignal: signal,
           })
@@ -136,9 +142,9 @@ export class OptimisticLlmService {
   /**
    * Runs a streaming call and aborts after the first chunk on the `fullStream` (or after a small timeout).
    */
-  private async warmByFirstChunk<T extends { fullStream: AsyncIterable<any> }>(
-    createStream: (signal: AbortSignal) => T
-  ): Promise<void> {
+  private async warmByFirstChunk<
+    T extends { fullStream: AsyncIterable<unknown> },
+  >(createStream: (signal: AbortSignal) => T): Promise<void> {
     const abortController = new AbortController();
     try {
       const result = createStream(abortController.signal);

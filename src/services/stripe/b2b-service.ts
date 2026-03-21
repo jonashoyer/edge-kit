@@ -5,8 +5,6 @@ import type { AbstractStripeB2BStore } from './abstract-stripe-store';
 import { StripeSyncService } from './sync-service';
 import type {
   AbstractCRMIntegration,
-  CRMPaymentData,
-  OrganizationSubscriptionData,
   PromotionCodeData,
   SubscriptionOfferData,
 } from './types';
@@ -27,19 +25,17 @@ export class StripeB2BService {
   private readonly options: StripeB2BServiceOptions;
   private readonly syncService: StripeSyncService;
   private readonly webhookService: StripeWebhookService;
-  private readonly crm?: AbstractCRMIntegration;
 
   constructor(
     store: AbstractStripeB2BStore,
     stripe: Stripe,
     options: StripeB2BServiceOptions,
-    crmIntegration?: AbstractCRMIntegration
+    _crmIntegration?: AbstractCRMIntegration
   ) {
     this.store = store;
     this.stripe = stripe;
     this.logger = options.logger;
     this.options = options;
-    this.crm = crmIntegration;
 
     this.syncService = new StripeSyncService(store, stripe, this.logger);
     this.webhookService = new StripeWebhookService(
@@ -48,24 +44,6 @@ export class StripeB2BService {
       options.webhookSecret,
       this.logger
     );
-  }
-
-  // CRM helpers
-  private async syncCRM(orgId: string, data: OrganizationSubscriptionData) {
-    if (!this.crm) return;
-    const payload: CRMPaymentData = {
-      hasPayment:
-        data.status !== 'none' &&
-        data.status !== 'canceled' &&
-        data.status !== 'incomplete',
-      amount: data.priceId ? undefined : undefined, // amount is not directly in subscription; customers can compute via offer
-      interval: data.offer?.interval,
-      currency: data.offer?.currency,
-      promotionCode: data.offer?.promotionCode?.code ?? undefined,
-      trialEnd: data.currentPeriodEnd ?? undefined,
-      status: data.status,
-    };
-    await this.crm.syncPaymentData(orgId, payload);
   }
 
   async findOrCreateOrganizationCustomer(
@@ -197,6 +175,12 @@ export class StripeB2BService {
       throw new Error('Organization has no active subscription');
     }
 
+    if (!newOffer.productId) {
+      throw new Error(
+        'Subscription offer productId is required to switch subscriptions'
+      );
+    }
+
     // Update in place
     await this.stripe.subscriptions.update(current.subscriptionId, {
       cancel_at_period_end: false,
@@ -206,7 +190,7 @@ export class StripeB2BService {
           id: current.subscriptionId, // Note: item id would be ideal; using subscription update requires item id; caller should store it
           price_data: {
             currency: newOffer.currency,
-            product_data: { name: newOffer.description ?? 'Subscription' },
+            product: newOffer.productId,
             unit_amount: newOffer.unitAmount,
             recurring: { interval: newOffer.interval },
           },

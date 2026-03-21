@@ -9,8 +9,8 @@ import {
   type CacheableResult,
   PromiseCacheProvider,
   useCacheContext,
-  useCachedPromise,
-} from './index';
+} from './promise-cache-context';
+import { useCachedPromise } from './use-cached-promise';
 
 // ============================================================================
 // Example 1: Basic Usage with useCachedPromise

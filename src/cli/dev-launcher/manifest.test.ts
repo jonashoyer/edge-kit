@@ -19,23 +19,21 @@ const writeJsonFile = (filePath: string, value: unknown): void => {
 
 const createBaseManifest = () => ({
   packageManager: 'pnpm' as const,
-  presets: [
-    {
-      id: 'default',
+  presetsById: {
+    default: {
       label: 'Default',
       serviceIds: ['app'],
     },
-  ],
-  services: [
-    {
-      id: 'app',
+  },
+  servicesById: {
+    app: {
       label: 'App',
       target: {
         kind: 'root-script' as const,
         script: 'dev',
       },
     },
-  ],
+  },
   version: 1 as const,
 });
 
@@ -52,16 +50,15 @@ describe('loadDevLauncherManifest', () => {
     const tempDir = createTempDir();
     writeJsonFile(path.join(tempDir, 'dev-cli.config.json'), {
       ...createBaseManifest(),
-      services: [
-        {
-          id: 'app',
+      servicesById: {
+        app: {
           label: 'App',
           target: {
             kind: 'workspace-script',
             script: 'dev',
           },
         },
-      ],
+      },
     });
 
     expect(() => loadDevLauncherManifest({ cwd: tempDir })).toThrow(
@@ -69,36 +66,28 @@ describe('loadDevLauncherManifest', () => {
     );
   });
 
-  it('throws for duplicate service ids', () => {
+  it('throws when no services are declared', () => {
     const tempDir = createTempDir();
     writeJsonFile(path.join(tempDir, 'dev-cli.config.json'), {
       ...createBaseManifest(),
-      services: [
-        createBaseManifest().services[0],
-        createBaseManifest().services[0],
-      ],
+      servicesById: {},
     });
 
-    try {
-      loadDevLauncherManifest({ cwd: tempDir });
-      throw new Error('Expected manifest loading to fail.');
-    } catch (error) {
-      expect(String(error)).toContain('Duplicate service id');
-      expect(String(error)).toContain('\\"app\\"');
-    }
+    expect(() => loadDevLauncherManifest({ cwd: tempDir })).toThrow(
+      'At least one service must be declared.'
+    );
   });
 
   it('throws when a preset references an unknown service id', () => {
     const tempDir = createTempDir();
     writeJsonFile(path.join(tempDir, 'dev-cli.config.json'), {
       ...createBaseManifest(),
-      presets: [
-        {
-          id: 'default',
+      presetsById: {
+        default: {
           label: 'Default',
           serviceIds: ['api'],
         },
-      ],
+      },
     });
 
     try {
@@ -115,24 +104,22 @@ describe('loadDevLauncherManifest', () => {
     const tempDir = createTempDir();
     writeJsonFile(path.join(tempDir, 'dev-cli.config.json'), {
       packageManager: 'pnpm',
-      presets: [
-        {
-          id: 'web',
+      presetsById: {
+        web: {
           label: 'Web',
           serviceIds: ['app', 'api'],
         },
-      ],
-      services: [
-        {
-          id: 'app',
+      },
+      servicesById: {
+        app: {
           label: 'App',
+          openUrl: 'http://localhost:3000',
           target: {
             kind: 'root-script',
             script: 'dev',
           },
         },
-        {
-          id: 'api',
+        api: {
           label: 'API',
           target: {
             kind: 'workspace-script',
@@ -140,8 +127,7 @@ describe('loadDevLauncherManifest', () => {
             script: 'dev',
           },
         },
-        {
-          id: 'docs',
+        docs: {
           label: 'Docs',
           target: {
             kind: 'workspace-script',
@@ -149,8 +135,7 @@ describe('loadDevLauncherManifest', () => {
             script: 'dev',
           },
         },
-        {
-          id: 'proxy',
+        proxy: {
           label: 'Proxy',
           target: {
             args: ['serve'],
@@ -159,7 +144,7 @@ describe('loadDevLauncherManifest', () => {
             kind: 'command',
           },
         },
-      ],
+      },
       version: 1,
     });
 
@@ -167,8 +152,30 @@ describe('loadDevLauncherManifest', () => {
 
     expect(manifest.serviceIdsInOrder).toEqual(['app', 'api', 'docs', 'proxy']);
     expect(getPresetServiceIds(manifest, 'web')).toEqual(['app', 'api']);
+    expect(manifest.servicesById.app?.openUrl).toBe('http://localhost:3000');
     expect(
       normalizeSelectedServiceIds(manifest, ['proxy', 'app', 'proxy'])
     ).toEqual(['app', 'proxy']);
+  });
+
+  it('throws for invalid openUrl values', () => {
+    const tempDir = createTempDir();
+    writeJsonFile(path.join(tempDir, 'dev-cli.config.json'), {
+      ...createBaseManifest(),
+      servicesById: {
+        app: {
+          label: 'App',
+          openUrl: 'localhost:3000',
+          target: {
+            kind: 'root-script',
+            script: 'dev',
+          },
+        },
+      },
+    });
+
+    expect(() => loadDevLauncherManifest({ cwd: tempDir })).toThrow(
+      'openUrl must be an absolute http:// or https:// URL.'
+    );
   });
 });

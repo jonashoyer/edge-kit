@@ -6,6 +6,10 @@ Edge Kit is a comprehensive toolkit for TypeScript projects, designed to acceler
 
 Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installing a monolithic package, you copy exactly what you need into your project.
 
+The MCP server follows the same contract: it returns source bundles that should
+be copied into the target repository. It is not presenting Edge Kit as an
+importable runtime package.
+
 ### Architecture Patterns
 
 - **Abstract Base Classes**: Services typically define an abstract contract (e.g., `AbstractStorageService`), allowing you to swap implementations (e.g., S3 vs R2) without changing consuming code.
@@ -51,6 +55,8 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 
 - [S3](./src/services/storage/s3-storage.ts)
 - [Cloudflare R2](./src/services/storage/r2-storage.ts)
+- [Storage Asset Catalog](./src/services/storage-asset/abstract-storage-asset.ts)
+- [Storage Asset Inventory](./src/services/storage-asset/storage-asset-inventory.ts)
 - [Contextualizer](./src/services/contextualizer/index.ts)
 
 ### Key-Value Store
@@ -91,15 +97,32 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 - [AI cache middleware](./src/services/llm/ai-cache-middleware.ts)
 - [Optimistic LLM warm-up](./src/services/llm/optimistic-llm.ts)
 - [AI diagnostics](./src/services/llm/ai-diagnostics.ts)
+- [Image generation](./src/services/image-generation/image-generation-service.ts):
+  pure generation, optional storage persistence, and optional asset inventory
+- [Local Parakeet transcription provider](./src/services/transcription/parakeet-local-provider.ts):
+  AI SDK `experimental_transcribe` support for local Parakeet MLX runtimes
 
 ### Health
 
 - [Health probe helpers](./src/services/health/index.ts)
 
+### Operations & Coordination
+
+- [Task Reconciler](./src/services/task-reconciler/index.ts): Central
+  registry-based desired-vs-applied reconciliation for reindexing, backfills,
+  cache rebuilds, and similar operational work.
+- [Service Ingress](./src/services/service-ingress/index.ts): Typed internal
+  service-to-service ingress over one shared signed endpoint.
+- [Incoming Hook](./src/services/incoming-hook/index.ts): Verified inbound POST
+  handling for Vercel, GitHub, and Stripe webhooks.
+
 ### Developer Tooling
 
 - [Dev Launcher](./src/cli/dev-launcher/index.ts): Manifest-driven local
-  dev launcher for repo and monorepo scripts with a plain runner and Ink TUI.
+  dev launcher for repo and monorepo scripts plus TS-defined developer actions
+  with a plain runner and Ink TUI.
+- [Git Commit Report](./src/cli/git-commit-report/index.ts): Reusable CLI
+  module for author- and time-bounded git commit context reports.
 
 ### Feature Flags & Waitlist
 
@@ -109,15 +132,23 @@ Edge Kit is built with a **"copy-paste-first"** philosophy. Instead of installin
 ## 🖥️ Dev Launcher
 
 Edge Kit now includes a generic manifest-driven dev launcher that can supervise
-local scripts across a single-package repo or PNPM monorepo.
+local scripts across a single-package repo or PNPM monorepo. Long-running
+services stay in `dev-cli.config.json`, while one-shot developer actions live
+in `dev-cli.actions.ts`. Both configs use keyed maps so ids are declared once
+as object keys.
 
 Run the example repo command:
 
 ```bash
 pnpm cli dev
 pnpm cli dev --preset default
-pnpm cli dev --services mcp,tests
+pnpm cli dev --services tests
 pnpm cli dev --no-tui
+pnpm cli dev --actions-config ./dev-cli.actions.ts
+pnpm cli action list
+pnpm cli action list --json
+pnpm cli action run install-deps
+pnpm cli action run install-deps --force
 ```
 
 Minimal `dev-cli.config.json`:
@@ -126,17 +157,16 @@ Minimal `dev-cli.config.json`:
 {
   "version": 1,
   "packageManager": "pnpm",
-  "services": [
-    {
-      "id": "app",
+  "servicesById": {
+    "app": {
       "label": "App",
+      "openUrl": "http://localhost:3000",
       "target": {
         "kind": "root-script",
         "script": "dev"
       }
     },
-    {
-      "id": "api",
+    "api": {
       "label": "API",
       "target": {
         "kind": "workspace-script",
@@ -144,20 +174,93 @@ Minimal `dev-cli.config.json`:
         "script": "dev"
       }
     }
-  ],
-  "presets": [
-    {
-      "id": "default",
+  },
+  "presetsById": {
+    "default": {
       "label": "Default",
       "serviceIds": ["app", "api"]
     }
-  ]
+  }
 }
+```
+
+Minimal `dev-cli.actions.ts`:
+
+```ts
+import { defineDevActions } from './src/cli/dev-launcher';
+import { installDepsAction } from './dev-cli/actions/install-deps';
+
+export default defineDevActions({
+  actionsById: {
+    'install-deps': installDepsAction,
+  },
+});
+```
+
+```ts
+// dev-cli/actions/install-deps.ts
+import type { DevActionDefinition } from '../../src/cli/dev-launcher';
+import { getPnpmInstallState } from '../../src/cli/dev-launcher';
+
+export const installDepsAction: DevActionDefinition = {
+  label: 'Install dependencies',
+  description: 'Run pnpm install when dependencies are stale.',
+  suggestInDev: true,
+  impactPolicy: 'stop-all',
+  async isAvailable(ctx) {
+    const installState = getPnpmInstallState(ctx.repoRoot);
+    return {
+      available: installState.needsInstall,
+      reason: installState.reason,
+    };
+  },
+  async run(ctx) {
+    await ctx.pnpm(['install'], { stdio: 'inherit' });
+    return { summary: 'Dependencies installed.' };
+  },
+};
 ```
 
 The TUI keeps the dashboard split for overview, but Enter on a selected
 service opens a focused log mode that renders only that service log so scroll
-and terminal text selection stay isolated.
+and terminal text selection stay isolated. If a service defines `openUrl`, the
+selected row also supports `o` to open that URL in your default browser.
+
+Actions are CLI-only in this phase. `pnpm cli dev` evaluates only actions with
+`suggestInDev: true` and prints advisory suggestions such as
+`Action available before starting services: install-deps - run pnpm cli action run install-deps`.
+
+Other action patterns can stay fully repo-local. Typical examples include:
+
+- `db-push`: run a schema push only when generated SQL or migration state
+  indicates it is needed.
+- `db-migrate`: run a migration workflow and report a short summary.
+- Custom Node or shell workflows using `ctx.exec(...)` or `ctx.pnpm(...)`.
+
+## Git Commit Report
+
+Edge Kit also includes a reusable git-history reporting command for collecting
+committed changes by author within an explicit time range. The command shells
+out to the local `git` binary, returns per-commit metadata plus line-change
+stats, and can emit either human-readable text or JSON for downstream tooling.
+
+Run the example repo command:
+
+```bash
+pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com"
+pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com" --author "bob@example.com"
+pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com" --json
+pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com" --body --patch
+```
+
+Each commit entry includes:
+
+- author name and email
+- authored timestamp
+- subject line
+- files changed
+- additions and deletions
+- optional body and patch output when explicitly requested
 
 ## 🎼 Composers
 

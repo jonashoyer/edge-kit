@@ -21,7 +21,7 @@ export type StripeSubscription =
       status: 'none';
     };
 
-export type SubscriptionInterval = 'month' | 'year' | (string & {});
+export type SubscriptionInterval = Stripe.Price.Recurring.Interval;
 
 export type PromotionCodeData = {
   id: string;
@@ -43,6 +43,7 @@ export type SubscriptionOfferData = {
   currency: string; // e.g. 'usd'
   unitAmount: number; // cents
   interval: SubscriptionInterval; // month | year
+  productId?: string;
   promotionCode?: PromotionCodeData;
   trialEndUnix?: number;
   description?: string | null;

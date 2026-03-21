@@ -1,5 +1,5 @@
 import { bench, describe } from 'vitest';
-import { fnv1a64B64 } from '../crypto';
+import { fnv1a64B64 } from '../crypto-utils';
 import { tpl } from './tpl';
 
 describe('tpl function benchmarks', () => {

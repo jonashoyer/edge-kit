@@ -30,32 +30,30 @@ export type DevLauncherTarget =
 
 export interface DevLauncherServiceDefinition {
   description?: string;
-  id: string;
   label: string;
+  openUrl?: string;
   target: DevLauncherTarget;
 }
 
 export interface DevLauncherPresetDefinition {
   description?: string;
-  id: string;
   label: string;
   serviceIds: string[];
 }
 
 export interface DevLauncherManifest {
   packageManager: DevLauncherPackageManager;
-  presets: DevLauncherPresetDefinition[];
-  services: DevLauncherServiceDefinition[];
+  presetsById: Record<string, DevLauncherPresetDefinition>;
+  servicesById: Record<string, DevLauncherServiceDefinition>;
   ui?: DevLauncherUiConfig;
   version: 1;
 }
 
 export interface LoadedDevLauncherManifest extends DevLauncherManifest {
   configPath: string;
-  presetsById: Record<string, DevLauncherPresetDefinition>;
+  presetIdsInOrder: string[];
   repoRoot: string;
   serviceIdsInOrder: string[];
-  servicesById: Record<string, DevLauncherServiceDefinition>;
 }
 
 export type ManagedDevServiceStatus =

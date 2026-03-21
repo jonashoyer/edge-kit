@@ -5,12 +5,16 @@ import {
   getRepoRootFromConfigPath,
   resolveDevLauncherConfigPath,
 } from './repo-utils';
-import type {
-  DevLauncherManifest,
-  DevLauncherPresetDefinition,
-  DevLauncherServiceDefinition,
-  LoadedDevLauncherManifest,
-} from './types';
+import type { DevLauncherManifest, LoadedDevLauncherManifest } from './types';
+
+const isSupportedOpenUrl = (value: string): boolean => {
+  try {
+    const parsedUrl = new URL(value);
+    return parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
 
 const serviceTargetSchema = z.discriminatedUnion('kind', [
   z.object({
@@ -48,14 +52,19 @@ const serviceTargetSchema = z.discriminatedUnion('kind', [
 
 const serviceSchema = z.object({
   description: z.string().trim().min(1).optional(),
-  id: z.string().trim().min(1),
   label: z.string().trim().min(1),
+  openUrl: z
+    .string()
+    .trim()
+    .refine(isSupportedOpenUrl, {
+      message: 'openUrl must be an absolute http:// or https:// URL.',
+    })
+    .optional(),
   target: serviceTargetSchema,
 });
 
 const presetSchema = z.object({
   description: z.string().trim().min(1).optional(),
-  id: z.string().trim().min(1),
   label: z.string().trim().min(1),
   serviceIds: z.array(z.string().trim().min(1)).min(1),
 });
@@ -63,8 +72,8 @@ const presetSchema = z.object({
 const manifestSchema = z
   .object({
     packageManager: z.literal('pnpm'),
-    presets: z.array(presetSchema),
-    services: z.array(serviceSchema).min(1),
+    presetsById: z.record(z.string().trim().min(1), presetSchema),
+    servicesById: z.record(z.string().trim().min(1), serviceSchema),
     ui: z
       .object({
         logBufferLines: z.number().int().min(10).max(10_000).optional(),
@@ -73,52 +82,29 @@ const manifestSchema = z
     version: z.literal(1),
   })
   .superRefine((value, context) => {
-    const serviceIds = new Set<string>();
-    for (const [index, service] of value.services.entries()) {
-      if (serviceIds.has(service.id)) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Duplicate service id "${service.id}".`,
-          path: ['services', index, 'id'],
-        });
-        continue;
-      }
+    const serviceIds = Object.keys(value.servicesById);
 
-      serviceIds.add(service.id);
+    if (serviceIds.length === 0) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'At least one service must be declared.',
+        path: ['servicesById'],
+      });
     }
 
-    const presetIds = new Set<string>();
-    for (const [index, preset] of value.presets.entries()) {
-      if (presetIds.has(preset.id)) {
-        context.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Duplicate preset id "${preset.id}".`,
-          path: ['presets', index, 'id'],
-        });
-        continue;
-      }
-
-      presetIds.add(preset.id);
-
+    const serviceIdSet = new Set(serviceIds);
+    for (const [presetId, preset] of Object.entries(value.presetsById)) {
       for (const serviceId of preset.serviceIds) {
-        if (!serviceIds.has(serviceId)) {
+        if (!serviceIdSet.has(serviceId)) {
           context.addIssue({
             code: z.ZodIssueCode.custom,
-            message: `Preset "${preset.id}" references unknown service "${serviceId}".`,
-            path: ['presets', index, 'serviceIds'],
+            message: `Preset "${presetId}" references unknown service "${serviceId}".`,
+            path: ['presetsById', presetId, 'serviceIds'],
           });
         }
       }
     }
   });
-
-const buildIndexedRecord = <T extends { id: string }>(
-  items: T[]
-): Record<string, T> => {
-  return Object.fromEntries(
-    items.map((item) => [item.id, item] as const)
-  ) as Record<string, T>;
-};
 
 /**
  * Normalizes a requested service selection against the manifest's declared
@@ -173,13 +159,8 @@ export const loadDevLauncherManifest = (options?: {
   return {
     ...manifest,
     configPath: path.resolve(configPath),
-    presetsById: buildIndexedRecord<DevLauncherPresetDefinition>(
-      manifest.presets
-    ),
+    presetIdsInOrder: Object.keys(manifest.presetsById),
     repoRoot,
-    serviceIdsInOrder: manifest.services.map((service) => service.id),
-    servicesById: buildIndexedRecord<DevLauncherServiceDefinition>(
-      manifest.services
-    ),
+    serviceIdsInOrder: Object.keys(manifest.servicesById),
   };
 };

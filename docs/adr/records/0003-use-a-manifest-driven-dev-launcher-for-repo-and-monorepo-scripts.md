@@ -33,6 +33,7 @@ The manifest contract for v1 is:
 - `services: []`
 - `presets: []`
 - optional `ui.logBufferLines`
+- optional per-service `openUrl`
 
 Each service is declared explicitly using one of three target kinds:
 
@@ -174,12 +175,20 @@ type DevServiceTarget =
       packagePath?: string;
     }
   | { kind: 'command'; command: string; args?: string[]; cwd?: string };
+
+interface DevServiceDefinition {
+  id: string;
+  label: string;
+  openUrl?: string;
+  target: DevServiceTarget;
+}
 ```
 
 - New TUI behavior:
   - startup preset/custom selection
   - split dashboard for overview
   - focused single-service log mode entered from the selected service
+  - `o` opens a selected service's configured `openUrl`
   - plain fallback for non-TTY or `--no-tui`
 
 ---
