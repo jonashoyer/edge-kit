@@ -27,6 +27,8 @@ export type {
   DevActionRunResult,
 } from './actions';
 export { defineDevActions } from './actions';
+export { gitPullAction } from './actions/git-pull';
+export { installDepsAction } from './actions/install-deps';
 export type { LoadedDevActionsConfig } from './actions-config';
 export {
   loadDevActionsConfig,

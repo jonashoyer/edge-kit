@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import {
   loadDevActionsConfig,
@@ -86,6 +87,40 @@ describe('loadDevActionsConfig', () => {
 
       expect(config?.actionIdsInOrder).toEqual(['install-deps']);
     }
+  });
+
+  it('loads a config that imports the public dev-launcher entrypoint', async () => {
+    const tempDir = createTempDir();
+    const publicEntryUrl = pathToFileURL(
+      path.resolve(process.cwd(), 'src/cli/dev-launcher/index.ts')
+    ).href;
+    writeFile(
+      path.join(tempDir, 'package.json'),
+      JSON.stringify({ type: 'module' }, null, 2)
+    );
+    writeFile(
+      path.join(tempDir, 'dev-cli.actions.ts'),
+      `
+import { defineDevActions, gitPullAction, installDepsAction } from '${publicEntryUrl}';
+
+export default defineDevActions({
+  actionsById: {
+    'git-pull': gitPullAction,
+    'install-deps': installDepsAction,
+  },
+});
+`
+    );
+
+    const config = await loadDevActionsConfig({
+      cwd: tempDir,
+    });
+
+    expect(config?.actionIdsInOrder).toEqual(['git-pull', 'install-deps']);
+    expect(config?.actionsById['git-pull']?.label).toBe('Pull latest commits');
+    expect(config?.actionsById['install-deps']?.label).toBe(
+      'Install dependencies'
+    );
   });
 
   it('rejects malformed default exports', async () => {

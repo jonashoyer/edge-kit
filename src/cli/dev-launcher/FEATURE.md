@@ -1,8 +1,8 @@
 # Feature: Dev Launcher
 
 **Status:** `Active`
-**Last Reviewed:** 2026-03-18
-**Related ADRs:** [ADR-0003], [ADR-0006], [ADR-0007]
+**Last Reviewed:** 2026-03-22
+**Related ADRs:** [ADR-0003], [ADR-0006], [ADR-0007], [ADR-0015]
 **PRD:** N/A
 
 ---
@@ -28,6 +28,8 @@ command family.
   hardcoding one repo's service registry.
 - Support repo-specific one-shot developer actions without hardcoding them into
   the service manifest or TUI.
+- Ship reusable example actions from the dev-launcher feature while keeping the
+  repo-root actions registry thin.
 - Share one process supervisor across plain and TUI modes.
 - Make the focused log view the supported copy/select surface in terminal mode.
 
@@ -39,6 +41,8 @@ command family.
   services and presets.
 - DO keep `dev-cli.actions.ts` / `.mts` / `.js` / `.mjs` as the separate local
   TS/JS source of truth for one-shot developer actions.
+- DO keep shipped reusable example actions under
+  `src/cli/dev-launcher/actions/` and expose them from the public entrypoint.
 - DO use keyed maps as the config contract:
   - `servicesById`
   - `presetsById`
@@ -79,6 +83,8 @@ command family.
   - `getPresetServiceIds(...)`
 - Actions:
   - `defineDevActions(...)`
+  - `gitPullAction`
+  - `installDepsAction`
   - `loadDevActionsConfig(...)`
   - `resolveDevActionsConfigPath(...)`
   - `listDevActions(...)`
@@ -129,19 +135,16 @@ Manifest contract:
 Actions module contract:
 
 ```ts
+import {
+  defineDevActions,
+  gitPullAction,
+  installDepsAction,
+} from './src/cli/dev-launcher';
+
 export default defineDevActions({
   actionsById: {
-    'install-deps': {
-      label: 'Install dependencies',
-      suggestInDev: true,
-      impactPolicy: 'stop-all',
-      async isAvailable(ctx) {
-        return { available: true, reason: 'node_modules is stale.' };
-      },
-      async run(ctx) {
-        await ctx.pnpm(['install'], { stdio: 'inherit' });
-      },
-    },
+    'git-pull': gitPullAction,
+    'install-deps': installDepsAction,
   },
 });
 ```
@@ -177,9 +180,9 @@ Implemented: CLI-only action listing and execution through
 Implemented: `pnpm cli dev` now evaluates only `suggestInDev` actions and
 prints non-blocking preflight suggestions before entering TUI or plain mode.
 
-Implemented: the repo ships `dev-cli.actions.ts` with an `install-deps`
-example action backed by `getPnpmInstallState(...)` and organized under
-`dev-cli/actions/`.
+Implemented: the repo ships `dev-cli.actions.ts` as a thin repo-root registry,
+with `gitPullAction` and `installDepsAction` implemented under
+`src/cli/dev-launcher/actions/` and exported from the public entrypoint.
 
 ---
 

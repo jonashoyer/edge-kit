@@ -99,3 +99,11 @@ Implemented: the repo example config files now use `servicesById`,
 
 - ADR-0003 - Use a manifest-driven dev launcher for repo and monorepo scripts
 - ADR-0006 - Add a TypeScript-defined developer actions subsystem
+
+## Superseded In Part By
+
+The keyed-map decision in this ADR remains current. The repo-specific example
+placement note that said shipped action modules live under `dev-cli/actions/`
+was superseded on 2026-03-22 by ADR-0015, which moves shipped reusable example
+actions into `src/cli/dev-launcher/actions/` and exposes them from the public
+entrypoint.

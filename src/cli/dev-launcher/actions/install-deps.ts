@@ -1,5 +1,5 @@
-import type { DevActionDefinition } from '../../src/cli/dev-launcher';
-import { getPnpmInstallState } from '../../src/cli/dev-launcher';
+import type { DevActionDefinition } from '../actions';
+import { getPnpmInstallState } from '../package-state';
 
 export const installDepsAction: DevActionDefinition = {
   description:

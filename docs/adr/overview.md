@@ -16,3 +16,4 @@
 | ADR-0012 | Use a central registry-based TaskReconciler for versioned operational work | Implemented | 2026-03-20 |
 | ADR-0013 | Use an optional storage explorer capability instead of root listing APIs | Implemented | 2026-03-21 |
 | ADR-0014 | Use a dedicated transcription service family for local AI SDK Parakeet models | Implemented | 2026-03-21 |
+| ADR-0015 | Ship dev-launcher example actions from the feature directory | Implemented | 2026-03-22 |

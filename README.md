@@ -187,39 +187,27 @@ Minimal `dev-cli.config.json`:
 Minimal `dev-cli.actions.ts`:
 
 ```ts
-import { defineDevActions } from './src/cli/dev-launcher';
-import { installDepsAction } from './dev-cli/actions/install-deps';
+import {
+  defineDevActions,
+  gitPullAction,
+  installDepsAction,
+} from './src/cli/dev-launcher';
 
 export default defineDevActions({
   actionsById: {
+    'git-pull': gitPullAction,
     'install-deps': installDepsAction,
   },
 });
 ```
 
-```ts
-// dev-cli/actions/install-deps.ts
-import type { DevActionDefinition } from '../../src/cli/dev-launcher';
-import { getPnpmInstallState } from '../../src/cli/dev-launcher';
-
-export const installDepsAction: DevActionDefinition = {
-  label: 'Install dependencies',
-  description: 'Run pnpm install when dependencies are stale.',
-  suggestInDev: true,
-  impactPolicy: 'stop-all',
-  async isAvailable(ctx) {
-    const installState = getPnpmInstallState(ctx.repoRoot);
-    return {
-      available: installState.needsInstall,
-      reason: installState.reason,
-    };
-  },
-  async run(ctx) {
-    await ctx.pnpm(['install'], { stdio: 'inherit' });
-    return { summary: 'Dependencies installed.' };
-  },
-};
-```
+Edge Kit ships `gitPullAction` and `installDepsAction` from the dev-launcher
+public entrypoint. `gitPullAction` fetches the tracked remote branch and only
+becomes available when the current branch can be fast-forward pulled. If you
+need to customize either action, start from
+`src/cli/dev-launcher/actions/git-pull.ts` or
+`src/cli/dev-launcher/actions/install-deps.ts` and keep `dev-cli.actions.ts` as
+your repo-root registry entrypoint.
 
 The TUI keeps the dashboard split for overview, but Enter on a selected
 service opens a focused log mode that renders only that service log so scroll
