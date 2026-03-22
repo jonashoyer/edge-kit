@@ -89,10 +89,19 @@ describe('loadDevActionsConfig', () => {
     }
   });
 
-  it('loads a config that imports the public dev-launcher entrypoint', async () => {
+  it('loads a config that imports concrete dev-launcher modules', async () => {
     const tempDir = createTempDir();
-    const publicEntryUrl = pathToFileURL(
-      path.resolve(process.cwd(), 'src/cli/dev-launcher/index.ts')
+    const actionsModuleUrl = pathToFileURL(
+      path.resolve(process.cwd(), 'src/cli/dev-launcher/actions.ts')
+    ).href;
+    const gitPullActionUrl = pathToFileURL(
+      path.resolve(process.cwd(), 'src/cli/dev-launcher/actions/git-pull.ts')
+    ).href;
+    const installDepsActionUrl = pathToFileURL(
+      path.resolve(
+        process.cwd(),
+        'src/cli/dev-launcher/actions/install-deps.ts'
+      )
     ).href;
     writeFile(
       path.join(tempDir, 'package.json'),
@@ -101,7 +110,9 @@ describe('loadDevActionsConfig', () => {
     writeFile(
       path.join(tempDir, 'dev-cli.actions.ts'),
       `
-import { defineDevActions, gitPullAction, installDepsAction } from '${publicEntryUrl}';
+import { defineDevActions } from '${actionsModuleUrl}';
+import { gitPullAction } from '${gitPullActionUrl}';
+import { installDepsAction } from '${installDepsActionUrl}';
 
 export default defineDevActions({
   actionsById: {

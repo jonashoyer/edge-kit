@@ -4,7 +4,7 @@ Stripe billing domain (B2B + subscriptions + webhooks), with local docs and exam
 
 ## Structure
 
-- `index.ts`: barrel export for the Stripe domain
+- `stripe-service.ts`: main orchestration service for the Stripe domain
 - `examples/`: copy-paste handlers/APIs (checkout, webhook, success handlers)
 - `docs/`: Stripe-specific implementation notes/playbooks
 
@@ -12,7 +12,7 @@ Stripe billing domain (B2B + subscriptions + webhooks), with local docs and exam
 
 | Task                          | File/dir                                          |
 | ----------------------------- | ------------------------------------------------- |
-| Domain public API             | `index.ts`                                        |
+| Main orchestration            | `stripe-service.ts`                               |
 | Webhook verification/handling | `webhook-service.ts`, `examples/webhook-api.ts`   |
 | Checkout flows                | `checkout-service.ts`, `examples/checkout-api.ts` |
 | Subscriptions                 | `subscription-service.ts`                         |

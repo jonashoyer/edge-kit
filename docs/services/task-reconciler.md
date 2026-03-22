@@ -41,7 +41,7 @@ You can use it in three ways:
 ```typescript
 import { InMemoryKeyValueService } from '../services/key-value/in-memory-key-value';
 import { KvMutex } from '../services/mutex/mutex-kv';
-import { TaskReconciler } from '../services/task-reconciler';
+import { TaskReconciler } from '../services/task-reconciler/task-reconciler';
 
 const kv = new InMemoryKeyValueService();
 const mutex = new KvMutex<string>(kv, { prefix: '', ttlSeconds: 30 });

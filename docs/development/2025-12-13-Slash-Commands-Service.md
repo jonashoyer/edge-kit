@@ -407,7 +407,7 @@ app.post("/slack/interactions", async (req, res) => {
    - `CommandNotFoundError extends CustomError<"COMMAND_NOT_FOUND">`
    - `CommandExecutionError extends CustomError<"COMMAND_EXECUTION_ERROR">`
    - `DuplicateCommandError extends CustomError<"DUPLICATE_COMMAND">` (dedupe hit)
-8. Create `index.ts` barrel export
+8. Keep imports direct from concrete slash-command modules; do not add an `index.ts` barrel
 9. Create documentation: `docs/services/slash-command.md`
    - Architecture overview
    - Command-scoped design explanation

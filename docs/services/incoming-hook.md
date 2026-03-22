@@ -60,10 +60,10 @@ type VerifiedIncomingHook<TPayload> = {
 
 ```typescript
 import {
-  VercelWebhookVerifier,
   createAppRouterIncomingHookHandler,
-  runVerifiedHookWithTaskReconciler,
-} from '../services/incoming-hook';
+} from '../services/incoming-hook/app-router-handler';
+import { VercelWebhookVerifier } from '../services/incoming-hook/vercel-webhook-verifier';
+import { runVerifiedHookWithTaskReconciler } from '../services/incoming-hook/task-reconciler-bridge';
 
 const handler = createAppRouterIncomingHookHandler({
   verifier: new VercelWebhookVerifier([process.env.VERCEL_WEBHOOK_SECRET!]),
@@ -135,8 +135,8 @@ import type { NextApiRequest, NextApiResponse } from 'next';
 import {
   createPagesRouterIncomingHookHandler,
   incomingHookPagesRouterConfig,
-  GitHubWebhookVerifier,
-} from '../services/incoming-hook';
+} from '../services/incoming-hook/pages-router-handler';
+import { GitHubWebhookVerifier } from '../services/incoming-hook/github-webhook-verifier';
 
 export const config = incomingHookPagesRouterConfig;
 

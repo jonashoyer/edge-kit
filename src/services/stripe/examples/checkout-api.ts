@@ -8,8 +8,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { AbstractKeyValueService } from '../../key-value/abstract-key-value';
-import { StripeService } from '..';
 import { StripeKVStore } from '../kv-store';
+import { StripeService } from '../stripe-service';
 
 // Example auth helper, replace with your own auth implementation
 async function getAuthenticatedUser(req: NextRequest) {

@@ -1,11 +1,9 @@
 import { InMemoryKeyValueService } from '../../key-value/in-memory-key-value';
 import { ConsoleLogger } from '../../logging/console-logger';
 import { KvMutex } from '../../mutex/mutex-kv';
-import { TaskReconciler } from '../../task-reconciler';
-import {
-  createAppRouterIncomingHookHandler,
-  VercelWebhookVerifier,
-} from '..';
+import { TaskReconciler } from '../../task-reconciler/task-reconciler';
+import { createAppRouterIncomingHookHandler } from '../app-router-handler';
+import { VercelWebhookVerifier } from '../vercel-webhook-verifier';
 
 const kv = new InMemoryKeyValueService();
 const logger = new ConsoleLogger();

@@ -31,7 +31,7 @@ The Edge Kit Stripe integration consists of several coordinated services:
 import Stripe from 'stripe';
 
 import { AxiomLogger } from '../services/logging/axiom-logger';
-import { StripeService } from '../services/stripe';
+import { StripeService } from '../services/stripe/stripe-service';
 import { MyStripeStore } from './my-stripe-store';
 
 // Create a logger (optional)
@@ -274,7 +274,7 @@ await stripeService.syncStripeDataForUser(userId);
 ### Setting Up a SaaS Subscription System
 
 ```typescript
-import { StripeService } from '../services/stripe';
+import { StripeService } from '../services/stripe/stripe-service';
 import { MyStripeStore } from './my-stripe-store';
 import Stripe from 'stripe';
 
@@ -480,7 +480,7 @@ You can extend the webhook handling for additional business logic:
 import { buffer } from 'micro';
 import Stripe from 'stripe';
 
-import { StripeService } from '../services/stripe';
+import { StripeService } from '../services/stripe/stripe-service';
 import { MyStripeStore } from './my-stripe-store';
 
 // Initialize Stripe service (as shown earlier)
@@ -822,7 +822,7 @@ class EnhancedWebhookService extends StripeWebhookService {
 ### Setting Up Test Environment
 
 ```typescript
-import { StripeService } from '../services/stripe';
+import { StripeService } from '../services/stripe/stripe-service';
 import { InMemoryStripeStore } from './in-memory-stripe-store'; // Mock store for testing
 import Stripe from 'stripe';
 

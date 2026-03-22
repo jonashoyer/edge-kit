@@ -10,7 +10,7 @@ import {
 } from '../../utils/crypto-utils';
 import { InMemoryKeyValueService } from '../key-value/in-memory-key-value';
 import { AbstractMutex, type AcquireResult } from '../mutex/abstract-mutex';
-import { TaskReconciler } from '../task-reconciler';
+import { TaskReconciler } from '../task-reconciler/task-reconciler';
 import { createAppRouterIncomingHookHandler } from './app-router-handler';
 import { GitHubWebhookVerifier } from './github-webhook-verifier';
 import {

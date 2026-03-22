@@ -42,7 +42,8 @@ command family.
 - DO keep `dev-cli.actions.ts` / `.mts` / `.js` / `.mjs` as the separate local
   TS/JS source of truth for one-shot developer actions.
 - DO keep shipped reusable example actions under
-  `src/cli/dev-launcher/actions/` and expose them from the public entrypoint.
+  `src/cli/dev-launcher/actions/` and import them directly from their concrete
+  modules.
 - DO use keyed maps as the config contract:
   - `servicesById`
   - `presetsById`
@@ -137,9 +138,9 @@ Actions module contract:
 ```ts
 import {
   defineDevActions,
-  gitPullAction,
-  installDepsAction,
-} from './src/cli/dev-launcher';
+} from './src/cli/dev-launcher/actions';
+import { gitPullAction } from './src/cli/dev-launcher/actions/git-pull';
+import { installDepsAction } from './src/cli/dev-launcher/actions/install-deps';
 
 export default defineDevActions({
   actionsById: {
@@ -182,7 +183,8 @@ prints non-blocking preflight suggestions before entering TUI or plain mode.
 
 Implemented: the repo ships `dev-cli.actions.ts` as a thin repo-root registry,
 with `gitPullAction` and `installDepsAction` implemented under
-`src/cli/dev-launcher/actions/` and exported from the public entrypoint.
+`src/cli/dev-launcher/actions/` and imported directly from their concrete
+modules.
 
 ---
 

@@ -49,7 +49,7 @@ importable runtime package.
 
 ### Billing
 
-- [Stripe](./src/services/stripe/index.ts)
+- [Stripe](./src/services/stripe/stripe-service.ts)
 
 ### Storage
 
@@ -57,7 +57,7 @@ importable runtime package.
 - [Cloudflare R2](./src/services/storage/r2-storage.ts)
 - [Storage Asset Catalog](./src/services/storage-asset/abstract-storage-asset.ts)
 - [Storage Asset Inventory](./src/services/storage-asset/storage-asset-inventory.ts)
-- [Contextualizer](./src/services/contextualizer/index.ts)
+- [Contextualizer](./src/services/contextualizer/contextualizer.ts)
 
 ### Key-Value Store
 
@@ -104,24 +104,24 @@ importable runtime package.
 
 ### Health
 
-- [Health probe helpers](./src/services/health/index.ts)
+- [Health probe helpers](./src/services/health/health-probe.ts)
 
 ### Operations & Coordination
 
-- [Task Reconciler](./src/services/task-reconciler/index.ts): Central
+- [Task Reconciler](./src/services/task-reconciler/task-reconciler.ts): Central
   registry-based desired-vs-applied reconciliation for reindexing, backfills,
   cache rebuilds, and similar operational work.
-- [Service Ingress](./src/services/service-ingress/index.ts): Typed internal
+- [Service Ingress](./src/services/service-ingress/service-ingress.ts): Typed internal
   service-to-service ingress over one shared signed endpoint.
-- [Incoming Hook](./src/services/incoming-hook/index.ts): Verified inbound POST
+- [Incoming Hook](./src/services/incoming-hook/app-router-handler.ts): Verified inbound POST
   handling for Vercel, GitHub, and Stripe webhooks.
 
 ### Developer Tooling
 
-- [Dev Launcher](./src/cli/dev-launcher/index.ts): Manifest-driven local
+- [Dev Launcher](./src/cli/dev-launcher/command.ts): Manifest-driven local
   dev launcher for repo and monorepo scripts plus TS-defined developer actions
   with a plain runner and Ink TUI.
-- [Git Commit Report](./src/cli/git-commit-report/index.ts): Reusable CLI
+- [Git Commit Report](./src/cli/git-commit-report/report-command.ts): Reusable CLI
   module for author- and time-bounded git commit context reports.
 
 ### Feature Flags & Waitlist
@@ -189,9 +189,9 @@ Minimal `dev-cli.actions.ts`:
 ```ts
 import {
   defineDevActions,
-  gitPullAction,
-  installDepsAction,
-} from './src/cli/dev-launcher';
+} from './src/cli/dev-launcher/actions';
+import { gitPullAction } from './src/cli/dev-launcher/actions/git-pull';
+import { installDepsAction } from './src/cli/dev-launcher/actions/install-deps';
 
 export default defineDevActions({
   actionsById: {
@@ -201,10 +201,10 @@ export default defineDevActions({
 });
 ```
 
-Edge Kit ships `gitPullAction` and `installDepsAction` from the dev-launcher
-public entrypoint. `gitPullAction` fetches the tracked remote branch and only
-becomes available when the current branch can be fast-forward pulled. If you
-need to customize either action, start from
+Edge Kit ships `gitPullAction` and `installDepsAction` as concrete dev-launcher
+modules. `gitPullAction` fetches the tracked remote branch and only becomes
+available when the current branch can be fast-forward pulled. If you need to
+customize either action, start from
 `src/cli/dev-launcher/actions/git-pull.ts` or
 `src/cli/dev-launcher/actions/install-deps.ts` and keep `dev-cli.actions.ts` as
 your repo-root registry entrypoint.

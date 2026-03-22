@@ -1,4 +1,4 @@
-import type { ReconcileOptions } from '../task-reconciler';
+import type { ReconcileOptions } from '../task-reconciler/abstract-task-reconciler';
 
 export type IncomingHookProvider = 'vercel' | 'github' | 'service' | 'stripe';
 

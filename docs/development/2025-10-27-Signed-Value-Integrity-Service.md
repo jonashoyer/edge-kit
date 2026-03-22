@@ -113,7 +113,7 @@ Implemented HMAC-SHA256 based integrity service to protect stored values against
    - Logging on verification failures (use optional logger)
    - On verification failure: return null (graceful)
 
-4. ✅ Export from `src/services/integrity/index.ts`
+4. ✅ Keep imports direct from concrete integrity modules
 
 5. ✅ Add tests for:
    - Sign/verify round-trip with various types (string, number, object, array) - 6 tests
@@ -145,7 +145,6 @@ src/services/integrity/
 ├── kv-signed-value-service.ts (120 lines)
 ├── signed-value-service.test.ts (197 lines)
 ├── kv-signed-value-service.test.ts (283 lines)
-├── index.ts (3 lines)
 └── README.md (comprehensive documentation)
 ```
 
@@ -171,7 +170,7 @@ Total: 33 tests, all passing
 ### Direct Signing
 
 ```typescript
-import { SignedValueService } from "@edge-kit/services/integrity";
+import { SignedValueService } from "../services/integrity/signed-value-service";
 
 const service = new SignedValueService();
 const signed = await service.sign(["admin-1", "admin-2"], secret);
@@ -181,7 +180,7 @@ const isValid = await service.verify(signed, secret);
 ### KV Integration
 
 ```typescript
-import { KvSignedValueService } from "@edge-kit/services/integrity";
+import { KvSignedValueService } from "../services/integrity/kv-signed-value-service";
 
 const integrity = new KvSignedValueService(kvService);
 await integrity.set("admin-ids", ["admin-1", "admin-2"], secret, "production");

@@ -58,15 +58,8 @@ export class FeatureRegistry {
       for (const entry of entries) {
         const entryPath = path.join(fullDir, entry.name);
 
-        // 1. Directory with index.ts (Bundle)
         if (entry.isDirectory()) {
-          const indexPath = path.join(entryPath, 'index.ts');
-          if (fs.existsSync(indexPath)) {
-            this.addFeature(entry.name, indexPath, category, entryPath);
-            continue;
-          }
-
-          // Scan children if no index.ts (e.g. services/storage/s3-storage.ts)
+          // Scan concrete child modules (for example services/storage/s3-storage.ts)
           const children = fs.readdirSync(entryPath, { withFileTypes: true });
           for (const child of children) {
             if (

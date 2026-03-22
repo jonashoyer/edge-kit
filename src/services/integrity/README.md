@@ -21,7 +21,7 @@ Use cases:
 Core signing/verification implementation using HMAC-SHA256.
 
 ```typescript
-import { SignedValueService } from "@edge-kit/services/integrity";
+import { SignedValueService } from "../services/integrity/signed-value-service";
 
 const service = new SignedValueService();
 const secret = process.env.INTEGRITY_SECRET;
@@ -42,7 +42,7 @@ const isValid = await service.verify(signedAdminIds, secret);
 Wraps any key-value service (Redis, KV store, etc.) with transparent signing/verification.
 
 ```typescript
-import { KvSignedValueService } from "@edge-kit/services/integrity";
+import { KvSignedValueService } from "../services/integrity/kv-signed-value-service";
 import { DrizzleKeyValueService } from "@edge-kit/services/key-value";
 
 const kvService = new DrizzleKeyValueService(db);
@@ -158,7 +158,7 @@ Any modification to:
 ## Usage Example: Admin List Protection
 
 ```typescript
-import { KvSignedValueService } from "@edge-kit/services/integrity";
+import { KvSignedValueService } from "../services/integrity/kv-signed-value-service";
 import { IORediKeyValue } from "@edge-kit/services/key-value";
 
 // Initialize services
@@ -198,7 +198,7 @@ console.log("Authorized admins:", adminIds);
 Available for custom error handling if needed:
 
 ```typescript
-import { SignatureVerificationError } from "@edge-kit/services/integrity";
+import { SignatureVerificationError } from "../services/integrity/signed-value-service";
 
 // Used internally but available for extension
 ```
@@ -273,7 +273,6 @@ Possible additions:
 - HMAC rotation strategies
 - Asymmetric signatures (RSA/ECDSA) if non-repudiation needed
 - Compression for large values
-
 
 
 

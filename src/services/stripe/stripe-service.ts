@@ -7,11 +7,6 @@ import { StripeSubscriptionService } from './subscription-service';
 import { StripeSyncService } from './sync-service';
 import { StripeWebhookService } from './webhook-service';
 
-export * from './abstract-stripe-store';
-export * from './b2b-service';
-export * from './kv-b2b-store';
-export * from './types';
-
 export interface StripeServiceOptions {
   logger?: AbstractLogger;
 
@@ -46,22 +41,16 @@ export interface StripeServiceOptions {
 }
 
 /**
- * Main Stripe service that coordinates all Stripe functionality
- */
-/**
  * Main Stripe service that coordinates all Stripe functionality.
  * Bundles Checkout, Webhook, Sync, and Subscription services into a single interface.
  * Requires an AbstractStripeStore for persisting customer/subscription data.
  */
 export class StripeService {
-  private store: AbstractStripeStore;
-  private syncService: StripeSyncService;
-  private checkoutService: StripeCheckoutService;
-  private webhookService: StripeWebhookService;
-  private subscriptionService: StripeSubscriptionService;
-  private logger: AbstractLogger | undefined;
-  private options: StripeServiceOptions;
-  private stripe: Stripe;
+  private readonly store: AbstractStripeStore;
+  private readonly syncService: StripeSyncService;
+  private readonly checkoutService: StripeCheckoutService;
+  private readonly webhookService: StripeWebhookService;
+  private readonly subscriptionService: StripeSubscriptionService;
 
   constructor(
     store: AbstractStripeStore,
@@ -69,9 +58,6 @@ export class StripeService {
     options: StripeServiceOptions
   ) {
     this.store = store;
-    this.stripe = stripe;
-    this.logger = options.logger;
-    this.options = options;
 
     if (!options.secretKey) {
       throw new Error('Stripe secret key is required');
@@ -81,14 +67,10 @@ export class StripeService {
       throw new Error('Stripe webhook secret is required');
     }
 
-    this.syncService = new StripeSyncService(
-      this.store,
-      this.stripe,
-      this.logger
-    );
+    this.syncService = new StripeSyncService(store, stripe, options.logger);
 
-    this.checkoutService = new StripeCheckoutService(this.store, stripe, {
-      logger: this.logger,
+    this.checkoutService = new StripeCheckoutService(store, stripe, {
+      logger: options.logger,
       successUrl: `${options.baseUrl}${options.successPath || '/success'}`,
       cancelUrl: `${options.baseUrl}${options.cancelPath || '/'}`,
     });
@@ -97,14 +79,14 @@ export class StripeService {
       this.syncService,
       stripe,
       options.webhookSecret,
-      this.logger
+      options.logger
     );
 
     this.subscriptionService = new StripeSubscriptionService(
-      this.store,
+      store,
       this.syncService,
       stripe,
-      this.logger
+      options.logger
     );
   }
 
@@ -117,7 +99,7 @@ export class StripeService {
     priceId: string,
     options?: Parameters<StripeCheckoutService['createSubscriptionCheckout']>[3]
   ) {
-    return this.checkoutService.createSubscriptionCheckout(
+    return await this.checkoutService.createSubscriptionCheckout(
       userId,
       email,
       priceId,
@@ -134,7 +116,7 @@ export class StripeService {
     lineItems: Parameters<StripeCheckoutService['createOneTimeCheckout']>[2],
     options?: Parameters<StripeCheckoutService['createOneTimeCheckout']>[3]
   ) {
-    return this.checkoutService.createOneTimeCheckout(
+    return await this.checkoutService.createOneTimeCheckout(
       userId,
       email,
       lineItems,
@@ -146,7 +128,7 @@ export class StripeService {
    * Handle a Stripe webhook
    */
   async handleWebhook(payload: string | Buffer, signature: string) {
-    return this.webhookService.handleWebhook(payload, signature);
+    return await this.webhookService.handleWebhook(payload, signature);
   }
 
   /**
@@ -157,42 +139,43 @@ export class StripeService {
     if (!customerId) {
       return null;
     }
-    return this.syncService.syncStripeData(customerId);
+
+    return await this.syncService.syncStripeData(customerId);
   }
 
   /**
    * Check if a user has an active subscription
    */
   async hasActiveSubscription(userId: string) {
-    return this.subscriptionService.hasActiveSubscription(userId);
+    return await this.subscriptionService.hasActiveSubscription(userId);
   }
 
   /**
    * Get a user's subscription data
    */
   async getUserSubscription(userId: string) {
-    return this.subscriptionService.getUserSubscription(userId);
+    return await this.subscriptionService.getUserSubscription(userId);
   }
 
   /**
    * Cancel a subscription at period end
    */
   async cancelSubscriptionAtPeriodEnd(userId: string) {
-    return this.subscriptionService.cancelSubscriptionAtPeriodEnd(userId);
+    return await this.subscriptionService.cancelSubscriptionAtPeriodEnd(userId);
   }
 
   /**
    * Resume a subscription (remove cancellation)
    */
   async resumeSubscription(userId: string) {
-    return this.subscriptionService.resumeSubscription(userId);
+    return await this.subscriptionService.resumeSubscription(userId);
   }
 
   /**
    * Create a customer portal session for managing subscriptions
    */
   async createCustomerPortalSession(userId: string, returnUrl: string) {
-    return this.subscriptionService.createCustomerPortalSession(
+    return await this.subscriptionService.createCustomerPortalSession(
       userId,
       returnUrl
     );

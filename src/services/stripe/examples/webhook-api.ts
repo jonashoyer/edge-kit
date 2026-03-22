@@ -8,8 +8,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import type { AbstractKeyValueService } from '../../key-value/abstract-key-value';
-import { StripeService } from '..';
 import { StripeKVStore } from '../kv-store';
+import { StripeService } from '../stripe-service';
 
 // Example of getting services, replace with your own implementations
 function getKeyValueService(): AbstractKeyValueService {

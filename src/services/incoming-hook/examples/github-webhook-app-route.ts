@@ -1,4 +1,5 @@
-import { createAppRouterIncomingHookHandler, GitHubWebhookVerifier } from '..';
+import { createAppRouterIncomingHookHandler } from '../app-router-handler';
+import { GitHubWebhookVerifier } from '../github-webhook-verifier';
 
 export const POST = createAppRouterIncomingHookHandler({
   verifier: new GitHubWebhookVerifier([process.env.GITHUB_WEBHOOK_SECRET!]),

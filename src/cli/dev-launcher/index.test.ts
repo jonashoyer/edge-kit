@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { defineDevActions, gitPullAction, installDepsAction } from './index';
+import { defineDevActions } from './actions';
+import { gitPullAction } from './actions/git-pull';
+import { installDepsAction } from './actions/install-deps';
 
-describe('dev-launcher public entrypoint', () => {
-  it('exports shipped actions for repo actions configs', () => {
+describe('dev-launcher shipped actions', () => {
+  it('supports composing shipped actions in repo actions configs', () => {
     const config = defineDevActions({
       actionsById: {
         'git-pull': gitPullAction,

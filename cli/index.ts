@@ -1,10 +1,8 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI entrypoint output is intentional. */
 import { Command } from 'commander';
-import {
-  createDevLauncherActionCommand,
-  createDevLauncherCommand,
-} from '../src/cli/dev-launcher';
-import { createGitCommitReportCommand } from '../src/cli/git-commit-report';
+import { createDevLauncherActionCommand } from '../src/cli/dev-launcher/action-command';
+import { createDevLauncherCommand } from '../src/cli/dev-launcher/command';
+import { createGitCommitReportCommand } from '../src/cli/git-commit-report/report-command';
 
 const program = new Command();
 

@@ -68,7 +68,7 @@ Execute these steps in order:
 
 For each \`<files>\` element in the \`<files>\` array:
 
-1. Extract the \`<path>\` value (e.g., \`src/services/stripe/index.ts\`).
+1. Extract the \`<path>\` value (e.g., \`src/services/stripe/stripe-service.ts\`).
 2. Extract the \`<content>\` value (TypeScript source code).
 3. **Conflict check**: If a file already exists at that path:
    - If the existing file is identical, skip.
@@ -114,7 +114,7 @@ Edge Kit services use constructor injection. When instantiating a service:
 
 \`\`\`typescript
 // 1. Import the service and its dependencies
-import { StripeService } from "./services/stripe";
+import { StripeService } from "./services/stripe/stripe-service";
 import { ConsoleLogger } from "./services/logging/console-logger";
 import { UpstashRedisKeyValueService } from "./services/key-value/upstash-redis-key-value";
 

@@ -26,8 +26,8 @@ STRIPE_PRICE_ID=price_1234567890
 ```typescript
 import { kv } from '../services/key-value'; // Your KV service implementation
 import { ConsoleLogger } from '../services/logging/console-logger';
-import { StripeService } from '../services/stripe';
 import { StripeKVStore } from '../services/stripe/kv-store';
+import { StripeService } from '../services/stripe/stripe-service';
 
 const store = new StripeKVStore(kv);
 const logger = new ConsoleLogger();

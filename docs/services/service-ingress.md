@@ -40,7 +40,7 @@ import {
   createServiceIngressHandler,
   defineServiceIngress,
   sendServiceIngress,
-} from '../services/service-ingress';
+} from '../services/service-ingress/service-ingress';
 
 const searchSyncIngress = defineServiceIngress<{
   revision: string;

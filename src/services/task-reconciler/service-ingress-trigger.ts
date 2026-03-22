@@ -1,4 +1,4 @@
-import { defineServiceIngress } from '../service-ingress';
+import { defineServiceIngress } from '../service-ingress/service-ingress';
 import type {
   CheckAllResult,
   ReconcileAllResult,

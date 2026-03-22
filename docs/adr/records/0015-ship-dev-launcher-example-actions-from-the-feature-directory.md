@@ -10,8 +10,8 @@
 
 Edge Kit keeps `dev-cli.actions.ts` as the repo-root actions registry contract,
 but moves shipped example action implementations into
-`src/cli/dev-launcher/actions/` and exposes them from the dev-launcher public
-entrypoint. This replaces the earlier repo-specific example placement under
+`src/cli/dev-launcher/actions/` and imports them directly from concrete
+modules. This replaces the earlier repo-specific example placement under
 `dev-cli/actions/` while preserving the loader contract and action runtime
 behavior.
 
@@ -32,7 +32,7 @@ The repo-root registry contract remains unchanged:
 - `dev-cli.actions.mjs`
 
 `dev-cli.actions.ts` remains the thin assembly point discovered by the loader.
-It imports shipped example actions from the public dev-launcher entrypoint
+It imports shipped example actions from their concrete dev-launcher modules
 rather than from a repo-only directory.
 
 This decision adds public exports for shipped example actions such as:
@@ -62,7 +62,8 @@ dev-launcher feature.
 
 - Keep `dev-cli.actions.ts` as the default upward-discovered registry contract.
 - Keep shipped reusable example actions under `src/cli/dev-launcher/`.
-- Expose shipped example actions from `src/cli/dev-launcher/index.ts`.
+- Keep shipped example actions under concrete files in
+  `src/cli/dev-launcher/actions/`.
 - Do not move repo-specific, non-generic workflow logic into the reusable
   feature directory.
 - Do not change `actionsById`, `suggestInDev`, `impactPolicy`, or action
@@ -76,8 +77,8 @@ Positive: feature-owned example actions now live with the feature that defines
 their types, helpers, and public API.
 
 Positive: the README and example registry setup become simpler because
-consumers can import both `defineDevActions` and shipped example actions from
-one entrypoint.
+consumers can import `defineDevActions` and shipped example actions from stable
+concrete modules without relying on a barrel entrypoint.
 
 Negative: ADR-0007 is no longer fully current about where shipped example
 actions live, so this ADR supersedes that placement decision.
@@ -103,10 +104,10 @@ Implemented in this repo by:
 - moving the shipped install example into `src/cli/dev-launcher/actions/`
 - adding shipped reusable example actions under
   `src/cli/dev-launcher/actions/`
-- exporting `gitPullAction` and `installDepsAction` from
-  `src/cli/dev-launcher/index.ts`
-- updating `dev-cli.actions.ts`, tests, README, and feature docs to use the
-  public entrypoint import pattern
+- wiring consumers to import `gitPullAction` and `installDepsAction` from
+  their concrete modules
+- updating `dev-cli.actions.ts`, tests, README, and feature docs to use direct
+  imports
 
 ---
 

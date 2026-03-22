@@ -6,7 +6,7 @@ import { KvMutex } from '../mutex/mutex-kv';
 import {
   createServiceIngressHandler,
   sendServiceIngress,
-} from '../service-ingress';
+} from '../service-ingress/service-ingress';
 import { defineTaskReconcilerServiceIngress } from './service-ingress-trigger';
 import { TaskReconciler } from './task-reconciler';
 

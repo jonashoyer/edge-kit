@@ -1,9 +1,7 @@
 import Stripe from 'stripe';
 
-import {
-  createAppRouterIncomingHookHandler,
-  StripeIncomingHookVerifier,
-} from '..';
+import { createAppRouterIncomingHookHandler } from '../app-router-handler';
+import { StripeIncomingHookVerifier } from '../stripe-incoming-hook-verifier';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2025-02-24.acacia',

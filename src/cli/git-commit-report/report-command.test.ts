@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import { formatGitCommitReport } from './report';
 import {
-  formatGitCommitReport,
   type GitCommitReportCommandRuntime,
   runGitCommitReportCommand,
-} from './index';
+} from './report-command';
 
 const RECORD_SEPARATOR = '\u001e';
 const FIELD_SEPARATOR = '\u001f';

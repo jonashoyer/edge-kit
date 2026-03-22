@@ -37,7 +37,8 @@ date, files changed, and line-change stats. It backs the repo-level
 - DO return normalized per-commit metadata, not just aggregate counts.
 - DO keep patch expansion or body-heavy output opt-in.
 - DO support JSON output for downstream tooling.
-- DO expose the reusable module entrypoint from `src/cli/git-commit-report/index.ts`.
+- DO keep reusable command/runtime imports direct from
+  `report-command.ts` and `report.ts`.
 - DO NOT inspect the worktree to synthesize commit history results.
 - DO NOT add remote provider dependencies or API-based commit lookups.
 - DO NOT hardcode a repo-specific default author list.
@@ -85,7 +86,7 @@ Each report entry includes:
 ## Current State
 
 Implemented: the reusable module family exists in `src/cli/git-commit-report/`
-and is exported through `src/cli/git-commit-report/index.ts`.
+with direct imports from `report-command.ts` and `report.ts`.
 
 Implemented: `collectGitCommitReport(...)` shells out to local `git log` with
 `--since`, `--until`, `--author`, and `--numstat`, then normalizes per-commit
@@ -100,7 +101,7 @@ serialization, body/patch expansion, and empty-author validation.
 
 Verified: `pnpm exec vitest run src/cli/git-commit-report/report-command.test.ts`
 and `pnpm exec biome check cli/index.ts src/cli/git-commit-report/report.ts
-src/cli/git-commit-report/report-command.ts src/cli/git-commit-report/index.ts
+src/cli/git-commit-report/report-command.ts
 src/cli/git-commit-report/report-command.test.ts README.md` pass.
 
 Verified: `pnpm cli commits report --help` works; the command surface exposes
@@ -113,7 +114,7 @@ errors outside this feature area.
 ## Verification
 
 - `pnpm exec vitest run src/cli/git-commit-report/report-command.test.ts`
-- `pnpm exec biome check cli/index.ts src/cli/git-commit-report/report.ts src/cli/git-commit-report/report-command.ts src/cli/git-commit-report/index.ts src/cli/git-commit-report/report-command.test.ts README.md`
+- `pnpm exec biome check cli/index.ts src/cli/git-commit-report/report.ts src/cli/git-commit-report/report-command.ts src/cli/git-commit-report/report-command.test.ts README.md`
 - `pnpm cli commits report --help`
 
 ---

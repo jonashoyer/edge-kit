@@ -1,5 +1,8 @@
 import { ConsoleLogger } from '../../logging/console-logger';
-import { createServiceIngressHandler, defineServiceIngress } from '../index';
+import {
+  createServiceIngressHandler,
+  defineServiceIngress,
+} from '../service-ingress';
 
 const logger = new ConsoleLogger();
 

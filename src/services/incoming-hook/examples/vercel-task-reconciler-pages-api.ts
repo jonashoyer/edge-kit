@@ -1,13 +1,13 @@
 import { InMemoryKeyValueService } from '../../key-value/in-memory-key-value';
 import { ConsoleLogger } from '../../logging/console-logger';
 import { KvMutex } from '../../mutex/mutex-kv';
-import { TaskReconciler } from '../../task-reconciler';
+import { TaskReconciler } from '../../task-reconciler/task-reconciler';
 import {
   createPagesRouterIncomingHookHandler,
   incomingHookPagesRouterConfig,
-  runVerifiedHookWithTaskReconciler,
-  VercelWebhookVerifier,
-} from '..';
+} from '../pages-router-handler';
+import { runVerifiedHookWithTaskReconciler } from '../task-reconciler-bridge';
+import { VercelWebhookVerifier } from '../vercel-webhook-verifier';
 
 const kv = new InMemoryKeyValueService();
 const logger = new ConsoleLogger();
