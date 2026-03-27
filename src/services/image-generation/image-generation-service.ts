@@ -7,6 +7,7 @@ import {
   type StorageAssetRecord,
 } from '../storage-asset/abstract-storage-asset';
 import { StorageAssetInventoryService } from '../storage-asset/storage-asset-inventory';
+import type { StorageAssetPreviewMetadataBuilder } from '../storage-asset/storage-asset-preview';
 import type {
   AbstractImageGenerator,
   GeneratedImageAsset,
@@ -202,6 +203,7 @@ export interface ImageGenerationServiceOptions<
   storage?: AbstractStorage;
   assetCatalog?: AbstractStorageAssetService<object>;
   variantProducers?: ImageGenerationVariantProducer<TRequest>[];
+  previewMetadataBuilder?: StorageAssetPreviewMetadataBuilder<object>;
   source?: string;
   kind?: string;
   objectKeyPrefix?: string;
@@ -414,9 +416,8 @@ export class ImageGenerationService<
       return null;
     }
 
-    const variants = await this.requireAssetInventory().listChildren(
-      generationId
-    );
+    const variants =
+      await this.requireAssetInventory().listChildren(generationId);
     const typedVariants = sortVariants(
       variants.flatMap((variant) => {
         const typed = asVariantAsset(variant, this.kind);
@@ -581,6 +582,7 @@ export class ImageGenerationService<
       return new StorageAssetInventoryService({
         storage: options.storage,
         assetCatalog: options.assetCatalog,
+        previewMetadataBuilder: options.previewMetadataBuilder,
       });
     }
 
@@ -609,18 +611,19 @@ export class ImageGenerationService<
     output: ImageGenerationOutput;
   }): Promise<GeneratedImageVariantResult[]> {
     const variants: GeneratedImageVariantResult[] = [];
-    const originalAsset: StorageAssetRecord<ImageGenerationOriginalAssetMeta> = {
-      id: context.generationId,
-      objectKey: '',
-      mimeType: context.output.image.mimeType,
-      source: this.source,
-      parentAssetId: null,
-      orphanedAt: null,
-      tags: [],
-      meta: this.createOriginalMeta(context),
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    const originalAsset: StorageAssetRecord<ImageGenerationOriginalAssetMeta> =
+      {
+        id: context.generationId,
+        objectKey: '',
+        mimeType: context.output.image.mimeType,
+        source: this.source,
+        parentAssetId: null,
+        orphanedAt: null,
+        tags: [],
+        meta: this.createOriginalMeta(context),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
     let position = 0;
 
     for (const producer of this.variantProducers) {

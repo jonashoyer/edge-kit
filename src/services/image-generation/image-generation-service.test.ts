@@ -15,6 +15,7 @@ import {
   encodeStorageAssetCursor,
 } from '../storage-asset/abstract-storage-asset';
 import { StorageAssetInventoryService } from '../storage-asset/storage-asset-inventory';
+import type { StorageAssetPreviewMeta } from '../storage-asset/storage-asset-preview';
 import {
   AbstractImageGenerator,
   type ImageGenerationOutput,
@@ -506,6 +507,50 @@ describe('ImageGenerationService', () => {
     expect(
       storage.objects.has('image-generations/gen_123/variants/01-thumb.webp')
     ).toBe(true);
+  });
+
+  it('threads preview metadata builders into composed inventory writes', async () => {
+    const service = new ImageGenerationService({
+      generator: new FakeImageGenerator(),
+      storage,
+      assetCatalog,
+      previewMetadataBuilder: async ({ meta }) => {
+        return {
+          ...(meta ?? {}),
+          preview: {
+            kind: 'thumbhash',
+            value: 'stub-hash',
+            dataUrl: 'data:image/png;base64,stub',
+            width: 32,
+            height: 32,
+            aspectRatio: 1,
+          },
+        } satisfies StorageAssetPreviewMeta;
+      },
+      variantProducers: createImageResizeVariantProducers(
+        new FakeImageResizer(),
+        [
+          {
+            name: 'thumb',
+            width: 320,
+            height: 320,
+            format: 'webp',
+          },
+        ]
+      ),
+    });
+
+    const result = await service.generateAndStore(
+      {
+        prompt: 'hero product shot',
+      },
+      {
+        generationId: 'gen_preview',
+      }
+    );
+
+    expect(result.original.asset?.meta.preview?.kind).toBe('thumbhash');
+    expect(result.variants[0]?.asset?.meta.preview?.value).toBe('stub-hash');
   });
 
   it('hydrates history from inventory-backed generated roots only', async () => {

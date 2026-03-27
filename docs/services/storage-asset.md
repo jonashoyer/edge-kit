@@ -114,6 +114,13 @@ The service family stays split by persistence concern:
 `StorageAssetInventoryService` is the concrete orchestration layer that composes
 those contracts with `AbstractStorage`.
 
+The service family also ships preview metadata helpers for image assets:
+
+- `ThumbHashPreview`
+- `StorageAssetPreviewMeta`
+- `StorageAssetPreviewMetadataBuilder`
+- `createSharpThumbHashPreviewMetadataBuilder(...)`
+
 ## Inventory Lifecycle
 
 `StorageAssetInventoryService` now supports four workflow groups:
@@ -128,6 +135,7 @@ Example:
 
 ```ts
 import { StorageAssetInventoryService } from '../services/storage-asset/storage-asset-inventory';
+import { createSharpThumbHashPreviewMetadataBuilder } from '../services/storage-asset/storage-asset-preview';
 
 const inventory = new StorageAssetInventoryService({
   storage,
@@ -135,6 +143,7 @@ const inventory = new StorageAssetInventoryService({
   assetRefs,
   uploadLedger,
   uploadKeyStrategy: ({ id }) => `uploads/${id}.png`,
+  previewMetadataBuilder: createSharpThumbHashPreviewMetadataBuilder(),
 });
 
 const issued = await inventory.issueUpload({
@@ -163,6 +172,35 @@ const finalized = await inventory.finalizeUpload({
   },
 });
 ```
+
+## Preview Metadata
+
+When `previewMetadataBuilder` is configured, `StorageAssetInventoryService`
+will attempt to enrich inventory-backed `image/*` assets during `writeAsset(...)`
+and `finalizeUpload(...)`.
+
+The shipped `createSharpThumbHashPreviewMetadataBuilder(...)` implementation:
+
+- decodes images with `sharp`
+- resizes them to fit within `100x100`
+- encodes a ThumbHash
+- stores the result under `meta.preview`
+
+The default preview payload shape is:
+
+```ts
+type ThumbHashPreview = {
+  kind: 'thumbhash';
+  value: string; // base64url ThumbHash bytes
+  dataUrl: string; // blurred PNG data URL derived from the hash
+  width: number;
+  height: number;
+  aspectRatio: number;
+};
+```
+
+Preview generation is best-effort. If hashing fails, the asset write/finalize
+still succeeds and the original metadata is persisted unchanged.
 
 ## Family-root Liveness
 

@@ -100,7 +100,8 @@ importable runtime package.
 - [Optimistic LLM warm-up](./src/services/llm/optimistic-llm.ts)
 - [AI diagnostics](./src/services/llm/ai-diagnostics.ts)
 - [Image generation](./src/services/image-generation/image-generation-service.ts):
-  pure generation, optional storage persistence, and optional asset inventory
+  pure generation, optional storage persistence, optional asset inventory, and
+  inventory-backed preview metadata hooks
 - [Local Parakeet transcription provider](./src/services/transcription/parakeet-local-provider.ts):
   AI SDK `experimental_transcribe` support for local Parakeet MLX runtimes
 

@@ -21,3 +21,4 @@
 | ADR-0017 | Use a shared TypeScript dev-launcher config and local recent selections | Implemented | 2026-03-27 |
 | ADR-0018 | Run dev actions inside the dev-launcher TUI | Implemented | 2026-03-27 |
 | ADR-0019 | Add a socket-backed session host to the dev launcher | Implemented | 2026-03-27 |
+| ADR-0020 | Add pluggable image preview metadata builders with a sharp ThumbHash implementation | Implemented | 2026-03-27 |

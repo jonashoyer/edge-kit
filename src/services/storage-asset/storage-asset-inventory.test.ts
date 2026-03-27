@@ -1,14 +1,12 @@
 /** biome-ignore-all lint/suspicious/useAwait: memory doubles are synchronous */
+
+import sharp from 'sharp';
 import { describe, expect, it } from 'vitest';
 import type { StorageBody } from '../storage/abstract-storage';
-import { AbstractStorage } from '../storage/abstract-storage';
 import {
-  AbstractStorageAssetRefService,
-  type DeleteStorageAssetOwnerRefInput,
-  type StorageAssetOwnerRef,
-  type StorageAssetOwnerRefScope,
-  type UpsertStorageAssetOwnerRefInput,
-} from './abstract-storage-asset-ref';
+  AbstractStorage,
+  storageBodyToUint8Array,
+} from '../storage/abstract-storage';
 import {
   AbstractStorageAssetService,
   type ListOrphanedStorageAssetRootsOptions,
@@ -18,18 +16,29 @@ import {
   type UpsertStorageAssetInput,
 } from './abstract-storage-asset';
 import {
+  AbstractStorageAssetRefService,
+  type DeleteStorageAssetOwnerRefInput,
+  type StorageAssetOwnerRef,
+  type StorageAssetOwnerRefScope,
+  type UpsertStorageAssetOwnerRefInput,
+} from './abstract-storage-asset-ref';
+import {
   AbstractStorageUploadLedgerService,
   type ListExpiredStorageUploadsOptions,
-  type StorageUploadLedgerRecord,
-  type StorageUploadStatus,
   StorageUploadAlreadyConsumedError,
+  type StorageUploadLedgerRecord,
   type UpsertStorageUploadLedgerInput,
 } from './abstract-storage-upload-ledger';
 import { StorageAssetInventoryService } from './storage-asset-inventory';
+import {
+  createSharpThumbHashPreviewMetadataBuilder,
+  type StorageAssetPreviewMeta,
+} from './storage-asset-preview';
 
-type AssetMeta = {
+type AssetMeta = StorageAssetPreviewMeta & {
   kind?: string;
   role?: string;
+  existing?: string;
 };
 
 type UploadMeta = {
@@ -46,6 +55,7 @@ class MemoryStorage extends AbstractStorage {
       etag?: string;
     }
   >();
+  readCount = 0;
 
   constructor() {
     super({});
@@ -56,18 +66,16 @@ class MemoryStorage extends AbstractStorage {
     data: StorageBody,
     opts?: { contentType?: string }
   ): Promise<void> {
+    const bytes = await storageBodyToUint8Array(data);
     this.objects.set(key, {
-      data: Buffer.isBuffer(data)
-        ? new Uint8Array(data)
-        : data instanceof Uint8Array
-          ? data
-          : new Uint8Array(data as ArrayBuffer),
+      data: bytes,
       contentType: opts?.contentType,
       etag: `etag:${key}`,
     });
   }
 
   override async read(key: string): Promise<Buffer> {
+    this.readCount += 1;
     const value = this.objects.get(key);
 
     if (!value) {
@@ -94,9 +102,7 @@ class MemoryStorage extends AbstractStorage {
     };
   }
 
-  override async createWritePresignedUrl(
-    key: string
-  ): Promise<{
+  override async createWritePresignedUrl(key: string): Promise<{
     url: string;
     method: 'PUT';
     expiresAt: number;
@@ -126,6 +132,15 @@ class MemoryStorage extends AbstractStorage {
       etag: value.etag,
       meta: undefined as never,
     };
+  }
+}
+
+class CountingBlob extends Blob {
+  arrayBufferCalls = 0;
+
+  override async arrayBuffer(): Promise<ArrayBuffer> {
+    this.arrayBufferCalls += 1;
+    return await super.arrayBuffer();
   }
 }
 
@@ -275,7 +290,9 @@ class MemoryAssetRefService extends AbstractStorageAssetRefService {
     );
   }
 
-  override async listByAssetIds(assetIds: string[]): Promise<StorageAssetOwnerRef[]> {
+  override async listByAssetIds(
+    assetIds: string[]
+  ): Promise<StorageAssetOwnerRef[]> {
     const allowed = new Set(assetIds);
     return [...this.refs.values()].filter((ref) => allowed.has(ref.assetId));
   }
@@ -338,7 +355,10 @@ class MemoryUploadLedger extends AbstractStorageUploadLedgerService<UploadMeta> 
         return false;
       }
 
-      if (options.tenantId !== undefined && upload.tenantId !== options.tenantId) {
+      if (
+        options.tenantId !== undefined &&
+        upload.tenantId !== options.tenantId
+      ) {
         return false;
       }
 
@@ -360,8 +380,7 @@ class MemoryUploadLedger extends AbstractStorageUploadLedgerService<UploadMeta> 
         input.sizeBytes === undefined
           ? (existing?.sizeBytes ?? null)
           : input.sizeBytes,
-      etag:
-        input.etag === undefined ? (existing?.etag ?? null) : input.etag,
+      etag: input.etag === undefined ? (existing?.etag ?? null) : input.etag,
       expiresAt: input.expiresAt,
       issuedAt: input.issuedAt ?? existing?.issuedAt ?? new Date(),
       uploadedAt:
@@ -383,6 +402,29 @@ class MemoryUploadLedger extends AbstractStorageUploadLedgerService<UploadMeta> 
     return record;
   }
 }
+
+const createPngBytes = async (
+  width: number,
+  height: number
+): Promise<Uint8Array> => {
+  return new Uint8Array(
+    await sharp({
+      create: {
+        width,
+        height,
+        channels: 4,
+        background: {
+          r: 12,
+          g: 140,
+          b: 220,
+          alpha: 1,
+        },
+      },
+    })
+      .png()
+      .toBuffer()
+  );
+};
 
 describe('StorageAssetInventoryService', () => {
   it('writes bytes and catalog rows together', async () => {
@@ -408,6 +450,112 @@ describe('StorageAssetInventoryService', () => {
     expect(storage.objects.get('assets/asset-1.png')?.contentType).toBe(
       'image/png'
     );
+  });
+
+  it('does not materialize blob input twice when preview generation is disabled', async () => {
+    const storage = new MemoryStorage();
+    const inventory = new StorageAssetInventoryService({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+    });
+    const blob = new CountingBlob([new Uint8Array([1, 2, 3])], {
+      type: 'image/png',
+    });
+
+    await inventory.writeAsset({
+      id: 'asset-blob',
+      objectKey: 'assets/asset-blob.png',
+      mimeType: 'image/png',
+      source: 'generated',
+      data: blob,
+      meta: { kind: 'image-generation' },
+    });
+
+    expect(blob.arrayBufferCalls).toBe(1);
+  });
+
+  it('adds ThumbHash preview metadata for written image assets', async () => {
+    const storage = new MemoryStorage();
+    const inventory = new StorageAssetInventoryService<AssetMeta>({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+      previewMetadataBuilder:
+        createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+    });
+
+    const asset = await inventory.writeAsset({
+      id: 'asset-preview',
+      objectKey: 'assets/asset-preview.png',
+      mimeType: 'image/png',
+      source: 'generated',
+      data: await createPngBytes(240, 120),
+      meta: {
+        kind: 'image-generation',
+        existing: 'preserved',
+      },
+    });
+
+    expect(asset.meta.existing).toBe('preserved');
+    expect(asset.meta.preview?.kind).toBe('thumbhash');
+    expect(
+      asset.meta.preview?.dataUrl.startsWith('data:image/png;base64,')
+    ).toBe(true);
+    expect(asset.meta.preview?.width).toBeLessThanOrEqual(100);
+    expect(asset.meta.preview?.height).toBeLessThanOrEqual(100);
+    expect(asset.meta.preview?.aspectRatio).toBeGreaterThan(1.5);
+    expect(asset.meta.preview?.aspectRatio).toBeLessThan(2.1);
+  });
+
+  it('leaves non-image asset metadata unchanged when preview generation is configured', async () => {
+    const storage = new MemoryStorage();
+    const inventory = new StorageAssetInventoryService<AssetMeta>({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+      previewMetadataBuilder:
+        createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+    });
+
+    const asset = await inventory.writeAsset({
+      id: 'asset-text',
+      objectKey: 'assets/asset-text.txt',
+      mimeType: 'text/plain',
+      source: 'uploaded',
+      data: new TextEncoder().encode('hello'),
+      meta: {
+        existing: 'preserved',
+      },
+    });
+
+    expect(asset.meta).toEqual({
+      existing: 'preserved',
+    });
+  });
+
+  it('fails open when preview generation throws during writeAsset', async () => {
+    const storage = new MemoryStorage();
+    const inventory = new StorageAssetInventoryService<AssetMeta>({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+      previewMetadataBuilder: async () => {
+        throw new Error('preview failed');
+      },
+    });
+
+    const asset = await inventory.writeAsset({
+      id: 'asset-open-write',
+      objectKey: 'assets/asset-open-write.png',
+      mimeType: 'image/png',
+      source: 'generated',
+      data: await createPngBytes(32, 32),
+      meta: {
+        existing: 'preserved',
+      },
+    });
+
+    expect(asset.meta).toEqual({
+      existing: 'preserved',
+    });
+    expect(await inventory.get('asset-open-write')).not.toBeNull();
   });
 
   it('issues, completes, and finalizes uploads into assets', async () => {
@@ -457,6 +605,171 @@ describe('StorageAssetInventoryService', () => {
     expect(finalized.asset.objectKey).toBe('uploads/upload-1.png');
     expect(finalized.asset.orphanedAt).toBeNull();
     expect(refs.refs.size).toBe(1);
+  });
+
+  it('does not read finalized uploads when preview generation is disabled', async () => {
+    const storage = new MemoryStorage();
+    const uploadLedger = new MemoryUploadLedger();
+    const inventory = new StorageAssetInventoryService({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+      uploadLedger,
+      uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+    });
+
+    await inventory.issueUpload({
+      id: 'upload-no-preview',
+      mimeType: 'image/png',
+    });
+    await storage.write(
+      'uploads/upload-no-preview.png',
+      await createPngBytes(32, 32),
+      {
+        contentType: 'image/png',
+      }
+    );
+    await inventory.markUploadCompleted('upload-no-preview');
+
+    await inventory.finalizeUpload({
+      uploadId: 'upload-no-preview',
+      assetId: 'asset-no-preview',
+      source: 'uploaded',
+      meta: {
+        existing: 'preserved',
+      },
+    });
+
+    expect(storage.readCount).toBe(0);
+  });
+
+  it('adds ThumbHash preview metadata when finalizing uploaded image assets', async () => {
+    const storage = new MemoryStorage();
+    const uploadLedger = new MemoryUploadLedger();
+    const inventory = new StorageAssetInventoryService<AssetMeta>({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+      uploadLedger,
+      uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      previewMetadataBuilder:
+        createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+    });
+
+    await inventory.issueUpload({
+      id: 'upload-preview',
+      mimeType: 'image/png',
+    });
+    await storage.write(
+      'uploads/upload-preview.png',
+      await createPngBytes(60, 180),
+      {
+        contentType: 'image/png',
+      }
+    );
+    await inventory.markUploadCompleted('upload-preview');
+
+    const finalized = await inventory.finalizeUpload({
+      uploadId: 'upload-preview',
+      assetId: 'asset-preview',
+      source: 'uploaded',
+      meta: {
+        existing: 'preserved',
+      },
+    });
+
+    expect(finalized.asset.meta.existing).toBe('preserved');
+    expect(finalized.asset.meta.preview?.kind).toBe('thumbhash');
+    expect(finalized.asset.meta.preview?.aspectRatio).toBeCloseTo(1 / 3, 1);
+  });
+
+  it('fails open when preview generation throws during finalizeUpload', async () => {
+    const storage = new MemoryStorage();
+    const uploadLedger = new MemoryUploadLedger();
+    const inventory = new StorageAssetInventoryService<AssetMeta>({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+      uploadLedger,
+      uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      previewMetadataBuilder: async () => {
+        throw new Error('preview failed');
+      },
+    });
+
+    await inventory.issueUpload({
+      id: 'upload-open',
+      mimeType: 'image/png',
+    });
+    await storage.write(
+      'uploads/upload-open.png',
+      await createPngBytes(48, 48),
+      {
+        contentType: 'image/png',
+      }
+    );
+    await inventory.markUploadCompleted('upload-open');
+
+    const finalized = await inventory.finalizeUpload({
+      uploadId: 'upload-open',
+      assetId: 'asset-open',
+      source: 'uploaded',
+      meta: {
+        existing: 'preserved',
+      },
+    });
+
+    expect(finalized.upload.status).toBe('CONSUMED');
+    expect(finalized.asset.meta).toEqual({
+      existing: 'preserved',
+    });
+  });
+
+  it('does not read finalized non-image uploads when preview generation is configured', async () => {
+    const storage = new MemoryStorage();
+    const uploadLedger = new MemoryUploadLedger();
+    const inventory = new StorageAssetInventoryService<AssetMeta>({
+      storage,
+      assetCatalog: new MemoryCatalog(),
+      uploadLedger,
+      uploadKeyStrategy: (input) => `uploads/${input.id}.txt`,
+      previewMetadataBuilder:
+        createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+    });
+
+    await inventory.issueUpload({
+      id: 'upload-text',
+      mimeType: 'text/plain',
+    });
+    await storage.write(
+      'uploads/upload-text.txt',
+      new TextEncoder().encode('hello'),
+      {
+        contentType: 'text/plain',
+      }
+    );
+    await inventory.markUploadCompleted('upload-text');
+
+    const finalized = await inventory.finalizeUpload({
+      uploadId: 'upload-text',
+      assetId: 'asset-text-upload',
+      source: 'uploaded',
+      meta: {
+        existing: 'preserved',
+      },
+    });
+
+    expect(storage.readCount).toBe(0);
+    expect(finalized.asset.meta).toEqual({
+      existing: 'preserved',
+    });
+  });
+
+  it('rejects fractional preview maximum dimensions below one', () => {
+    expect(() =>
+      createSharpThumbHashPreviewMetadataBuilder({
+        maximumDimension: 0.5,
+      })
+    ).toThrow(
+      'Sharp ThumbHash preview maximumDimension must be an integer >= 1'
+    );
   });
 
   it('rejects reissuing a consumed upload id', async () => {

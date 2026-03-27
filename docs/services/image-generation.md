@@ -47,6 +47,8 @@ abstract class AbstractImageGenerator<TRequest = ImageGenerationRequest> {
 - optional `StorageAssetInventoryService`
 - optional `AbstractStorageAssetService` when you want the service to compose
   its own inventory manager from `storage + assetCatalog`
+- optional `StorageAssetPreviewMetadataBuilder` when you want composed
+  inventory writes to enrich image assets with preview metadata
 - optional `ImageGenerationVariantProducer[]`
 
 Example:
@@ -112,6 +114,10 @@ By default:
 
 You can add extra root metadata with `buildOriginalExtraMeta(...)`, override
 object-key builders, or provide your own preferred-variant selector.
+
+If you configure `previewMetadataBuilder` and the service is operating with
+inventory, generated originals and variants can also persist `meta.preview`
+payloads for clients that need blur placeholders immediately from catalog data.
 
 ## History Projection
 

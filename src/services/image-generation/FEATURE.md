@@ -1,7 +1,7 @@
 # Feature: Image Generation
 
 Status: Active
-Last Reviewed: 2026-03-21
+Last Reviewed: 2026-03-27
 
 ## Current State
 
@@ -17,7 +17,10 @@ the service composes one from `storage + assetCatalog`.
 
 The service also exposes a history projection over generated root assets and a
 pluggable variant-producer hook for downstream transforms such as thumbnails,
-social crops, or alternate encodings.
+social crops, or alternate encodings. When the service composes its own
+inventory layer from `storage + assetCatalog`, it can also pass through an
+optional preview metadata builder so persisted originals and variants gain
+image preview metadata in the catalog.
 
 ## Implementation Constraints
 

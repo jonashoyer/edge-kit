@@ -1,3 +1,5 @@
+import type { ThumbHashPreview } from '../storage-asset/storage-asset-preview';
+
 export const GENERATED_STORAGE_ASSET_SOURCE = 'generated';
 export const IMAGE_GENERATION_ASSET_KIND = 'image-generation';
 
@@ -11,6 +13,7 @@ export interface ImageGenerationMetaBase {
   width?: number;
   height?: number;
   altText?: string;
+  preview?: ThumbHashPreview;
   providerMeta?: Record<string, unknown>;
   extra?: Record<string, unknown>;
 }

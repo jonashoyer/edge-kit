@@ -3,12 +3,7 @@ import type {
   StorageBody,
   StorageWriteOptions,
 } from '../storage/abstract-storage';
-import {
-  AbstractStorageAssetRefService,
-  StorageAssetRefServiceUnavailableError,
-  type StorageAssetOwnerRef,
-  type StorageAssetOwnerRefScope,
-} from './abstract-storage-asset-ref';
+import { storageBodyToUint8Array } from '../storage/abstract-storage';
 import {
   type AbstractStorageAssetService,
   type StorageAssetListPageOptions,
@@ -19,11 +14,21 @@ import {
   type UpsertStorageAssetInput,
 } from './abstract-storage-asset';
 import {
-  AbstractStorageUploadLedgerService,
+  type AbstractStorageAssetRefService,
+  type StorageAssetOwnerRef,
+  type StorageAssetOwnerRefScope,
+  StorageAssetRefServiceUnavailableError,
+} from './abstract-storage-asset-ref';
+import {
+  type AbstractStorageUploadLedgerService,
   StorageUploadAlreadyConsumedError,
   type StorageUploadLedgerRecord,
   StorageUploadLedgerServiceUnavailableError,
 } from './abstract-storage-upload-ledger';
+import type {
+  StorageAssetPreviewMetadataBuilder,
+  StorageAssetPreviewMetadataBuilderContext,
+} from './storage-asset-preview';
 
 export interface WriteStorageAssetInput<
   TMeta extends object = Record<string, unknown>,
@@ -83,7 +88,10 @@ export interface MarkStorageUploadCompletedInput<
 
 export interface FinalizeStorageUploadInput<
   TMeta extends object = Record<string, unknown>,
-> extends Omit<UpsertStorageAssetInput<TMeta>, 'id' | 'objectKey' | 'mimeType'> {
+> extends Omit<
+    UpsertStorageAssetInput<TMeta>,
+    'id' | 'objectKey' | 'mimeType'
+  > {
   uploadId: string;
   assetId: string;
   syncRefs?: SyncStorageAssetRefsInput;
@@ -120,9 +128,7 @@ export interface PurgeOrphanedAssetsOptions {
 
 export type StorageUploadKeyStrategy<
   TUploadMeta extends object = Record<string, unknown>,
-> = (
-  input: IssueStorageUploadInput<TUploadMeta>
-) => Promise<string> | string;
+> = (input: IssueStorageUploadInput<TUploadMeta>) => Promise<string> | string;
 
 export interface StorageAssetInventoryServiceOptions<
   TMeta extends object = Record<string, unknown>,
@@ -133,6 +139,7 @@ export interface StorageAssetInventoryServiceOptions<
   assetRefs?: AbstractStorageAssetRefService;
   uploadLedger?: AbstractStorageUploadLedgerService<TUploadMeta>;
   uploadKeyStrategy?: StorageUploadKeyStrategy<TUploadMeta>;
+  previewMetadataBuilder?: StorageAssetPreviewMetadataBuilder<TMeta>;
 }
 
 const normalizeStorageWriteOptions = <
@@ -188,6 +195,16 @@ const mergeMeta = <TMeta extends object>(
   };
 };
 
+const isPreviewableMimeType = (mimeType: string): boolean => {
+  return mimeType.toLowerCase().startsWith('image/');
+};
+
+type ResolvePreviewMetadataInput<
+  TMeta extends object = Record<string, unknown>,
+> = Omit<StorageAssetPreviewMetadataBuilderContext<TMeta>, 'data'> & {
+  data: () => Promise<Uint8Array>;
+};
+
 export class StorageAssetInventoryService<
   TMeta extends object = Record<string, unknown>,
   TUploadMeta extends object = Record<string, unknown>,
@@ -197,13 +214,17 @@ export class StorageAssetInventoryService<
   readonly assetRefs?: AbstractStorageAssetRefService;
   readonly uploadLedger?: AbstractStorageUploadLedgerService<TUploadMeta>;
   readonly uploadKeyStrategy?: StorageUploadKeyStrategy<TUploadMeta>;
+  readonly previewMetadataBuilder?: StorageAssetPreviewMetadataBuilder<TMeta>;
 
-  constructor(options: StorageAssetInventoryServiceOptions<TMeta, TUploadMeta>) {
+  constructor(
+    options: StorageAssetInventoryServiceOptions<TMeta, TUploadMeta>
+  ) {
     this.storage = options.storage;
     this.assetCatalog = options.assetCatalog;
     this.assetRefs = options.assetRefs;
     this.uploadLedger = options.uploadLedger;
     this.uploadKeyStrategy = options.uploadKeyStrategy;
+    this.previewMetadataBuilder = options.previewMetadataBuilder;
   }
 
   async get(id: string): Promise<StorageAssetRecord<TMeta> | null> {
@@ -246,6 +267,16 @@ export class StorageAssetInventoryService<
       input.data,
       normalizeStorageWriteOptions(input)
     );
+    const meta = await this.resolvePreviewMetadata({
+      id: input.id,
+      objectKey: input.objectKey,
+      mimeType: input.mimeType,
+      source: input.source,
+      parentAssetId: input.parentAssetId ?? null,
+      tags: input.tags ?? [],
+      meta: input.meta,
+      data: async () => await storageBodyToUint8Array(input.data),
+    });
 
     return await this.registerAsset({
       id: input.id,
@@ -255,7 +286,7 @@ export class StorageAssetInventoryService<
       parentAssetId: input.parentAssetId,
       orphanedAt: input.orphanedAt,
       tags: input.tags,
-      meta: input.meta,
+      meta,
       createdAt: input.createdAt,
       updatedAt: input.updatedAt,
     });
@@ -306,7 +337,8 @@ export class StorageAssetInventoryService<
       }
     }
 
-    const objectKey = existing?.objectKey ?? (await this.resolveUploadObjectKey(input));
+    const objectKey =
+      existing?.objectKey ?? (await this.resolveUploadObjectKey(input));
     const mimeType = existing?.mimeType ?? input.mimeType;
     const presigned = await this.storage.createWritePresignedUrl(objectKey, {
       contentType: mimeType,
@@ -384,15 +416,28 @@ export class StorageAssetInventoryService<
     }
 
     const metadata = await this.storage.objectMetadata(upload.objectKey);
+    const mimeType =
+      upload.mimeType || metadata.contentType || 'application/octet-stream';
+    const meta = await this.resolvePreviewMetadata({
+      id: input.assetId,
+      objectKey: upload.objectKey,
+      mimeType,
+      source: input.source,
+      parentAssetId: input.parentAssetId ?? null,
+      tags: input.tags ?? [],
+      meta: input.meta,
+      data: async () =>
+        new Uint8Array(await this.storage.read(upload.objectKey)),
+    });
     await this.registerAsset({
       id: input.assetId,
       objectKey: upload.objectKey,
-      mimeType: upload.mimeType || metadata.contentType || 'application/octet-stream',
+      mimeType,
       source: input.source,
       parentAssetId: input.parentAssetId,
       orphanedAt: new Date(),
       tags: input.tags,
-      meta: input.meta,
+      meta,
       createdAt: input.createdAt,
       updatedAt: input.updatedAt,
     });
@@ -457,7 +502,9 @@ export class StorageAssetInventoryService<
     return await assetRefs.listByOwner(input);
   }
 
-  async attachAsset(input: StorageAssetOwnerRefInput): Promise<StorageAssetOwnerRef> {
+  async attachAsset(
+    input: StorageAssetOwnerRefInput
+  ): Promise<StorageAssetOwnerRef> {
     const assetRefs = this.requireAssetRefs();
     await this.require(input.assetId);
 
@@ -471,6 +518,37 @@ export class StorageAssetInventoryService<
     await this.reconcileFamilies([input.assetId]);
 
     return ref;
+  }
+
+  private async resolvePreviewMetadata(
+    context: ResolvePreviewMetadataInput<TMeta>
+  ): Promise<TMeta | undefined> {
+    const previewMetadataBuilder = this.previewMetadataBuilder;
+
+    if (
+      !(previewMetadataBuilder && this.shouldBuildPreview(context.mimeType))
+    ) {
+      return context.meta;
+    }
+
+    try {
+      const data = await context.data();
+      return (
+        (await previewMetadataBuilder({
+          ...context,
+          data,
+        })) ?? context.meta
+      );
+    } catch {
+      return context.meta;
+    }
+  }
+
+  private shouldBuildPreview(mimeType: string): boolean {
+    return (
+      this.previewMetadataBuilder !== undefined &&
+      isPreviewableMimeType(mimeType)
+    );
   }
 
   async detachAsset(input: StorageAssetOwnerRefInput): Promise<void> {
@@ -635,7 +713,9 @@ export class StorageAssetInventoryService<
     }
 
     if (!this.uploadKeyStrategy) {
-      throw new Error('Storage upload objectKey is required when no key strategy is configured');
+      throw new Error(
+        'Storage upload objectKey is required when no key strategy is configured'
+      );
     }
 
     return normalizeRequiredString(
@@ -676,7 +756,9 @@ export class StorageAssetInventoryService<
     return await this.resolveAssetFamily(root.id);
   }
 
-  private async resolveAssetFamily(rootId: string): Promise<StorageAssetRecord<TMeta>[]> {
+  private async resolveAssetFamily(
+    rootId: string
+  ): Promise<StorageAssetRecord<TMeta>[]> {
     const root = await this.require(rootId);
     const assets = [root];
     const queue = [root.id];

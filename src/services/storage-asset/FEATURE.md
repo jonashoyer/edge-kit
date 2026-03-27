@@ -1,7 +1,7 @@
 # Feature: Storage Asset Catalog and Lifecycle
 
 Status: Active
-Last Reviewed: 2026-03-26
+Last Reviewed: 2026-03-27
 Related ADRs: [ADR-0010], [ADR-0016]
 
 ## Current State
@@ -19,6 +19,8 @@ The service family now includes:
   finalization state
 - a concrete `StorageAssetInventoryService` that orchestrates upload issuance,
   asset finalization, ref sync, orphan marking, and cleanup
+- an optional preview metadata builder hook that can enrich inventory-backed
+  image assets with ThumbHash previews without changing the catalog schema
 
 The canonical asset shape tracks `objectKey`, `mimeType`, string `source`,
 nullable `parentAssetId`, nullable `orphanedAt`, top-level `tags`, generic
@@ -62,6 +64,11 @@ nullable `parentAssetId`, nullable `orphanedAt`, top-level `tags`, generic
 - `WriteStorageAssetInput`
 - `ReadStorageAssetResult`
 - `StorageAssetReadUrlResult`
+- `ThumbHashPreview`
+- `StorageAssetPreviewMeta`
+- `StorageAssetPreviewMetadataBuilder`
+- `StorageAssetPreviewMetadataBuilderContext`
+- `createSharpThumbHashPreviewMetadataBuilder(...)`
 - `DeleteStorageAssetOptions`
 - `IssueStorageUploadInput`
 - `IssuedStorageUploadResult`

@@ -69,8 +69,10 @@
     "prompts": "^2.4.2",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "sharp": "^0.34.5",
     "sqlite-vec": "0.1.7-alpha.2",
     "stripe": "^17.2.1",
+    "thumbhash": "^0.1.1",
     "voyage-ai-provider": "^2.0.0",
     "youtubei.js": "^13.4.0",
     "zod": "^4.0.15"
