@@ -6,7 +6,9 @@ import {
   gt,
   inArray,
   is,
+  isNotNull,
   isNull,
+  lte,
   lt,
   or,
   type SQL,
@@ -48,6 +50,8 @@ import {
   decodeStorageAssetCursor,
   encodeStorageAssetCursor,
   InvalidStorageAssetCursorError,
+  type ListOrphanedStorageAssetRootsOptions,
+  StorageAssetFamilyConsistencyError,
   type StorageAssetListOrder,
   type StorageAssetListPageOptions,
   type StorageAssetListPageResult,
@@ -170,6 +174,14 @@ type StorageAssetTableDefinition<
         notNull: false;
       }
     >;
+    orphanedAt: CreateColumnConfig<
+      Dialect,
+      {
+        data: Date;
+        dataType: 'date';
+        notNull: false;
+      }
+    >;
     tags: CreateColumnConfig<
       Dialect,
       {
@@ -228,6 +240,7 @@ export const createMySqlStorageAssetTable = <
     mimeType: mysqlVarchar('mime_type', { length: 255 }).notNull(),
     source: mysqlVarchar('source', { length: 255 }).notNull(),
     parentAssetId: mysqlVarchar('parent_asset_id', { length: 191 }),
+    orphanedAt: mysqlTimestamp('orphaned_at', { mode: 'date', fsp: 3 }),
     tags: mysqlJson('tags').$type<string[]>().notNull(),
     meta: mysqlJson('meta').$type<TMeta>().notNull(),
     createdAt: mysqlTimestamp('created_at', { mode: 'date', fsp: 3 }).notNull(),
@@ -246,6 +259,11 @@ export const createPostgresStorageAssetTable = <
     mimeType: pgText('mime_type').notNull(),
     source: pgText('source').notNull(),
     parentAssetId: pgText('parent_asset_id'),
+    orphanedAt: pgTimestamp('orphaned_at', {
+      mode: 'date',
+      precision: 3,
+      withTimezone: true,
+    }),
     tags: pgJson('tags').$type<string[]>().notNull(),
     meta: pgJson('meta').$type<TMeta>().notNull(),
     createdAt: pgTimestamp('created_at', {
@@ -272,6 +290,7 @@ export const createSqliteStorageAssetTable = <
     mimeType: text('mime_type').notNull(),
     source: text('source').notNull(),
     parentAssetId: text('parent_asset_id'),
+    orphanedAt: integer('orphaned_at', { mode: 'timestamp_ms' }),
     tags: text('tags', { mode: 'json' }).$type<string[]>().notNull(),
     meta: text('meta', { mode: 'json' }).$type<TMeta>().notNull(),
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
@@ -285,6 +304,7 @@ type StorageAssetRow<TMeta extends object> = {
   mimeType: string;
   source: string;
   parentAssetId: string | null;
+  orphanedAt: Date | null;
   tags: string[];
   meta: TMeta;
   createdAt: Date;
@@ -327,6 +347,7 @@ class BaseDrizzleStorageAssetService<
       mimeType: table.mimeType,
       source: table.source,
       parentAssetId: table.parentAssetId,
+      orphanedAt: table.orphanedAt,
       tags: table.tags,
       meta: table.meta,
       createdAt: table.createdAt,
@@ -338,6 +359,7 @@ class BaseDrizzleStorageAssetService<
     return {
       ...row,
       parentAssetId: row.parentAssetId ?? null,
+      orphanedAt: row.orphanedAt ?? null,
       tags: row.tags ?? [],
       meta: normalizeMetaObject(row.meta),
     };
@@ -356,6 +378,7 @@ class BaseDrizzleStorageAssetService<
       mimeType: assertNonEmptyString(input.mimeType, 'mimeType'),
       source: assertNonEmptyString(input.source, 'source'),
       parentAssetId: normalizeParentAssetId(input.parentAssetId),
+      orphanedAt: input.orphanedAt ?? existing?.orphanedAt ?? null,
       tags: normalizeTags(input.tags),
       meta: normalizeMetaObject(input.meta ?? existing?.meta),
       createdAt,
@@ -549,6 +572,81 @@ class BaseDrizzleStorageAssetService<
     return await this.persist(row);
   }
 
+  override async listOrphanedRoots(
+    options: ListOrphanedStorageAssetRootsOptions = {}
+  ): Promise<StorageAssetRecord<TMeta>[]> {
+    const limit = clampLimit(options.limit);
+    const { db, table } = this.internal;
+    const conditions: SQL[] = [isNull(table.parentAssetId)];
+
+    if (options.olderThan) {
+      conditions.push(lte(table.orphanedAt, options.olderThan));
+    } else {
+      conditions.push(isNotNull(table.orphanedAt));
+    }
+
+    const where = this.combineConditions(conditions);
+    const rows = (await db
+      .select(this.selectShape())
+      .from(table)
+      .where(where)
+      .orderBy(asc(table.orphanedAt), asc(table.id))
+      .limit(limit)
+      .execute()) as StorageAssetRow<TMeta>[];
+
+    return rows.map((row) => this.toRecord(row));
+  }
+
+  override async setOrphanedAt(
+    ids: string[],
+    orphanedAt: Date | null
+  ): Promise<void> {
+    if (ids.length === 0) {
+      return;
+    }
+
+    const normalizedIds = ids.map((id) => assertNonEmptyString(id, 'id'));
+    const { db, table } = this.internal;
+
+    await db
+      .update(table)
+      .set({
+        orphanedAt,
+        updatedAt: new Date(),
+      })
+      .where(inArray(table.id, normalizedIds))
+      .execute();
+  }
+
+  override async resolveRoot(
+    assetId: string
+  ): Promise<StorageAssetRecord<TMeta> | null> {
+    const normalizedId = assertNonEmptyString(assetId, 'id');
+    const visited = new Set<string>();
+    let currentId: string | null = normalizedId;
+
+    while (currentId) {
+      if (visited.has(currentId)) {
+        throw new StorageAssetFamilyConsistencyError(normalizedId);
+      }
+
+      visited.add(currentId);
+      const asset = await this.get(currentId);
+
+      if (!asset) {
+        return null;
+      }
+
+      if (asset.parentAssetId === null) {
+        return asset;
+      }
+
+      currentId = asset.parentAssetId;
+    }
+
+    throw new StorageAssetFamilyConsistencyError(normalizedId);
+  }
+
   override async delete(id: string): Promise<void> {
     const normalizedId = assertNonEmptyString(id, 'id');
     const { db, table } = this.internal;
@@ -576,6 +674,7 @@ class MySqlDrizzleStorageAssetService<
           mimeType: row.mimeType,
           source: row.source,
           parentAssetId: row.parentAssetId,
+          orphanedAt: row.orphanedAt,
           tags: row.tags,
           meta: row.meta,
           createdAt: row.createdAt,
@@ -608,6 +707,7 @@ class PostgresDrizzleStorageAssetService<
           mimeType: row.mimeType,
           source: row.source,
           parentAssetId: row.parentAssetId,
+          orphanedAt: row.orphanedAt,
           tags: row.tags,
           meta: row.meta,
           createdAt: row.createdAt,
@@ -640,6 +740,7 @@ class SqliteDrizzleStorageAssetService<
           mimeType: row.mimeType,
           source: row.source,
           parentAssetId: row.parentAssetId,
+          orphanedAt: row.orphanedAt,
           tags: row.tags,
           meta: row.meta,
           createdAt: row.createdAt,

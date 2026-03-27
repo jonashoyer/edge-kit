@@ -24,10 +24,13 @@ describe('repo utils', () => {
     const nestedDir = path.join(tempDir, 'src', 'nested');
 
     fs.mkdirSync(nestedDir, { recursive: true });
-    fs.writeFileSync(path.join(tempDir, 'dev-cli.config.json'), '{}');
+    fs.writeFileSync(
+      path.join(tempDir, 'dev-cli.config.ts'),
+      'export default {};'
+    );
 
     expect(resolveDevLauncherConfigPath({ cwd: nestedDir })).toBe(
-      path.join(tempDir, 'dev-cli.config.json')
+      path.join(tempDir, 'dev-cli.config.ts')
     );
   });
 

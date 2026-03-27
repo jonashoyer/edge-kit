@@ -3,6 +3,7 @@ import { render } from 'ink-testing-library';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DevLauncherDashboardApp } from './tui';
+import type { ResolvedDevAction } from './action-runner';
 import type {
   DevLauncherLogEntry,
   DevLauncherSupervisorSnapshot,
@@ -10,16 +11,16 @@ import type {
   ManagedDevServiceState,
 } from './types';
 
+vi.mock('./selection-history', () => ({
+  loadRecentDevServiceSelections: vi.fn(() => [['app']]),
+  saveRecentDevServiceSelection: vi.fn(),
+}));
+
 const createManifest = (): LoadedDevLauncherManifest => ({
-  configPath: '/repo/dev-cli.config.json',
+  actionIdsInOrder: [],
+  actionsById: {},
+  configPath: '/repo/dev-cli.config.ts',
   packageManager: 'pnpm',
-  presetIdsInOrder: ['default'],
-  presetsById: {
-    default: {
-      label: 'Default',
-      serviceIds: ['app'],
-    },
-  },
   repoRoot: '/repo',
   serviceIdsInOrder: ['app', 'api'],
   servicesById: {
@@ -154,7 +155,7 @@ describe('DevLauncherDashboardApp', () => {
     );
 
     expect(lastFrame()).toContain('Start a dev session');
-    expect(lastFrame()).toContain('Default');
+    expect(lastFrame()).toContain('App');
     expect(lastFrame()).toContain('Custom selection');
   });
 
@@ -221,9 +222,9 @@ describe('DevLauncherDashboardApp', () => {
 
     await flush();
     stdin.write('\u001B[B');
-    await flush();
+    await flush(6);
     stdin.write('\r');
-    await flush();
+    await flush(8);
 
     expect(lastFrame()).toContain('App log');
     expect(lastFrame()).toContain('app ready');
@@ -231,7 +232,7 @@ describe('DevLauncherDashboardApp', () => {
     expect(lastFrame()).not.toContain('All logs');
 
     stdin.write('\u001B');
-    await flush();
+    await flush(6);
 
     expect(lastFrame()).toContain('Dev dashboard');
     expect(lastFrame()).toContain('All logs');
@@ -259,7 +260,7 @@ describe('DevLauncherDashboardApp', () => {
 
     await flush();
     stdin.write('\u001B[B');
-    await flush();
+    await flush(6);
     stdin.write('o');
     await flush();
 
@@ -288,9 +289,9 @@ describe('DevLauncherDashboardApp', () => {
 
     await flush();
     stdin.write('\u001B[B');
-    await flush();
+    await flush(6);
     stdin.write('\r');
-    await flush();
+    await flush(8);
     stdin.write('o');
     await flush();
 
@@ -329,16 +330,116 @@ describe('DevLauncherDashboardApp', () => {
 
     await flush();
     stdin.write('\u001B[B');
-    await flush();
+    await flush(6);
     stdin.write('\r');
-    await flush();
+    await flush(8);
     stdin.write('\u001B[A');
     await flush();
     stdin.write('\u001B');
-    await flush();
+    await flush(6);
 
     expect(lastFrame()).toContain('Dev dashboard');
     expect(lastFrame()).toContain('› App');
     expect(lastFrame()).toContain('App logs');
+  });
+
+  it('shows action availability in the dev tui and returns to startup on escape', async () => {
+    const controller = new FakeController(createSnapshot());
+    const listActions = vi.fn(
+      async (): Promise<ResolvedDevAction[]> => [
+        {
+          available: true,
+          id: 'install-deps',
+          impactPolicy: 'stop-all',
+          label: 'Install dependencies',
+          reason: 'node_modules is stale.',
+          suggestInDev: true,
+        },
+        {
+          available: false,
+          id: 'db-push',
+          impactPolicy: 'parallel',
+          label: 'Push database',
+          reason: 'Database is current.',
+          suggestInDev: false,
+        },
+      ]
+    );
+    const { lastFrame, stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        listActions={listActions}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+      />
+    );
+
+    await flush();
+    stdin.write('x');
+    await flush(4);
+
+    expect(lastFrame()).toContain('Developer actions');
+    expect(lastFrame()).toContain('Install dependencies [available]');
+    expect(lastFrame()).toContain('Push database [unavailable]');
+
+    stdin.write('\u001B');
+    await flush(8);
+
+    expect(lastFrame()).toContain('Start a dev session');
+  });
+
+  it('runs stop-all actions from the dev tui and restores managed services', async () => {
+    const controller = new FakeController(
+      createSnapshot({
+        managedServiceIds: ['app'],
+        statuses: {
+          app: 'running',
+        },
+      })
+    );
+    const listActions = vi.fn(
+      async (): Promise<ResolvedDevAction[]> => [
+        {
+          available: true,
+          id: 'install-deps',
+          impactPolicy: 'stop-all',
+          label: 'Install dependencies',
+          reason: 'node_modules is stale.',
+          suggestInDev: true,
+        },
+      ]
+    );
+    const runDevAction = vi.fn(async () => ({
+      action: {
+        available: true,
+        id: 'install-deps',
+        impactPolicy: 'stop-all' as const,
+        label: 'Install dependencies',
+        suggestInDev: true,
+      },
+      forced: false,
+      summary: 'Dependencies installed.',
+    }));
+    const { lastFrame, stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['app']}
+        listActions={listActions}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+        runDevAction={runDevAction}
+      />
+    );
+
+    await flush();
+    stdin.write('x');
+    await flush(6);
+    stdin.write('\r');
+    await flush(6);
+
+    expect(controller.stopAll).toHaveBeenCalledTimes(1);
+    expect(controller.applyServiceSet).toHaveBeenCalledWith(['app']);
+    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps');
+    expect(lastFrame()).toContain('Dependencies installed.');
   });
 });

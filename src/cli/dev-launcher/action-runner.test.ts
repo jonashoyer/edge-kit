@@ -22,10 +22,10 @@ class FakeSpawnedProcess extends EventEmitter {
 }
 
 const createManifest = (): LoadedDevLauncherManifest => ({
-  configPath: '/repo/dev-cli.config.json',
+  actionIdsInOrder: [],
+  actionsById: {},
+  configPath: '/repo/dev-cli.config.ts',
   packageManager: 'pnpm',
-  presetIdsInOrder: [],
-  presetsById: {},
   repoRoot: '/repo',
   serviceIdsInOrder: ['app'],
   servicesById: {
@@ -45,10 +45,11 @@ const createActionsConfig = (
 ): LoadedDevActionsConfig => ({
   actionIdsInOrder: Object.keys(actionsById),
   actionsById,
-  configPath: '/repo/dev-cli.actions.ts',
+  configPath: '/repo/dev-cli.config.ts',
 });
 
 const createRuntime = (options?: {
+  captureInheritedStdio?: boolean;
   onSpawn?: (input: {
     args: string[];
     command: string;
@@ -75,6 +76,7 @@ const createRuntime = (options?: {
 
   return {
     runtime: {
+      captureInheritedStdio: options?.captureInheritedStdio,
       cwd: '/repo/packages/app',
       env: process.env,
       platform: 'darwin' as const,
@@ -294,6 +296,37 @@ describe('runDevAction', () => {
     expect(stderr.write).toHaveBeenCalledWith(
       'warn: Running unavailable action "db-push" because --force was provided.\n'
     );
+  });
+
+  it('captures inherited subprocess stdio when requested by the runtime', async () => {
+    const manifest = createManifest();
+    const config = createActionsConfig({
+      'install-deps': {
+        impactPolicy: 'stop-all',
+        label: 'Install dependencies',
+        async run(context) {
+          await context.pnpm(['install'], {
+            stdio: 'inherit',
+          });
+        },
+      },
+    });
+    const { runtime, spawnCalls } = createRuntime({
+      captureInheritedStdio: true,
+    });
+
+    await runDevAction(manifest, config, 'install-deps', {
+      runtime,
+    });
+
+    expect(spawnCalls).toEqual([
+      {
+        args: ['install'],
+        command: 'pnpm',
+        cwd: '/repo',
+        stdio: 'pipe',
+      },
+    ]);
   });
 
   it('surfaces thrown action errors clearly', async () => {

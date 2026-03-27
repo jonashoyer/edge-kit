@@ -8,6 +8,7 @@ export interface StorageAssetRecord<
   mimeType: string;
   source: string;
   parentAssetId: string | null;
+  orphanedAt: Date | null;
   tags: string[];
   meta: TMeta;
   createdAt: Date;
@@ -22,6 +23,7 @@ export interface UpsertStorageAssetInput<
   mimeType: string;
   source: string;
   parentAssetId?: string | null;
+  orphanedAt?: Date | null;
   tags?: string[];
   meta?: TMeta;
   createdAt?: Date;
@@ -35,6 +37,7 @@ export interface UpdateStorageAssetInput<
   mimeType?: string;
   source?: string;
   parentAssetId?: string | null;
+  orphanedAt?: Date | null;
   tags?: string[];
   meta?: TMeta;
   updatedAt?: Date;
@@ -55,6 +58,11 @@ export interface StorageAssetListPageResult<
 > {
   items: StorageAssetRecord<TMeta>[];
   nextCursor?: string;
+}
+
+export interface ListOrphanedStorageAssetRootsOptions {
+  olderThan?: Date;
+  limit?: number;
 }
 
 type StorageAssetCursorPayload = {
@@ -80,6 +88,18 @@ export class StorageAssetAlreadyExistsError extends CustomError<'CONFLICT'> {
 export class StorageAssetNotFoundError extends CustomError<'NOT_FOUND'> {
   constructor(id: string) {
     super(`Storage asset not found: ${id}`, 'NOT_FOUND');
+  }
+}
+
+export class StorageAssetStillReferencedError extends CustomError<'CONFLICT'> {
+  constructor(id: string) {
+    super(`Storage asset family is still referenced: ${id}`, 'CONFLICT');
+  }
+}
+
+export class StorageAssetFamilyConsistencyError extends CustomError<'INVALID_STATE'> {
+  constructor(id: string) {
+    super(`Storage asset family is inconsistent for asset: ${id}`, 'INVALID_STATE');
   }
 }
 
@@ -154,9 +174,22 @@ export abstract class AbstractStorageAssetService<
     options?: StorageAssetListPageOptions
   ): Promise<StorageAssetListPageResult<TMeta>>;
 
+  abstract listOrphanedRoots(
+    options?: ListOrphanedStorageAssetRootsOptions
+  ): Promise<StorageAssetRecord<TMeta>[]>;
+
   abstract upsert(
     input: UpsertStorageAssetInput<TMeta>
   ): Promise<StorageAssetRecord<TMeta>>;
+
+  abstract setOrphanedAt(
+    ids: string[],
+    orphanedAt: Date | null
+  ): Promise<void>;
+
+  abstract resolveRoot(
+    assetId: string
+  ): Promise<StorageAssetRecord<TMeta> | null>;
 
   abstract delete(id: string): Promise<void>;
 
@@ -191,6 +224,8 @@ export abstract class AbstractStorageAssetService<
         patch.parentAssetId === undefined
           ? existing.parentAssetId
           : patch.parentAssetId,
+      orphanedAt:
+        patch.orphanedAt === undefined ? existing.orphanedAt : patch.orphanedAt,
       tags: patch.tags ?? existing.tags,
       meta: patch.meta ?? existing.meta,
       createdAt: existing.createdAt,

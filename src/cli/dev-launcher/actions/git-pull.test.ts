@@ -4,10 +4,10 @@ import type { LoadedDevLauncherManifest } from '../types';
 import { gitPullAction } from './git-pull';
 
 const createManifest = (): LoadedDevLauncherManifest => ({
-  configPath: '/repo/dev-cli.config.json',
+  actionIdsInOrder: [],
+  actionsById: {},
+  configPath: '/repo/dev-cli.config.ts',
   packageManager: 'pnpm',
-  presetIdsInOrder: [],
-  presetsById: {},
   repoRoot: '/repo',
   serviceIdsInOrder: [],
   servicesById: {},
@@ -48,8 +48,8 @@ const createContext = (responses: Record<string, DevActionExecResult>) => {
   );
 
   const context: DevActionContext = {
-    actionsConfigPath: '/repo/dev-cli.actions.ts',
-    configPath: '/repo/dev-cli.config.json',
+    actionsConfigPath: '/repo/dev-cli.config.ts',
+    configPath: '/repo/dev-cli.config.ts',
     cwd: '/repo',
     exec,
     logger: {

@@ -1,25 +1,27 @@
-# Storage Asset Catalog
+# Storage Asset Catalog and Lifecycle
 
-The `storage-asset` service family provides a generic metadata catalog plus a
- higher-level inventory middleware for files that live in object storage or
- another binary store. It remains a separate family from `src/services/storage/`,
- which stays focused on provider-level byte operations and presigning.
+The `storage-asset` service family sits above `src/services/storage/`.
+`storage` still owns bytes, metadata reads, and presigned URLs. `storage-asset`
+owns reusable application-facing state over those stored objects:
+
+- asset catalog rows
+- owner attachment refs
+- upload issuance and finalization state
+- orphan marking and purge helpers
 
 ## Overview
 
-The storage-asset catalog lets you:
+Use this service family when you need more than "blob plus key":
 
-- Track a stable asset id and object key separately
-- Group related assets with `parentAssetId`
-- Tag assets with top-level strings
-- Store workflow-specific metadata in generic `meta`
-- Write, read, and delete assets through one inventory-facing service
-- Page root assets with a composite cursor
-- Reuse one catalog for uploads, imports, generated files, and variants
+- stable asset ids separate from object keys
+- families of related assets via `parentAssetId`
+- explicit knowledge of whether an asset is still attached to application state
+- browser-direct or worker-issued uploads that must be finalized later
+- time-based cleanup for abandoned uploads and orphaned asset families
 
-## Canonical Shape
+## Catalog Shape
 
-The reusable `storage_asset` structure includes:
+The reusable `storage_asset` shape now includes liveness state:
 
 ```ts
 type StorageAssetRecord<TMeta = object> = {
@@ -28,6 +30,7 @@ type StorageAssetRecord<TMeta = object> = {
   mimeType: string;
   source: string;
   parentAssetId: string | null;
+  orphanedAt: Date | null;
   tags: string[];
   meta: TMeta;
   createdAt: Date;
@@ -35,145 +38,164 @@ type StorageAssetRecord<TMeta = object> = {
 };
 ```
 
-## Table Helpers
+`orphanedAt` is null while the asset family is live. It is set when the last
+ref disappears and cleared if the family is reattached before purge.
 
-Edge Kit ships Drizzle table builders for all supported SQL dialects:
+## Companion Tables
+
+### Asset refs
+
+`storage_asset_ref` models attachment state generically:
+
+```ts
+type StorageAssetOwnerRef = {
+  assetId: string;
+  ownerType: string;
+  ownerId: string;
+  tenantId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+```
+
+Use this when app code needs to say "this asset is attached to this owner".
+
+### Upload ledger
+
+`storage_upload_ledger` tracks uploads before they become cataloged assets:
+
+```ts
+type StorageUploadLedgerRecord<TMeta = object> = {
+  id: string;
+  tenantId: string | null;
+  objectKey: string;
+  mimeType: string;
+  status: 'ISSUED' | 'UPLOADED' | 'CONSUMED' | 'PURGED';
+  sizeBytes: number | null;
+  etag: string | null;
+  expiresAt: Date;
+  issuedAt: Date;
+  uploadedAt: Date | null;
+  consumedAt: Date | null;
+  purgedAt: Date | null;
+  meta: TMeta;
+};
+```
+
+Use this when object bytes may exist before an asset row does.
+
+## Drizzle Helpers
+
+Edge Kit ships portable Drizzle table builders for all supported SQL dialects:
 
 - `createMySqlStorageAssetTable(...)`
 - `createPostgresStorageAssetTable(...)`
 - `createSqliteStorageAssetTable(...)`
+- `createMySqlStorageAssetRefTable(...)`
+- `createPostgresStorageAssetRefTable(...)`
+- `createSqliteStorageAssetRefTable(...)`
+- `createMySqlStorageUploadLedgerTable(...)`
+- `createPostgresStorageUploadLedgerTable(...)`
+- `createSqliteStorageUploadLedgerTable(...)`
+
+You still own migrations in the host app.
+
+## Contracts
+
+The service family stays split by persistence concern:
+
+- `AbstractStorageAssetService`
+  the asset catalog
+- `AbstractStorageAssetRefService`
+  the owner-to-asset attachment graph
+- `AbstractStorageUploadLedgerService`
+  issued/finalized/purged upload state
+
+`StorageAssetInventoryService` is the concrete orchestration layer that composes
+those contracts with `AbstractStorage`.
+
+## Inventory Lifecycle
+
+`StorageAssetInventoryService` now supports four workflow groups:
+
+- byte and catalog operations: `writeAsset`, `registerAsset`, `readAsset`,
+  `deleteAsset`
+- upload lifecycle: `issueUpload`, `markUploadCompleted`, `finalizeUpload`
+- attachment lifecycle: `syncAssetRefs`, `attachAsset`, `detachAsset`
+- cleanup: `purgeExpiredUploads`, `purgeOrphanedAssets`
 
 Example:
 
 ```ts
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import Database from 'better-sqlite3';
-
-import {
-  createSqliteStorageAssetTable,
-  DrizzleStorageAssetService,
-} from '../services/storage-asset/drizzle-storage-asset';
-
-const sqlite = new Database('app.db');
-const db = drizzle(sqlite);
-const storageAssetTable = createSqliteStorageAssetTable<{
-  kind?: string;
-  checksum?: string;
-}>('storage_asset');
-
-const assetCatalog = DrizzleStorageAssetService(db, storageAssetTable);
-```
-
-You still own migrations in your host app. The helper functions give you a
- portable table definition and consistent field names.
-
-## Service Contract
-
-`AbstractStorageAssetService` defines the reusable catalog API:
-
-```ts
-abstract class AbstractStorageAssetService<TMeta = object> {
-  abstract get(id: string): Promise<StorageAssetRecord<TMeta> | null>;
-  abstract getMany(ids: string[]): Promise<StorageAssetRecord<TMeta>[]>;
-  abstract listByParentIds(
-    parentAssetIds: string[]
-  ): Promise<StorageAssetRecord<TMeta>[]>;
-  abstract listPage(
-    options?: {
-      source?: string;
-      parentAssetId?: string | null;
-      limit?: number;
-      cursor?: string;
-      order?: 'asc' | 'desc';
-    }
-  ): Promise<{
-    items: StorageAssetRecord<TMeta>[];
-    nextCursor?: string;
-  }>;
-  abstract upsert(
-    input: UpsertStorageAssetInput<TMeta>
-  ): Promise<StorageAssetRecord<TMeta>>;
-  abstract delete(id: string): Promise<void>;
-}
-```
-
-## Inventory Middleware
-
-`StorageAssetInventoryService` composes `AbstractStorage` with the catalog so
- app code can work in asset ids instead of raw object keys when it wants the
- bytes and the inventory to move together. Unlike the catalog layer, this is a
- concrete composition service rather than a separate abstract contract.
-
-```ts
 import { StorageAssetInventoryService } from '../services/storage-asset/storage-asset-inventory';
 
-const assetInventory = new StorageAssetInventoryService({
+const inventory = new StorageAssetInventoryService({
   storage,
   assetCatalog,
+  assetRefs,
+  uploadLedger,
+  uploadKeyStrategy: ({ id }) => `uploads/${id}.png`,
 });
 
-await assetInventory.writeAsset({
-  id: 'asset_123',
-  objectKey: 'generated/asset_123/original.png',
+const issued = await inventory.issueUpload({
+  id: 'upload_123',
+  tenantId: 'tenant_a',
   mimeType: 'image/png',
-  source: 'generated',
-  data: fileBytes,
-  tags: ['hero'],
-  meta: {
-    kind: 'image-generation',
-    role: 'original',
+  meta: { flow: 'avatar' },
+});
+
+// client uploads bytes to issued.url
+
+await inventory.markUploadCompleted('upload_123', {
+  uploadedAt: new Date(),
+});
+
+const finalized = await inventory.finalizeUpload({
+  uploadId: 'upload_123',
+  assetId: 'asset_123',
+  source: 'uploaded',
+  meta: { kind: 'avatar' },
+  syncRefs: {
+    ownerType: 'profile',
+    ownerId: 'user_123',
+    tenantId: 'tenant_a',
+    assetIds: ['asset_123'],
   },
 });
-
-const read = await assetInventory.readAsset('asset_123');
-await assetInventory.deleteAsset('asset_123');
 ```
 
-## Usage Pattern
+## Family-root Liveness
 
-```ts
-const original = await assetInventory.writeAsset({
-  id: 'asset_123',
-  objectKey: 'generated/asset_123/original.png',
-  mimeType: 'image/png',
-  source: 'generated',
-  data: fileBytes,
-  tags: ['hero'],
-  meta: {
-    kind: 'image-generation',
-    role: 'original',
-  },
-});
+Liveness is family-rooted, not row-local:
 
-await assetInventory.writeAsset({
-  id: 'asset_123:thumb',
-  objectKey: 'generated/asset_123/variants/thumb.webp',
-  mimeType: 'image/webp',
-  source: 'generated',
-  parentAssetId: original.id,
-  data: thumbBytes,
-  tags: ['hero', 'thumb'],
-  meta: {
-    kind: 'image-generation',
-    role: 'variant',
-    position: 0,
-  },
-});
+- standalone assets are one-node families
+- `parentAssetId` descendants belong to the same family as their root
+- any ref on any asset in the family keeps the whole family live
+- when the last ref disappears, `orphanedAt` is set on every family member
+- when a ref returns, `orphanedAt` is cleared on every family member
 
-const roots = await assetInventory.listPage({
-  source: 'generated',
-  parentAssetId: null,
-  limit: 20,
-});
-```
+This avoids root/variant drift in workflows like original-plus-variants.
+
+## Cleanup Model
+
+Edge Kit does not ship a scheduler. Host apps call cleanup methods from their
+own workers or cron jobs:
+
+- `purgeExpiredUploads(...)`
+  finds expired `ISSUED` and `UPLOADED` ledger rows, deletes any leftover
+  object bytes, and marks those uploads `PURGED`
+- `purgeOrphanedAssets(...)`
+  finds root assets whose `orphanedAt` is older than a cutoff, rechecks refs,
+  and deletes the full family when it is still unreferenced
 
 ## Best Practices
 
-- Keep the `source` vocabulary small and app-owned.
-- Put cross-workflow semantics in `tags` and workflow-specific detail in
+- Keep `source` small and app-owned.
+- Put cross-workflow categories in `tags` and workflow-specific detail in
   `meta`.
-- Use `parentAssetId` for families such as original plus variants.
-- Use `StorageAssetInventoryService` when app code wants bytes and inventory
-  updates coordinated in one place.
-- Use `registerAsset(...)` after browser-direct uploads or import jobs when the
-  object already exists and only the inventory row needs to be finalized.
+- Treat `tenantId` as a ref/upload concern unless the host app truly needs
+  tenant-specific asset rows.
+- Use `syncAssetRefs(...)` with the current attachment set for an owner instead
+  of trying to hand-roll per-row diff logic.
+- Finalize browser-direct uploads through the upload ledger instead of writing
+  custom "pending upload" tables in every app.

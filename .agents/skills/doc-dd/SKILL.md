@@ -1,12 +1,7 @@
 ---
 name: Documentation-Driven Development (DocDD)
 description: >
-  Context-engineered, documentation-driven development workflow. Enforce that
-  architectural decisions (ADRs) and feature context files (FEATURE.md) are
-  drafted before implementation and reconciled after. Use when implementing a
-  feature, making an architectural change, or modifying code that crosses
-  feature boundaries or introduces cross-cutting concerns. Also use when the
-  user explicitly asks to create or update ADRs or FEATURE.md files.
+  Context-engineered, documentation-driven development workflow. Enforce that architectural decisions (ADRs) and feature context files (FEATURE.md) are drafted before implementation and reconciled after. Use when implementing a feature, making an architectural change, or modifying code that crosses feature boundaries or introduces cross-cutting concerns. Also use when the user explicitly asks to create or update ADRs or FEATURE.md files.
 ---
 
 ## Folder Structure

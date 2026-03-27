@@ -8,14 +8,20 @@ import type {
   DevActionRunnerRuntime,
   ResolvedDevAction,
 } from './action-runner';
-import type { LoadedDevActionsConfig } from './actions-config';
 import type { LoadedDevLauncherManifest } from './types';
 
 const createManifest = (): LoadedDevLauncherManifest => ({
-  configPath: '/repo/dev-cli.config.json',
+  actionIdsInOrder: ['install-deps'],
+  actionsById: {
+    'install-deps': {
+      impactPolicy: 'stop-all',
+      label: 'Install dependencies',
+      run: async () => {},
+      suggestInDev: true,
+    },
+  },
+  configPath: '/repo/dev-cli.config.ts',
   packageManager: 'pnpm',
-  presetIdsInOrder: [],
-  presetsById: {},
   repoRoot: '/repo',
   serviceIdsInOrder: ['app'],
   servicesById: {
@@ -30,19 +36,6 @@ const createManifest = (): LoadedDevLauncherManifest => ({
   version: 1,
 });
 
-const createActionsConfig = (): LoadedDevActionsConfig => ({
-  actionIdsInOrder: ['install-deps'],
-  actionsById: {
-    'install-deps': {
-      impactPolicy: 'stop-all',
-      label: 'Install dependencies',
-      run: async () => {},
-      suggestInDev: true,
-    },
-  },
-  configPath: '/repo/dev-cli.actions.ts',
-});
-
 const createActionRuntime = (): DevActionRunnerRuntime => ({
   cwd: '/repo',
   env: process.env,
@@ -54,9 +47,8 @@ const createActionRuntime = (): DevActionRunnerRuntime => ({
 
 const createRuntime = (overrides?: {
   actions?: ResolvedDevAction[];
-  actionsConfig?: LoadedDevActionsConfig | null;
-  runActionResult?: DevActionRunExecutionResult;
   runActionError?: Error;
+  runActionResult?: DevActionRunExecutionResult;
 }) => {
   const stdout = {
     write: vi.fn(),
@@ -64,10 +56,7 @@ const createRuntime = (overrides?: {
   const runtime = {
     actionRuntime: createActionRuntime(),
     listActions: vi.fn(async () => overrides?.actions ?? []),
-    loadActionsConfig: vi.fn(
-      async () => overrides?.actionsConfig ?? createActionsConfig()
-    ),
-    loadManifest: vi.fn(() => createManifest()),
+    loadManifest: vi.fn(async () => createManifest()),
     runAction: vi.fn(async () => {
       if (overrides?.runActionError) {
         throw overrides.runActionError;
@@ -177,10 +166,13 @@ describe('runDevActionRunCommand', () => {
 
     expect(stdout.write).toHaveBeenCalledWith('Dependencies installed.\n');
     expect(runtime.runAction).toHaveBeenCalledTimes(1);
-    expect(runtime.runAction.mock.calls[0]?.[0]).toEqual(createManifest());
+    expect(runtime.runAction.mock.calls[0]?.[0]).toMatchObject({
+      configPath: '/repo/dev-cli.config.ts',
+      serviceIdsInOrder: ['app'],
+    });
     expect(runtime.runAction.mock.calls[0]?.[1]).toMatchObject({
       actionIdsInOrder: ['install-deps'],
-      configPath: '/repo/dev-cli.actions.ts',
+      configPath: '/repo/dev-cli.config.ts',
     });
     expect(runtime.runAction.mock.calls[0]?.[2]).toBe('install-deps');
     expect(runtime.runAction.mock.calls[0]?.[3]).toEqual({
@@ -195,10 +187,13 @@ describe('runDevActionRunCommand', () => {
     await runDevActionRunCommand('install-deps', { force: true }, runtime);
 
     expect(runtime.runAction).toHaveBeenCalledTimes(1);
-    expect(runtime.runAction.mock.calls[0]?.[0]).toEqual(createManifest());
+    expect(runtime.runAction.mock.calls[0]?.[0]).toMatchObject({
+      configPath: '/repo/dev-cli.config.ts',
+      serviceIdsInOrder: ['app'],
+    });
     expect(runtime.runAction.mock.calls[0]?.[1]).toMatchObject({
       actionIdsInOrder: ['install-deps'],
-      configPath: '/repo/dev-cli.actions.ts',
+      configPath: '/repo/dev-cli.config.ts',
     });
     expect(runtime.runAction.mock.calls[0]?.[2]).toBe('install-deps');
     expect(runtime.runAction.mock.calls[0]?.[3]).toEqual({

@@ -56,7 +56,9 @@ importable runtime package.
 - [S3](./src/services/storage/s3-storage.ts)
 - [Cloudflare R2](./src/services/storage/r2-storage.ts)
 - [Storage Asset Catalog](./src/services/storage-asset/abstract-storage-asset.ts)
-- [Storage Asset Inventory](./src/services/storage-asset/storage-asset-inventory.ts)
+- [Storage Asset Refs](./src/services/storage-asset/abstract-storage-asset-ref.ts)
+- [Storage Upload Ledger](./src/services/storage-asset/abstract-storage-upload-ledger.ts)
+- [Storage Asset Inventory & Lifecycle](./src/services/storage-asset/storage-asset-inventory.ts)
 - [Contextualizer](./src/services/contextualizer/contextualizer.ts)
 
 ### Key-Value Store
@@ -133,71 +135,53 @@ importable runtime package.
 
 Edge Kit now includes a generic manifest-driven dev launcher that can supervise
 local scripts across a single-package repo or PNPM monorepo. Long-running
-services stay in `dev-cli.config.json`, while one-shot developer actions live
-in `dev-cli.actions.ts`. Both configs use keyed maps so ids are declared once
-as object keys.
+services and one-shot developer actions now live in one shared TS/JS config
+file, `dev-cli.config.ts` (or `.mts` / `.js` / `.mjs`).
 
 Run the example repo command:
 
 ```bash
 pnpm cli dev
-pnpm cli dev --preset default
 pnpm cli dev --services tests
 pnpm cli dev --no-tui
-pnpm cli dev --actions-config ./dev-cli.actions.ts
 pnpm cli action list
 pnpm cli action list --json
 pnpm cli action run install-deps
 pnpm cli action run install-deps --force
 ```
 
-Minimal `dev-cli.config.json`:
-
-```json
-{
-  "version": 1,
-  "packageManager": "pnpm",
-  "servicesById": {
-    "app": {
-      "label": "App",
-      "openUrl": "http://localhost:3000",
-      "target": {
-        "kind": "root-script",
-        "script": "dev"
-      }
-    },
-    "api": {
-      "label": "API",
-      "target": {
-        "kind": "workspace-script",
-        "packageName": "@repo/api",
-        "script": "dev"
-      }
-    }
-  },
-  "presetsById": {
-    "default": {
-      "label": "Default",
-      "serviceIds": ["app", "api"]
-    }
-  }
-}
-```
-
-Minimal `dev-cli.actions.ts`:
+Minimal `dev-cli.config.ts`:
 
 ```ts
-import {
-  defineDevActions,
-} from './src/cli/dev-launcher/actions';
-import { gitPullAction } from './src/cli/dev-launcher/actions/git-pull';
 import { installDepsAction } from './src/cli/dev-launcher/actions/install-deps';
+import { gitPullAction } from './src/cli/dev-launcher/actions/git-pull';
+import { defineDevLauncherConfig } from './src/cli/dev-launcher/config';
 
-export default defineDevActions({
+export default defineDevLauncherConfig({
   actionsById: {
     'git-pull': gitPullAction,
     'install-deps': installDepsAction,
   },
+  packageManager: 'pnpm',
+  servicesById: {
+    app: {
+      label: 'App',
+      openUrl: 'http://localhost:3000',
+      target: {
+        kind: 'root-script',
+        script: 'dev',
+      },
+    },
+    api: {
+      label: 'API',
+      target: {
+        kind: 'workspace-script',
+        packageName: '@repo/api',
+        script: 'dev',
+      },
+    },
+  },
+  version: 1,
 });
 ```
 
@@ -206,16 +190,28 @@ modules. `gitPullAction` fetches the tracked remote branch and only becomes
 available when the current branch can be fast-forward pulled. If you need to
 customize either action, start from
 `src/cli/dev-launcher/actions/git-pull.ts` or
-`src/cli/dev-launcher/actions/install-deps.ts` and keep `dev-cli.actions.ts` as
-your repo-root registry entrypoint.
+`src/cli/dev-launcher/actions/install-deps.ts` and keep `dev-cli.config.ts` as
+your repo-root dev launcher entrypoint.
 
 The TUI keeps the dashboard split for overview, but Enter on a selected
 service opens a focused log mode that renders only that service log so scroll
 and terminal text selection stay isolated. If a service defines `openUrl`, the
 selected row also supports `o` to open that URL in your default browser.
 
-Actions are CLI-only in this phase. `pnpm cli dev` evaluates only actions with
-`suggestInDev: true` and prints advisory suggestions such as
+Configured developer actions are also available inside `pnpm cli dev`. The TUI
+shows an action availability summary, and pressing `x` opens an action picker
+that displays each action's current `available` / `unavailable` state plus the
+reason when one exists. Press `Enter` in that picker to run the selected
+action. Actions with non-`parallel` impact policies pause managed services
+first and restore them afterward.
+
+Startup selection is recent-history-driven now. The launcher stores the latest
+selected service combinations in a user-local state file and renders those
+choices by service label only, plus a `Custom selection` escape hatch. That
+history is local UX state and does not change the repo config.
+
+`pnpm cli dev` still evaluates only actions with `suggestInDev: true` for
+advisory preflight suggestions before the TUI starts, and prints messages such as
 `Action available before starting services: install-deps - run pnpm cli action run install-deps`.
 
 Other action patterns can stay fully repo-local. Typical examples include:

@@ -120,6 +120,12 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<AssetMeta> {
     };
   }
 
+  override async listOrphanedRoots(): Promise<StorageAssetRecord<AssetMeta>[]> {
+    return [...this.assets.values()].filter(
+      (asset) => asset.parentAssetId === null && asset.orphanedAt !== null
+    );
+  }
+
   override async upsert(
     input: UpsertStorageAssetInput<AssetMeta>
   ): Promise<StorageAssetRecord<AssetMeta>> {
@@ -131,6 +137,10 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<AssetMeta> {
       mimeType: input.mimeType,
       source: input.source,
       parentAssetId: input.parentAssetId ?? null,
+      orphanedAt:
+        input.orphanedAt === undefined
+          ? (existing?.orphanedAt ?? null)
+          : input.orphanedAt,
       tags: [...new Set(input.tags ?? existing?.tags ?? [])],
       meta: input.meta ?? existing?.meta ?? {},
       createdAt,
@@ -144,6 +154,37 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<AssetMeta> {
   override async delete(id: string): Promise<void> {
     this.assets.delete(id);
   }
+
+  override async setOrphanedAt(
+    ids: string[],
+    orphanedAt: Date | null
+  ): Promise<void> {
+    for (const id of ids) {
+      const asset = this.assets.get(id);
+
+      if (!asset) {
+        continue;
+      }
+
+      this.assets.set(id, {
+        ...asset,
+        orphanedAt,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  override async resolveRoot(
+    assetId: string
+  ): Promise<StorageAssetRecord<AssetMeta> | null> {
+    let current = this.assets.get(assetId) ?? null;
+
+    while (current?.parentAssetId) {
+      current = this.assets.get(current.parentAssetId) ?? null;
+    }
+
+    return current;
+  }
 }
 
 describe('storage-asset helpers', () => {
@@ -155,6 +196,7 @@ describe('storage-asset helpers', () => {
     expect(mysqlTable.id.name).toBe('id');
     expect(mysqlTable.objectKey.name).toBe('object_key');
     expect(postgresTable.parentAssetId.name).toBe('parent_asset_id');
+    expect(postgresTable.orphanedAt.name).toBe('orphaned_at');
     expect(sqliteTable.createdAt.name).toBe('created_at');
     expect(sqliteTable.updatedAt.name).toBe('updated_at');
   });
@@ -211,6 +253,7 @@ describe('AbstractStorageAssetService contract', () => {
     });
 
     expect(root.tags).toEqual(['hero', 'public']);
+    expect(root.orphanedAt).toBeNull();
     expect(child.parentAssetId).toBe(root.id);
     expect(await service.get(root.id)).toEqual(root);
     expect(await service.listChildren(root.id)).toEqual([child]);
@@ -252,11 +295,13 @@ describe('AbstractStorageAssetService contract', () => {
     const patchedAt = new Date('2026-03-19T09:00:00.000Z');
     const patched = await service.update('asset-1', {
       parentAssetId: null,
+      orphanedAt: patchedAt,
       updatedAt: patchedAt,
     });
 
     expect(patched.updatedAt).toEqual(patchedAt);
     expect(patched.parentAssetId).toBeNull();
+    expect(patched.orphanedAt).toEqual(patchedAt);
   });
 
   it('lists pages with source and root filters using a composite cursor', async () => {
@@ -343,6 +388,39 @@ describe('AbstractStorageAssetService contract', () => {
     const items = await service.getMany(['c', 'a', 'missing', 'b']);
 
     expect(items.map((item) => item.id)).toEqual(['c', 'a', 'b']);
+  });
+
+  it('tracks orphan roots and resolves family roots', async () => {
+    const service = new MemoryStorageAssetService();
+    const createdAt = new Date('2026-03-19T08:00:00.000Z');
+
+    await service.create({
+      id: 'root',
+      objectKey: 'generated/root/original.png',
+      mimeType: 'image/png',
+      source: 'generated',
+      meta: {},
+      createdAt,
+      updatedAt: createdAt,
+    });
+    await service.create({
+      id: 'child',
+      objectKey: 'generated/root/variants/thumb.webp',
+      mimeType: 'image/webp',
+      source: 'generated',
+      parentAssetId: 'root',
+      meta: {},
+      createdAt,
+      updatedAt: createdAt,
+    });
+
+    const orphanedAt = new Date('2026-03-20T08:00:00.000Z');
+    await service.setOrphanedAt(['root', 'child'], orphanedAt);
+
+    const orphaned = await service.listOrphanedRoots();
+
+    expect(orphaned.map((asset) => asset.id)).toEqual(['root']);
+    expect((await service.resolveRoot('child'))?.id).toBe('root');
   });
 
   it('throws targeted errors for duplicate creates and missing updates', async () => {

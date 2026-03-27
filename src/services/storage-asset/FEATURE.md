@@ -1,19 +1,29 @@
-# Feature: Storage Asset Catalog
+# Feature: Storage Asset Catalog and Lifecycle
 
 Status: Active
-Last Reviewed: 2026-03-21
+Last Reviewed: 2026-03-26
+Related ADRs: [ADR-0010], [ADR-0016]
 
 ## Current State
 
-`src/services/storage-asset/` provides both a generic persistent asset catalog
-and a concrete inventory middleware service that coordinates object-storage
-bytes with catalog rows.
+`src/services/storage-asset/` provides a generic persistent asset catalog plus
+the lifecycle primitives that sit between raw object storage and app-owned
+domain objects.
 
-The canonical shape tracks `objectKey`, `mimeType`, string `source`,
- nullable `parentAssetId`, top-level `tags`, generic `meta`, and creation/update
- timestamps. The Drizzle adapter supports MySQL, PostgreSQL, and SQLite, while
- `StorageAssetInventoryService` composes `AbstractStorage` plus the catalog for
- write/read/delete inventory workflows.
+The service family now includes:
+
+- a generic `storage_asset` catalog with `orphanedAt` lifecycle state
+- a `storage_asset_ref` attachment graph keyed by
+  `(tenantId, ownerType, ownerId, assetId)`
+- a `storage_upload_ledger` that tracks presigned upload issuance and
+  finalization state
+- a concrete `StorageAssetInventoryService` that orchestrates upload issuance,
+  asset finalization, ref sync, orphan marking, and cleanup
+
+The canonical asset shape tracks `objectKey`, `mimeType`, string `source`,
+nullable `parentAssetId`, nullable `orphanedAt`, top-level `tags`, generic
+`meta`, and creation/update timestamps. Family liveness is rooted at
+`parentAssetId`: any active ref on any descendant keeps the full family live.
 
 ## Implementation Constraints
 
@@ -25,19 +35,50 @@ The canonical shape tracks `objectKey`, `mimeType`, string `source`,
   imports, OCR inputs, and other binary workflows.
 - Model related assets through `parentAssetId`; do not hardcode image-only
   columns into the catalog.
+- Keep upload lifecycle state in `storage-asset`; do not move DB-backed upload
+  tracking into `AbstractStorage`.
+- Keep refs and upload ledger as reusable companion services; app-specific
+  owner validation and auth remain downstream concerns.
+- Treat family-root liveness as the default. Do not add per-workflow liveness
+  modes without a superseding ADR.
 
 ## Public API / Contracts
 
 - `AbstractStorageAssetService`
+- `ListOrphanedStorageAssetRootsOptions`
 - `StorageAssetRecord`
 - `UpsertStorageAssetInput`
 - `StorageAssetListPageOptions`
 - `StorageAssetListPageResult`
+- `StorageAssetStillReferencedError`
+- `StorageAssetFamilyConsistencyError`
+- `AbstractStorageAssetRefService`
+- `StorageAssetOwnerRef`
+- `StorageAssetOwnerRefScope`
+- `AbstractStorageUploadLedgerService`
+- `StorageUploadLedgerRecord`
+- `StorageUploadStatus`
 - `StorageAssetInventoryService`
 - `WriteStorageAssetInput`
 - `ReadStorageAssetResult`
 - `StorageAssetReadUrlResult`
 - `DeleteStorageAssetOptions`
+- `IssueStorageUploadInput`
+- `IssuedStorageUploadResult`
+- `MarkStorageUploadCompletedInput`
+- `FinalizeStorageUploadInput`
+- `FinalizedStorageUploadResult`
+- `SyncStorageAssetRefsInput`
+- `PurgeExpiredUploadsOptions`
+- `PurgeOrphanedAssetsOptions`
+- `DrizzleStorageAssetRefService(...)`
+- `createMySqlStorageAssetRefTable(...)`
+- `createPostgresStorageAssetRefTable(...)`
+- `createSqliteStorageAssetRefTable(...)`
+- `DrizzleStorageUploadLedgerService(...)`
+- `createMySqlStorageUploadLedgerTable(...)`
+- `createPostgresStorageUploadLedgerTable(...)`
+- `createSqliteStorageUploadLedgerTable(...)`
 - `DrizzleStorageAssetService(...)`
 - `createMySqlStorageAssetTable(...)`
 - `createPostgresStorageAssetTable(...)`
@@ -49,3 +90,8 @@ The canonical shape tracks `objectKey`, `mimeType`, string `source`,
 - Do not merge this API into `AbstractStorage`; compose `AbstractStorage`
   instead.
 - Do not add workflow-specific metadata fields to the generic table shape.
+- Do not add built-in schedulers or workers here; expose purge primitives and
+  let the host app schedule them.
+- Do not make asset consumers know whether a file came from a pending upload,
+  a generated asset, or an import unless the caller explicitly models that in
+  `source` or `meta`.

@@ -7,13 +7,11 @@ import type {
   ResolvedDevAction,
 } from './action-runner';
 import { listDevActions, runDevAction } from './action-runner';
-import type { LoadedDevActionsConfig } from './actions-config';
-import { loadDevActionsConfig } from './actions-config';
-import { loadDevLauncherManifest } from './manifest';
+import { loadDevLauncherConfig } from './config';
 import type { LoadedDevLauncherManifest } from './types';
 
 export interface DevActionCommandGlobalOptions {
-  actionsConfig?: string;
+  config?: string;
 }
 
 export interface DevActionListCommandOptions
@@ -30,21 +28,16 @@ export interface DevActionCommandRuntime {
   actionRuntime: DevActionRunnerRuntime;
   listActions: (
     manifest: LoadedDevLauncherManifest,
-    actionsConfig: LoadedDevActionsConfig,
+    actionsConfig: LoadedDevLauncherManifest,
     runtime: DevActionRunnerRuntime
   ) => Promise<ResolvedDevAction[]>;
-  loadActionsConfig: (options?: {
-    actionsConfigPath?: string;
-    cwd?: string;
-    optional?: boolean;
-  }) => Promise<LoadedDevActionsConfig | null>;
   loadManifest: (options?: {
     configPath?: string;
     cwd?: string;
-  }) => LoadedDevLauncherManifest;
+  }) => Promise<LoadedDevLauncherManifest>;
   runAction: (
     manifest: LoadedDevLauncherManifest,
-    actionsConfig: LoadedDevActionsConfig,
+    actionsConfig: LoadedDevLauncherManifest,
     actionId: string,
     options?: {
       force?: boolean;
@@ -69,8 +62,7 @@ const defaultRuntime: DevActionCommandRuntime = {
   listActions: async (manifest, actionsConfig, runtime) => {
     return await listDevActions(manifest, actionsConfig, runtime);
   },
-  loadActionsConfig: async (options) => loadDevActionsConfig(options),
-  loadManifest: (options) => loadDevLauncherManifest(options),
+  loadManifest: async (options) => await loadDevLauncherConfig(options),
   runAction: async (manifest, actionsConfig, actionId, options) => {
     return await runDevAction(manifest, actionsConfig, actionId, options);
   },
@@ -100,21 +92,14 @@ export const runDevActionListCommand = async (
     actionRuntime: createDefaultActionRuntime(),
   }
 ): Promise<number> => {
-  const manifest = runtime.loadManifest({
+  const manifest = await runtime.loadManifest({
     cwd: runtime.actionRuntime.cwd,
+    configPath: options.config,
   });
-  const actionsConfig = await runtime.loadActionsConfig({
-    actionsConfigPath: options.actionsConfig,
-    cwd: runtime.actionRuntime.cwd,
-  });
-
-  if (!actionsConfig) {
-    throw new Error('No actions config was found.');
-  }
 
   const actions = await runtime.listActions(
     manifest,
-    actionsConfig,
+    manifest,
     runtime.actionRuntime
   );
 
@@ -141,19 +126,12 @@ export const runDevActionRunCommand = async (
     actionRuntime: createDefaultActionRuntime(),
   }
 ): Promise<number> => {
-  const manifest = runtime.loadManifest({
+  const manifest = await runtime.loadManifest({
     cwd: runtime.actionRuntime.cwd,
-  });
-  const actionsConfig = await runtime.loadActionsConfig({
-    actionsConfigPath: options.actionsConfig,
-    cwd: runtime.actionRuntime.cwd,
+    configPath: options.config,
   });
 
-  if (!actionsConfig) {
-    throw new Error('No actions config was found.');
-  }
-
-  const result = await runtime.runAction(manifest, actionsConfig, actionId, {
+  const result = await runtime.runAction(manifest, manifest, actionId, {
     force: options.force,
     runtime: runtime.actionRuntime,
   });
@@ -179,10 +157,7 @@ export const createDevLauncherActionCommand = (
 ): Command => {
   const command = new Command('action')
     .description('List and run one-shot developer actions')
-    .option(
-      '--actions-config <path>',
-      'Path to a dev-cli.actions.ts/.mts/.js/.mjs file'
-    );
+    .option('--config <path>', 'Path to a dev-cli.config.ts/.mts/.js/.mjs file');
 
   command
     .command('list')

@@ -1,8 +1,12 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI runner output is intentional. */
 import prompts from 'prompts';
-import { getPresetServiceIds, normalizeSelectedServiceIds } from './manifest';
+import { normalizeSelectedServiceIds } from './manifest';
 import type { DevLauncherProcessController } from './process-manager';
 import { DevLauncherProcessManager } from './process-manager';
+import {
+  loadRecentDevServiceSelections,
+  saveRecentDevServiceSelection,
+} from './selection-history';
 import type { LoadedDevLauncherManifest } from './types';
 
 export interface PromptChoice {
@@ -32,6 +36,16 @@ export interface PlainDevSessionRuntime extends DevLauncherPromptRuntime {
   stdout: Pick<NodeJS.WriteStream, 'write'>;
 }
 
+export interface PlainDevSessionOptions {
+  allowStartupSelection?: boolean;
+  applyInitialSelection?: boolean;
+  exitWhenSelectionStops?: boolean;
+  onRequestExit?: (options: {
+    controller: DevLauncherProcessController;
+    exitCode: number;
+  }) => Promise<void>;
+}
+
 const defaultPromptRuntime: DevLauncherPromptRuntime = {
   canPrompt: Boolean(process.stdin.isTTY),
   prompt: async (question) => prompts(question as never),
@@ -57,21 +71,17 @@ const getServiceListLabel = (
     .join(', ');
 };
 
-export const buildPresetChoices = (
+export const buildStartupChoices = (
   manifest: LoadedDevLauncherManifest
 ): PromptChoice[] => {
-  const presetChoices = manifest.presetIdsInOrder.map((presetId) => {
-    const preset = manifest.presetsById[presetId];
-
-    return {
-      description: preset?.description,
-      title: preset?.label ?? presetId,
-      value: presetId,
-    };
-  });
+  const recentSelections = loadRecentDevServiceSelections(manifest);
+  const recentChoices = recentSelections.map((serviceIds, index) => ({
+    title: getServiceListLabel(manifest, serviceIds),
+    value: `${index}`,
+  }));
 
   return [
-    ...presetChoices,
+    ...recentChoices,
     {
       description: 'Choose an ad hoc combination of declared services',
       title: 'Custom selection',
@@ -96,28 +106,56 @@ export const buildServiceChoices = (
 
 /**
  * Resolves the service selection for plain mode. Uses an explicit selection
- * when provided, otherwise prompts the user or falls back to the first preset.
+ * when provided, otherwise prompts the user or falls back to the latest saved
+ * selection.
  */
 export const promptForServiceSelection = async (
   manifest: LoadedDevLauncherManifest,
   runtime: DevLauncherPromptRuntime = defaultPromptRuntime,
-  initialServiceIds?: string[]
+  initialServiceIds?: string[],
+  options?: {
+    allowStartupSelection?: boolean;
+  }
 ): Promise<string[] | null> => {
+  if (options?.allowStartupSelection === false) {
+    return initialServiceIds
+      ? normalizeSelectedServiceIds(manifest, initialServiceIds)
+      : [];
+  }
+
   if (initialServiceIds && initialServiceIds.length > 0) {
     return normalizeSelectedServiceIds(manifest, initialServiceIds);
   }
 
+  const recentSelections = loadRecentDevServiceSelections(manifest);
+
   if (!runtime.canPrompt) {
-    const fallbackPresetId = manifest.presetIdsInOrder.at(0);
-    return fallbackPresetId
-      ? getPresetServiceIds(manifest, fallbackPresetId)
-      : null;
+    return recentSelections.at(0) ?? manifest.serviceIdsInOrder;
+  }
+
+  if (recentSelections.length === 0) {
+    const serviceResponse = await runtime.prompt({
+      choices: buildServiceChoices(manifest),
+      hint: '- Space to toggle, Enter to launch',
+      instructions: false,
+      message: 'Select services to launch',
+      min: 1,
+      name: 'serviceIds',
+      type: 'multiselect',
+    });
+    const selectedServiceIds = serviceResponse.serviceIds;
+
+    if (!Array.isArray(selectedServiceIds) || selectedServiceIds.length === 0) {
+      return null;
+    }
+
+    return normalizeSelectedServiceIds(manifest, selectedServiceIds);
   }
 
   const presetResponse = await runtime.prompt({
-    choices: buildPresetChoices(manifest),
+    choices: buildStartupChoices(manifest),
     initial: 0,
-    message: 'Choose a preset or start a custom selection',
+    message: 'Choose a recent service selection or start a custom selection',
     name: 'selection',
     type: 'select',
   });
@@ -128,7 +166,8 @@ export const promptForServiceSelection = async (
   }
 
   if (selection !== 'custom') {
-    return getPresetServiceIds(manifest, String(selection));
+    const selectedIndex = Number(selection);
+    return recentSelections.at(selectedIndex) ?? null;
   }
 
   const serviceResponse = await runtime.prompt({
@@ -166,18 +205,25 @@ const formatPrefixedLogLine = (
 export const runPlainDevSession = async (
   manifest: LoadedDevLauncherManifest,
   runtime: PlainDevSessionRuntime = defaultRuntime,
-  initialServiceIds?: string[]
+  initialServiceIds?: string[],
+  options?: PlainDevSessionOptions
 ): Promise<number> => {
   const selectedServiceIds = await promptForServiceSelection(
     manifest,
     runtime,
-    initialServiceIds
+    initialServiceIds,
+    {
+      allowStartupSelection: options?.allowStartupSelection,
+    }
   );
 
-  if (!selectedServiceIds || selectedServiceIds.length === 0) {
+  if (
+    (!selectedServiceIds || selectedServiceIds.length === 0) &&
+    options?.allowStartupSelection !== false
+  ) {
     if (!runtime.canPrompt) {
       runtime.stderr.write(
-        'No preset was provided and the manifest does not define a default preset for non-interactive plain mode.\n'
+        'No service selection was provided and there is no saved selection available for non-interactive plain mode.\n'
       );
       return 1;
     }
@@ -188,11 +234,16 @@ export const runPlainDevSession = async (
 
   const normalizedSelection = normalizeSelectedServiceIds(
     manifest,
-    selectedServiceIds
+    selectedServiceIds ?? []
   );
-  runtime.stdout.write(
-    `Launching ${getServiceListLabel(manifest, normalizedSelection)}...\n`
-  );
+  const shouldApplyInitialSelection = options?.applyInitialSelection !== false;
+
+  if (shouldApplyInitialSelection && normalizedSelection.length > 0) {
+    saveRecentDevServiceSelection(manifest, normalizedSelection);
+    runtime.stdout.write(
+      `Launching ${getServiceListLabel(manifest, normalizedSelection)}...\n`
+    );
+  }
 
   const controller = runtime.createController(manifest);
   let exitCode = 0;
@@ -247,6 +298,10 @@ export const runPlainDevSession = async (
         return;
       }
 
+      if (options?.exitWhenSelectionStops === false && !isShuttingDown) {
+        return;
+      }
+
       unsubscribe();
       for (const { handler, signal } of signalHandlers) {
         process.off(signal, handler);
@@ -260,9 +315,28 @@ export const runPlainDevSession = async (
       }
 
       isShuttingDown = true;
-      controller
-        .stopAll()
+      const requestExit =
+        options?.onRequestExit ??
+        (async (requestOptions: {
+          controller: DevLauncherProcessController;
+          exitCode: number;
+        }) => {
+          await requestOptions.controller.stopAll();
+        });
+      requestExit({
+        controller,
+        exitCode,
+      })
         .then(() => {
+          if (options?.onRequestExit) {
+            unsubscribe();
+            for (const { handler, signal } of signalHandlers) {
+              process.off(signal, handler);
+            }
+            resolve(exitCode);
+            return;
+          }
+
           maybeResolve();
         })
         .catch(reject);
@@ -280,8 +354,11 @@ export const runPlainDevSession = async (
       maybeResolve();
     });
 
-    controller
-      .applyServiceSet(normalizedSelection)
+    const startPromise = shouldApplyInitialSelection
+      ? controller.applyServiceSet(normalizedSelection)
+      : Promise.resolve();
+
+    startPromise
       .then(() => {
         maybeResolve();
       })

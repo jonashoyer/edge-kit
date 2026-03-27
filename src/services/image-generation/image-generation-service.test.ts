@@ -198,6 +198,12 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<object> {
     };
   }
 
+  override async listOrphanedRoots(): Promise<StorageAssetRecord<object>[]> {
+    return [...this.assets.values()].filter(
+      (asset) => asset.parentAssetId === null && asset.orphanedAt !== null
+    );
+  }
+
   override async upsert(
     input: UpsertStorageAssetInput<object>
   ): Promise<StorageAssetRecord<object>> {
@@ -209,6 +215,10 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<object> {
       mimeType: input.mimeType,
       source: input.source,
       parentAssetId: input.parentAssetId ?? null,
+      orphanedAt:
+        input.orphanedAt === undefined
+          ? (existing?.orphanedAt ?? null)
+          : input.orphanedAt,
       tags: [...new Set(input.tags ?? existing?.tags ?? [])],
       meta: input.meta ?? existing?.meta ?? {},
       createdAt,
@@ -221,6 +231,37 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<object> {
 
   override async delete(id: string): Promise<void> {
     this.assets.delete(id);
+  }
+
+  override async setOrphanedAt(
+    ids: string[],
+    orphanedAt: Date | null
+  ): Promise<void> {
+    for (const id of ids) {
+      const asset = this.assets.get(id);
+
+      if (!asset) {
+        continue;
+      }
+
+      this.assets.set(id, {
+        ...asset,
+        orphanedAt,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  override async resolveRoot(
+    assetId: string
+  ): Promise<StorageAssetRecord<object> | null> {
+    let current = this.assets.get(assetId) ?? null;
+
+    while (current?.parentAssetId !== null) {
+      current = this.assets.get(current.parentAssetId) ?? null;
+    }
+
+    return current;
   }
 }
 

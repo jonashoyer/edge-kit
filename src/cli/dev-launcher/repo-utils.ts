@@ -1,7 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-const CONFIG_FILE_NAME = 'dev-cli.config.json';
+const CONFIG_FILE_NAMES = [
+  'dev-cli.config.ts',
+  'dev-cli.config.mts',
+  'dev-cli.config.js',
+  'dev-cli.config.mjs',
+] as const;
 const IGNORED_DIRECTORY_NAMES = new Set([
   '.git',
   '.next',
@@ -155,9 +160,11 @@ export const resolveDevLauncherConfigPath = (options?: {
   let currentDir = cwd;
 
   while (true) {
-    const candidatePath = path.join(currentDir, CONFIG_FILE_NAME);
-    if (fs.existsSync(candidatePath)) {
-      return candidatePath;
+    for (const fileName of CONFIG_FILE_NAMES) {
+      const candidatePath = path.join(currentDir, fileName);
+      if (fs.existsSync(candidatePath)) {
+        return candidatePath;
+      }
     }
 
     const parentDir = path.dirname(currentDir);
@@ -168,7 +175,7 @@ export const resolveDevLauncherConfigPath = (options?: {
   }
 
   throw new Error(
-    `Could not find ${CONFIG_FILE_NAME} from ${cwd}. Pass --config to specify it explicitly.`
+    `Could not find a dev-cli.config.ts/.mts/.js/.mjs file from ${cwd}. Pass --config to specify it explicitly.`
   );
 };
 

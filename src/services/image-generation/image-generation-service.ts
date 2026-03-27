@@ -615,6 +615,7 @@ export class ImageGenerationService<
       mimeType: context.output.image.mimeType,
       source: this.source,
       parentAssetId: null,
+      orphanedAt: null,
       tags: [],
       meta: this.createOriginalMeta(context),
       createdAt: new Date(),

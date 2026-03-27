@@ -1,5 +1,5 @@
 ---
-name: agents-md-authoring
+name: AGENTS.md Authoring
 description: Write, review, and trim AGENTS.md files for coding agents using an evidence-based approach. Use when Codex needs to create a new AGENTS.md, rewrite an overgrown one, decide what belongs in repo-level versus package-level agent instructions, or turn broad repository guidance into short, non-inferable, behavior-changing instructions.
 ---
 

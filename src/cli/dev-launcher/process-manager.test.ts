@@ -32,10 +32,10 @@ class FakeChildProcess extends EventEmitter {
 }
 
 const createManifest = (): LoadedDevLauncherManifest => ({
-  configPath: '/repo/dev-cli.config.json',
+  actionIdsInOrder: [],
+  actionsById: {},
+  configPath: '/repo/dev-cli.config.ts',
   packageManager: 'pnpm',
-  presetIdsInOrder: [],
-  presetsById: {},
   repoRoot: '/repo',
   serviceIdsInOrder: ['app', 'api'],
   servicesById: {

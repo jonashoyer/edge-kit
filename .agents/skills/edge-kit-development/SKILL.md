@@ -1,5 +1,5 @@
 ---
-name: edge-kit-development
+name: Edge Kit Development
 description: Edge Kit repository development workflow and architecture guardrails for both human developers and code agents. Use when implementing, refactoring, reviewing, or documenting code inside Edge Kit, especially when deciding where code belongs, how public APIs should be exposed, whether logic belongs in services vs utils, how to keep modules copy-paste-first, and what docs/tests must ship with a change.
 ---
 

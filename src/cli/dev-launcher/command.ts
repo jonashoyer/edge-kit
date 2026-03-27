@@ -1,183 +1,227 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI command output is intentional. */
 import { Command } from 'commander';
-import type { DevActionSuggestion } from './action-runner';
-import { getDevPreflightActionSuggestions } from './action-runner';
-import type { LoadedDevActionsConfig } from './actions-config';
-import { loadDevActionsConfig } from './actions-config';
 import {
-  getPresetServiceIds,
-  loadDevLauncherManifest,
-  normalizeSelectedServiceIds,
-} from './manifest';
-import { runPlainDevSession } from './plain-runner';
-import { startDevLauncherTuiSession } from './tui';
-import type { LoadedDevLauncherManifest } from './types';
+  resolveInitialServiceIds,
+  runDevLauncherAttachCommand,
+  runDevLauncherCommand,
+  runDevLauncherHostCommand,
+  runDevLauncherLogsCommand,
+  runDevLauncherServiceRestartCommand,
+  runDevLauncherServiceStartCommand,
+  runDevLauncherServiceStopCommand,
+  runDevLauncherServicesApplyCommand,
+  runDevLauncherSessionStopCommand,
+  runDevLauncherStatusCommand,
+  type DevLauncherCommandOptions,
+  type DevLauncherLogsCommandOptions,
+  type DevLauncherServicesApplyCommandOptions,
+  type DevLauncherSessionHostCommandOptions,
+  type DevLauncherStatusCommandOptions,
+  type DevLauncherStructuredOutputCommandOptions,
+} from './session-commands';
 
-export interface DevLauncherCommandOptions {
-  actionsConfig?: string;
+const getCommandGlobalOptions = (
+  command: Command
+): {
   config?: string;
   noTui?: boolean;
-  preset?: string;
-  services?: string;
-}
-
-export interface DevLauncherCommandRuntime {
-  isInteractiveTuiSupported: () => boolean;
-  loadManifest: (options?: {
-    configPath?: string;
-    cwd?: string;
-  }) => LoadedDevLauncherManifest;
-  loadActionsConfig: (options?: {
-    actionsConfigPath?: string;
-    cwd?: string;
-    optional?: boolean;
-  }) => Promise<LoadedDevActionsConfig | null>;
-  getPreflightSuggestions: (
-    manifest: LoadedDevLauncherManifest,
-    actionsConfig: LoadedDevActionsConfig
-  ) => Promise<DevActionSuggestion[]>;
-  runPlainDevSession: (
-    manifest: LoadedDevLauncherManifest,
-    initialServiceIds?: string[]
-  ) => Promise<number>;
-  startDevLauncherTuiSession: (
-    manifest: LoadedDevLauncherManifest,
-    initialServiceIds?: string[]
-  ) => Promise<number>;
-  stderr: Pick<NodeJS.WriteStream, 'write'>;
-  stdout: Pick<NodeJS.WriteStream, 'write'>;
-}
-
-const defaultRuntime: DevLauncherCommandRuntime = {
-  isInteractiveTuiSupported: () => {
-    return Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  },
-  getPreflightSuggestions: async (manifest, actionsConfig) => {
-    return await getDevPreflightActionSuggestions(manifest, actionsConfig);
-  },
-  loadActionsConfig: async (options) => {
-    return await loadDevActionsConfig(options);
-  },
-  loadManifest: (options) => loadDevLauncherManifest(options),
-  runPlainDevSession: async (manifest, initialServiceIds) => {
-    return await runPlainDevSession(manifest, undefined, initialServiceIds);
-  },
-  startDevLauncherTuiSession: async (manifest, initialServiceIds) => {
-    return await startDevLauncherTuiSession(
-      manifest,
-      undefined,
-      initialServiceIds
-    );
-  },
-  stderr: process.stderr,
-  stdout: process.stdout,
+} => {
+  return command.optsWithGlobals<{
+    config?: string;
+    noTui?: boolean;
+  }>();
 };
 
-const parseServiceIdsOption = (servicesOption: string): string[] => {
-  return servicesOption
-    .split(',')
-    .map((value) => value.trim())
-    .filter((value) => value.length > 0);
+export {
+  resolveInitialServiceIds,
+  runDevLauncherAttachCommand,
+  runDevLauncherCommand,
+  runDevLauncherHostCommand,
+  runDevLauncherLogsCommand,
+  runDevLauncherServiceRestartCommand,
+  runDevLauncherServiceStartCommand,
+  runDevLauncherServiceStopCommand,
+  runDevLauncherServicesApplyCommand,
+  runDevLauncherSessionStopCommand,
+  runDevLauncherStatusCommand,
 };
 
-/**
- * Resolves the initial service selection from CLI flags. `--services` and
- * `--preset` are mutually exclusive.
- */
-export const resolveInitialServiceIds = (
-  manifest: LoadedDevLauncherManifest,
-  options: DevLauncherCommandOptions
-): string[] | undefined => {
-  if (options.preset && options.services) {
-    throw new Error('Use either --preset or --services, not both.');
-  }
-
-  if (options.services) {
-    return normalizeSelectedServiceIds(
-      manifest,
-      parseServiceIdsOption(options.services)
-    );
-  }
-
-  if (options.preset) {
-    return getPresetServiceIds(manifest, options.preset);
-  }
-
-  return undefined;
-};
-
-/**
- * Runs a dev-launcher session by loading the manifest, resolving any explicit
- * selection flags, and choosing between TUI and plain modes.
- */
-export const runDevLauncherCommand = async (
-  options: DevLauncherCommandOptions = {},
-  runtime: DevLauncherCommandRuntime = defaultRuntime
-): Promise<number> => {
-  const manifest = runtime.loadManifest({
-    configPath: options.config,
-  });
-  const initialServiceIds = resolveInitialServiceIds(manifest, options);
-  const useTui = !options.noTui && runtime.isInteractiveTuiSupported();
-  const actionsConfig = await runtime.loadActionsConfig({
-    actionsConfigPath: options.actionsConfig,
-    optional: true,
-  });
-
-  if (actionsConfig) {
-    const suggestions = await runtime.getPreflightSuggestions(
-      manifest,
-      actionsConfig
-    );
-    for (const suggestion of suggestions) {
-      runtime.stdout.write(`${suggestion.message}\n`);
+const handleCommand = async (
+  callback: () => Promise<number>
+): Promise<void> => {
+  try {
+    const exitCode = await callback();
+    if (exitCode !== 0) {
+      process.exitCode = exitCode;
     }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(message);
+    process.exitCode = 1;
   }
-
-  if (useTui) {
-    return await runtime.startDevLauncherTuiSession(
-      manifest,
-      initialServiceIds
-    );
-  }
-
-  if (!(options.noTui || runtime.isInteractiveTuiSupported())) {
-    runtime.stdout.write(
-      'Interactive TTY not available. Falling back to plain mode.\n'
-    );
-  }
-
-  return await runtime.runPlainDevSession(manifest, initialServiceIds);
 };
 
 /**
  * Creates the reusable `dev` command that can be embedded in a repo-level CLI.
  */
-export const createDevLauncherCommand = (
-  runtime: DevLauncherCommandRuntime = defaultRuntime
-): Command => {
-  return new Command('dev')
+export const createDevLauncherCommand = (): Command => {
+  const command = new Command('dev')
     .description(
-      'Launch and supervise local development services from dev-cli.config.json'
+      'Launch, attach to, and control local development services from dev-cli.config.ts'
     )
-    .option('--config <path>', 'Path to a dev-cli.config.json file')
-    .option(
-      '--actions-config <path>',
-      'Path to a dev-cli.actions.ts/.mts/.js/.mjs file'
-    )
-    .option('--preset <id>', 'Launch a named preset from the manifest')
+    .option('--config <path>', 'Path to a dev-cli.config.ts/.mts/.js/.mjs file')
+    .option('--no-tui', 'Use the plain runner instead of the Ink TUI');
+
+  command
     .option('--services <ids>', 'Launch a comma-separated list of service ids')
-    .option('--no-tui', 'Use the plain runner instead of the Ink TUI')
     .action(async (options: DevLauncherCommandOptions) => {
-      try {
-        const exitCode = await runDevLauncherCommand(options, runtime);
-        if (exitCode !== 0) {
-          process.exitCode = exitCode;
-        }
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(message);
-        process.exitCode = 1;
-      }
+      await handleCommand(async () => await runDevLauncherCommand(options));
     });
+
+  command.command('attach').action(async (_options, subcommand: Command) => {
+    const mergedOptions = getCommandGlobalOptions(subcommand);
+    await handleCommand(
+      async () => await runDevLauncherAttachCommand(mergedOptions)
+    );
+  });
+
+  command
+    .command('host')
+    .description('Start the socket-backed dev launcher session host')
+    .option('--headless', 'Start the host without attaching a UI')
+    .option('--services <ids>', 'Start the host with a selected service set')
+    .action(
+      async (options: DevLauncherSessionHostCommandOptions, subcommand) => {
+        const mergedOptions = {
+          ...getCommandGlobalOptions(subcommand),
+          ...options,
+        };
+        await handleCommand(
+          async () => await runDevLauncherHostCommand(mergedOptions)
+        );
+      }
+    );
+
+  command
+    .command('status')
+    .description('Show the current dev launcher session state')
+    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
+    .action(
+      async (
+        options: DevLauncherStructuredOutputCommandOptions,
+        subcommand
+      ) => {
+        const mergedOptions: DevLauncherStatusCommandOptions = {
+          ...getCommandGlobalOptions(subcommand),
+          ...options,
+        };
+        await handleCommand(
+          async () => await runDevLauncherStatusCommand(mergedOptions)
+        );
+      }
+    );
+
+  command
+    .command('logs <serviceId>')
+    .description('Read recent logs for a managed service')
+    .option('--after <sequence>', 'Only return log lines after this sequence')
+    .option('--follow', 'Poll for new logs until interrupted')
+    .option('--json', 'Emit machine-readable JSON output')
+    .option('--limit <count>', 'Maximum number of log lines to return')
+    .option('--toon', 'Emit LLM-friendly TOON output')
+    .action(
+      async (
+        serviceId: string,
+        options: DevLauncherLogsCommandOptions,
+        subcommand
+      ) => {
+        const mergedOptions = {
+          ...getCommandGlobalOptions(subcommand),
+          ...options,
+        };
+        await handleCommand(
+          async () => await runDevLauncherLogsCommand(serviceId, mergedOptions)
+        );
+      }
+    );
+
+  const serviceCommand = command
+    .command('service')
+    .description('Control individual managed services');
+
+  const addServiceCommand = (
+    name: 'restart' | 'start' | 'stop',
+    runner: (
+      serviceId: string,
+      options?: DevLauncherStatusCommandOptions
+    ) => Promise<number>
+  ): void => {
+    serviceCommand
+      .command(`${name} <serviceId>`)
+      .option('--json', 'Emit machine-readable JSON output')
+      .option('--toon', 'Emit LLM-friendly TOON output')
+      .action(
+        async (
+          serviceId: string,
+          options: DevLauncherStructuredOutputCommandOptions,
+          subcommand
+        ) => {
+          const mergedOptions: DevLauncherStatusCommandOptions = {
+            ...getCommandGlobalOptions(subcommand),
+            ...options,
+          };
+          await handleCommand(async () => await runner(serviceId, mergedOptions));
+        }
+      );
+  };
+
+  addServiceCommand('start', runDevLauncherServiceStartCommand);
+  addServiceCommand('stop', runDevLauncherServiceStopCommand);
+  addServiceCommand('restart', runDevLauncherServiceRestartCommand);
+
+  command
+    .command('services')
+    .description('Apply a managed service set')
+    .command('apply')
+    .requiredOption('--services <ids>', 'Comma-separated service ids')
+    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
+    .action(
+      async (
+        options: DevLauncherServicesApplyCommandOptions,
+        subcommand: Command
+      ) => {
+        const mergedOptions = {
+          ...getCommandGlobalOptions(subcommand),
+          ...options,
+        };
+        await handleCommand(
+          async () => await runDevLauncherServicesApplyCommand(mergedOptions)
+        );
+      }
+    );
+
+  command
+    .command('session')
+    .description('Control the session host')
+    .command('stop')
+    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
+    .action(
+      async (
+        options: DevLauncherStructuredOutputCommandOptions,
+        subcommand: Command
+      ) => {
+        const mergedOptions: DevLauncherStatusCommandOptions = {
+          ...getCommandGlobalOptions(subcommand),
+          ...options,
+        };
+        await handleCommand(
+          async () => await runDevLauncherSessionStopCommand(mergedOptions)
+        );
+      }
+    );
+
+  return command;
 };

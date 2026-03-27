@@ -17,3 +17,7 @@
 | ADR-0013 | Use an optional storage explorer capability instead of root listing APIs | Implemented | 2026-03-21 |
 | ADR-0014 | Use a dedicated transcription service family for local AI SDK Parakeet models | Implemented | 2026-03-21 |
 | ADR-0015 | Ship dev-launcher example actions from the feature directory | Implemented | 2026-03-22 |
+| ADR-0016 | Add storage asset refs, upload lifecycle, and orphan cleanup primitives | Implemented | 2026-03-26 |
+| ADR-0017 | Use a shared TypeScript dev-launcher config and local recent selections | Implemented | 2026-03-27 |
+| ADR-0018 | Run dev actions inside the dev-launcher TUI | Implemented | 2026-03-27 |
+| ADR-0019 | Add a socket-backed session host to the dev launcher | Implemented | 2026-03-27 |

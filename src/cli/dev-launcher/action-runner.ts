@@ -30,6 +30,7 @@ interface ExecSpawnOptions {
 }
 
 export interface DevActionRunnerRuntime {
+  captureInheritedStdio?: boolean;
   cwd: string;
   env: NodeJS.ProcessEnv;
   platform: NodeJS.Platform;
@@ -185,7 +186,11 @@ const createExecHelper = (
     options: DevActionExecOptions = {}
   ): Promise<DevActionExecResult> => {
     const cwd = resolveExecCwd(repoRoot, options.cwd);
-    const stdio = options.stdio ?? 'pipe';
+    const requestedStdio = options.stdio ?? 'pipe';
+    const stdio =
+      requestedStdio === 'inherit' && runtime.captureInheritedStdio
+        ? 'pipe'
+        : requestedStdio;
     const env = {
       ...runtime.env,
       ...options.env,
@@ -312,10 +317,7 @@ const evaluateAvailabilityForAction = async (
 
   try {
     const availability = action.isAvailable
-      ? normalizeAvailabilityResult(
-          actionId,
-          await action.isAvailable(context)
-        )
+      ? normalizeAvailabilityResult(actionId, await action.isAvailable(context))
       : { available: true };
 
     return {

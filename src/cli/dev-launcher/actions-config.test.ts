@@ -17,7 +17,7 @@ const writeFile = (filePath: string, content: string): void => {
   fs.writeFileSync(filePath, content);
 };
 
-const createValidActionsModule = (): string => {
+const createValidConfigModule = (): string => {
   return `
 export default {
   actionsById: {
@@ -29,34 +29,45 @@ export default {
       },
     },
   },
+  packageManager: 'pnpm',
+  servicesById: {
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev',
+      },
+    },
+  },
+  version: 1,
 };
 `;
 };
 
 describe('resolveDevActionsConfigPath', () => {
-  it('finds dev-cli.actions.ts by searching upward from cwd', () => {
+  it('finds dev-cli.config.ts by searching upward from cwd', () => {
     const tempDir = createTempDir();
     const nestedDir = path.join(tempDir, 'packages', 'app');
     writeFile(
-      path.join(tempDir, 'dev-cli.actions.ts'),
-      createValidActionsModule()
+      path.join(tempDir, 'dev-cli.config.ts'),
+      createValidConfigModule()
     );
 
     const resolvedPath = resolveDevActionsConfigPath({
       cwd: nestedDir,
     });
 
-    expect(resolvedPath).toBe(path.join(tempDir, 'dev-cli.actions.ts'));
+    expect(resolvedPath).toBe(path.join(tempDir, 'dev-cli.config.ts'));
   });
 
-  it('honors an explicit actions config override', () => {
+  it('honors an explicit config override', () => {
     const tempDir = createTempDir();
     const nestedDir = path.join(tempDir, 'packages', 'app');
-    const explicitPath = path.join(tempDir, 'config', 'custom.actions.mjs');
-    writeFile(explicitPath, createValidActionsModule());
+    const explicitPath = path.join(tempDir, 'config', 'custom.config.mjs');
+    writeFile(explicitPath, createValidConfigModule());
 
     const resolvedPath = resolveDevActionsConfigPath({
-      actionsConfigPath: explicitPath,
+      configPath: explicitPath,
       cwd: nestedDir,
     });
 
@@ -65,12 +76,12 @@ describe('resolveDevActionsConfigPath', () => {
 });
 
 describe('loadDevActionsConfig', () => {
-  it('supports .ts, .mts, .js, and .mjs actions config files', async () => {
+  it('supports .ts, .mts, .js, and .mjs config files', async () => {
     const extensions = [
-      'dev-cli.actions.ts',
-      'dev-cli.actions.mts',
-      'dev-cli.actions.js',
-      'dev-cli.actions.mjs',
+      'dev-cli.config.ts',
+      'dev-cli.config.mts',
+      'dev-cli.config.js',
+      'dev-cli.config.mjs',
     ];
 
     for (const fileName of extensions) {
@@ -79,20 +90,20 @@ describe('loadDevActionsConfig', () => {
         path.join(tempDir, 'package.json'),
         JSON.stringify({ type: 'module' }, null, 2)
       );
-      writeFile(path.join(tempDir, fileName), createValidActionsModule());
+      writeFile(path.join(tempDir, fileName), createValidConfigModule());
 
       const config = await loadDevActionsConfig({
         cwd: tempDir,
       });
 
-      expect(config?.actionIdsInOrder).toEqual(['install-deps']);
+      expect(config.actionIdsInOrder).toEqual(['install-deps']);
     }
   });
 
   it('loads a config that imports concrete dev-launcher modules', async () => {
     const tempDir = createTempDir();
-    const actionsModuleUrl = pathToFileURL(
-      path.resolve(process.cwd(), 'src/cli/dev-launcher/actions.ts')
+    const configModuleUrl = pathToFileURL(
+      path.resolve(process.cwd(), 'src/cli/dev-launcher/config.ts')
     ).href;
     const gitPullActionUrl = pathToFileURL(
       path.resolve(process.cwd(), 'src/cli/dev-launcher/actions/git-pull.ts')
@@ -108,17 +119,28 @@ describe('loadDevActionsConfig', () => {
       JSON.stringify({ type: 'module' }, null, 2)
     );
     writeFile(
-      path.join(tempDir, 'dev-cli.actions.ts'),
+      path.join(tempDir, 'dev-cli.config.ts'),
       `
-import { defineDevActions } from '${actionsModuleUrl}';
+import { defineDevLauncherConfig } from '${configModuleUrl}';
 import { gitPullAction } from '${gitPullActionUrl}';
 import { installDepsAction } from '${installDepsActionUrl}';
 
-export default defineDevActions({
+export default defineDevLauncherConfig({
   actionsById: {
     'git-pull': gitPullAction,
     'install-deps': installDepsAction,
   },
+  packageManager: 'pnpm',
+  servicesById: {
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev',
+      },
+    },
+  },
+  version: 1,
 });
 `
     );
@@ -127,16 +149,16 @@ export default defineDevActions({
       cwd: tempDir,
     });
 
-    expect(config?.actionIdsInOrder).toEqual(['git-pull', 'install-deps']);
-    expect(config?.actionsById['git-pull']?.label).toBe('Pull latest commits');
-    expect(config?.actionsById['install-deps']?.label).toBe(
+    expect(config.actionIdsInOrder).toEqual(['git-pull', 'install-deps']);
+    expect(config.actionsById['git-pull']?.label).toBe('Pull latest commits');
+    expect(config.actionsById['install-deps']?.label).toBe(
       'Install dependencies'
     );
   });
 
   it('rejects malformed default exports', async () => {
     const tempDir = createTempDir();
-    writeFile(path.join(tempDir, 'dev-cli.actions.ts'), 'export default 1;');
+    writeFile(path.join(tempDir, 'dev-cli.config.ts'), 'export default 1;');
 
     await expect(
       loadDevActionsConfig({
@@ -145,33 +167,54 @@ export default defineDevActions({
     ).rejects.toThrow('default-export an object');
   });
 
-  it('rejects an empty actionsById map', async () => {
+  it('allows configs without any actions', async () => {
     const tempDir = createTempDir();
     writeFile(
-      path.join(tempDir, 'dev-cli.actions.ts'),
+      path.join(tempDir, 'dev-cli.config.ts'),
       `
 export default {
-  actionsById: {},
+  packageManager: 'pnpm',
+  servicesById: {
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev',
+      },
+    },
+  },
+  version: 1,
 };
 `
     );
 
-    await expect(
-      loadDevActionsConfig({
-        cwd: tempDir,
-      })
-    ).rejects.toThrow('must define at least one action');
+    const config = await loadDevActionsConfig({
+      cwd: tempDir,
+    });
+
+    expect(config.actionIdsInOrder).toEqual([]);
   });
 
   it('rejects actions without a run function', async () => {
     const tempDir = createTempDir();
     writeFile(
-      path.join(tempDir, 'dev-cli.actions.ts'),
+      path.join(tempDir, 'dev-cli.config.ts'),
       `
 export default {
   actionsById: {
     a: { label: 'A', impactPolicy: 'parallel' },
   },
+  packageManager: 'pnpm',
+  servicesById: {
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev',
+      },
+    },
+  },
+  version: 1,
 };
 `
     );
@@ -186,12 +229,23 @@ export default {
   it('rejects invalid impact policies', async () => {
     const tempDir = createTempDir();
     writeFile(
-      path.join(tempDir, 'dev-cli.actions.ts'),
+      path.join(tempDir, 'dev-cli.config.ts'),
       `
 export default {
   actionsById: {
     a: { label: 'A', impactPolicy: 'restart', async run() {} },
   },
+  packageManager: 'pnpm',
+  servicesById: {
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev',
+      },
+    },
+  },
+  version: 1,
 };
 `
     );
