@@ -122,7 +122,7 @@ const normalizeAuthorPatterns = (authors: string[]) => {
 };
 
 const buildAuthorPattern = (authors: string[]) => {
-  return authors.map((author) => `(${author})`).join('|');
+  return authors.map((author) => `\\(${author}\\)`).join('\\|');
 };
 
 const parseStatValue = (value: string) => {

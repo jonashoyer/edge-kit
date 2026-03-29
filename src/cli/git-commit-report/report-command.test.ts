@@ -70,7 +70,7 @@ describe('runGitCommitReportCommand', () => {
         '--date=iso-strict',
         '--since=2026-03-17',
         '--until=2026-03-19',
-        '--author=(alice@example.com)|(bob@example.com)',
+        '--author=\\(alice@example.com\\)\\|\\(bob@example.com\\)',
       ]),
       expect.objectContaining({
         cwd: '/repo',
