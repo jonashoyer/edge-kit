@@ -1,7 +1,12 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI command output is intentional. */
 import { Command } from 'commander';
 import {
-  resolveInitialServiceIds,
+  type DevLauncherCommandOptions,
+  type DevLauncherLogsCommandOptions,
+  type DevLauncherServicesApplyCommandOptions,
+  type DevLauncherSessionHostCommandOptions,
+  type DevLauncherStatusCommandOptions,
+  type DevLauncherStructuredOutputCommandOptions,
   runDevLauncherAttachCommand,
   runDevLauncherCommand,
   runDevLauncherHostCommand,
@@ -12,12 +17,6 @@ import {
   runDevLauncherServicesApplyCommand,
   runDevLauncherSessionStopCommand,
   runDevLauncherStatusCommand,
-  type DevLauncherCommandOptions,
-  type DevLauncherLogsCommandOptions,
-  type DevLauncherServicesApplyCommandOptions,
-  type DevLauncherSessionHostCommandOptions,
-  type DevLauncherStatusCommandOptions,
-  type DevLauncherStructuredOutputCommandOptions,
 } from './session-commands';
 
 const getCommandGlobalOptions = (
@@ -30,20 +29,6 @@ const getCommandGlobalOptions = (
     config?: string;
     noTui?: boolean;
   }>();
-};
-
-export {
-  resolveInitialServiceIds,
-  runDevLauncherAttachCommand,
-  runDevLauncherCommand,
-  runDevLauncherHostCommand,
-  runDevLauncherLogsCommand,
-  runDevLauncherServiceRestartCommand,
-  runDevLauncherServiceStartCommand,
-  runDevLauncherServiceStopCommand,
-  runDevLauncherServicesApplyCommand,
-  runDevLauncherSessionStopCommand,
-  runDevLauncherStatusCommand,
 };
 
 const handleCommand = async (
@@ -105,7 +90,6 @@ export const createDevLauncherCommand = (): Command => {
   command
     .command('status')
     .description('Show the current dev launcher session state')
-    .option('--json', 'Emit machine-readable JSON output')
     .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (
@@ -127,7 +111,6 @@ export const createDevLauncherCommand = (): Command => {
     .description('Read recent logs for a managed service')
     .option('--after <sequence>', 'Only return log lines after this sequence')
     .option('--follow', 'Poll for new logs until interrupted')
-    .option('--json', 'Emit machine-readable JSON output')
     .option('--limit <count>', 'Maximum number of log lines to return')
     .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
@@ -159,7 +142,6 @@ export const createDevLauncherCommand = (): Command => {
   ): void => {
     serviceCommand
       .command(`${name} <serviceId>`)
-      .option('--json', 'Emit machine-readable JSON output')
       .option('--toon', 'Emit LLM-friendly TOON output')
       .action(
         async (
@@ -171,7 +153,9 @@ export const createDevLauncherCommand = (): Command => {
             ...getCommandGlobalOptions(subcommand),
             ...options,
           };
-          await handleCommand(async () => await runner(serviceId, mergedOptions));
+          await handleCommand(
+            async () => await runner(serviceId, mergedOptions)
+          );
         }
       );
   };
@@ -185,7 +169,6 @@ export const createDevLauncherCommand = (): Command => {
     .description('Apply a managed service set')
     .command('apply')
     .requiredOption('--services <ids>', 'Comma-separated service ids')
-    .option('--json', 'Emit machine-readable JSON output')
     .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (
@@ -206,7 +189,6 @@ export const createDevLauncherCommand = (): Command => {
     .command('session')
     .description('Control the session host')
     .command('stop')
-    .option('--json', 'Emit machine-readable JSON output')
     .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (

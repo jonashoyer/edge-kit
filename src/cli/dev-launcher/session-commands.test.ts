@@ -128,22 +128,6 @@ describe('session-commands output formatting', () => {
     );
   });
 
-  it('keeps --json as the stable alias even when --toon is passed', async () => {
-    const { runtime, stdout } = createRuntime();
-
-    await runDevLauncherStatusCommand(
-      {
-        json: true,
-        toon: true,
-      },
-      runtime as never
-    );
-
-    expect(stdout.write).toHaveBeenCalledWith(
-      expect.stringContaining('"ok": true')
-    );
-  });
-
   it('renders logs in TOON format when not following', async () => {
     const { client, runtime, stdout } = createRuntime();
 
@@ -177,7 +161,9 @@ describe('session-commands output formatting', () => {
         },
         runtime as never
       )
-    ).rejects.toThrow('logs --follow does not support TOON output in this phase.');
+    ).rejects.toThrow(
+      'logs --follow does not support TOON output in this phase.'
+    );
 
     expect(stdout.write).toHaveBeenCalledWith(
       expect.stringContaining('ok: false')

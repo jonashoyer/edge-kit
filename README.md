@@ -148,7 +148,7 @@ pnpm cli dev
 pnpm cli dev --services tests
 pnpm cli dev --no-tui
 pnpm cli action list
-pnpm cli action list --json
+pnpm cli action list --toon
 pnpm cli action run install-deps
 pnpm cli action run install-deps --force
 ```
@@ -268,6 +268,7 @@ Run the example repo command:
 
 ```bash
 pnpm cli skills list
+pnpm cli skills list --toon
 pnpm cli skills install --path /path/to/my-skill
 pnpm cli skills install --repo vercel-labs/skills --name find-skills
 pnpm cli skills info find-skills

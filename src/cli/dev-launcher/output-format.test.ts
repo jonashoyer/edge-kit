@@ -5,13 +5,8 @@ import {
 } from './output-format';
 
 describe('output-format', () => {
-  it('prefers --json over --toon', () => {
-    expect(
-      resolveDevLauncherCommandOutputFormat({
-        json: true,
-        toon: true,
-      })
-    ).toBe('json');
+  it('uses text output by default', () => {
+    expect(resolveDevLauncherCommandOutputFormat({})).toBe('text');
   });
 
   it('uses TOON output when requested', () => {

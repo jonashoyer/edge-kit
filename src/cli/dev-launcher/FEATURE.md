@@ -1,8 +1,8 @@
 # Feature: Dev Launcher
 
 **Status:** `Active`
-**Last Reviewed:** 2026-03-27
-**Related ADRs:** [ADR-0003], [ADR-0006], [ADR-0007], [ADR-0015], [ADR-0017], [ADR-0018], [ADR-0019]
+**Last Reviewed:** 2026-03-30
+**Related ADRs:** [ADR-0003], [ADR-0006], [ADR-0007], [ADR-0015], [ADR-0017], [ADR-0018], [ADR-0019], [ADR-0022]
 **PRD:** N/A
 
 ---
@@ -80,8 +80,9 @@ the full terminal height.
 - DO keep read-only session commands side-effect free when no session exists.
 - DO auto-bootstrap only mutating service commands, and only through the
   macOS Terminal bootstrap flow in this phase.
-- DO keep `--json` as the stable machine-readable CLI output contract and
-  scope `--toon` to non-streaming CLI rendering only.
+- DO use `--toon` as the only structured CLI stdout contract.
+- DO keep `logs --follow` text-only until a dedicated structured streaming
+  contract exists.
 - DO let `pnpm cli dev` print advisory preflight action suggestions without
   executing them or blocking startup.
 - DO NOT reintroduce repo-defined presets or a separate actions registry file.
@@ -222,8 +223,8 @@ Implemented: mutating service commands auto-bootstrap a headless session host
 through Terminal.app on macOS when no session exists. Read-only commands fail
 fast with `no_session`.
 
-Implemented: structured CLI commands support `--json` and `--toon`; TOON is a
-CLI rendering mode only and is not part of the socket protocol.
+Implemented: structured CLI commands support plain text and `--toon`; TOON is
+the only structured CLI output mode and is not part of the socket protocol.
 
 ---
 

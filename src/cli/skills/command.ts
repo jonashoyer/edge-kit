@@ -52,7 +52,7 @@ export const createSkillsCommand = (
   command
     .command('list')
     .description('List installed and tracked skills in the selected root')
-    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
     .action(async (options: SkillsListCommandOptions, subcommand: Command) => {
       try {
         const exitCode = await runSkillsListCommand(
@@ -71,7 +71,7 @@ export const createSkillsCommand = (
   command
     .command('info <name>')
     .description('Show provenance and hash details for one installed skill')
-    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (
         name: string,
@@ -97,7 +97,7 @@ export const createSkillsCommand = (
   command
     .command('verify')
     .description('Recompute hashes for tracked skills and report drift')
-    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (options: SkillsVerifyCommandOptions, subcommand: Command) => {
         try {
@@ -131,7 +131,7 @@ export const createSkillsCommand = (
       'Skill directory name to install when using --repo'
     )
     .option('--force', 'Overwrite an existing installed skill directory')
-    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (options: SkillsInstallCommandOptions, subcommand: Command) => {
         try {
@@ -156,7 +156,7 @@ export const createSkillsCommand = (
       '--force',
       'Allow deleting an installed skill directory that is not tracked by the lockfile'
     )
-    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (
         name: string,

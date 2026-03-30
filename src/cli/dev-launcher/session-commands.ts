@@ -1,6 +1,7 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI command output is intentional. */
-import { randomUUID } from 'node:crypto';
+
 import { spawn } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
@@ -27,9 +28,9 @@ import {
   resolveDevLauncherCommandOutputFormat,
 } from './output-format';
 import {
-  runPlainDevSession,
   type PlainDevSessionOptions,
   type PlainDevSessionRuntime,
+  runPlainDevSession,
 } from './plain-runner';
 import {
   bootstrapDevLauncherSessionInTerminal,
@@ -59,7 +60,6 @@ export interface DevLauncherCommandOptions {
 }
 
 export interface DevLauncherStructuredOutputCommandOptions {
-  json?: boolean;
   toon?: boolean;
 }
 
@@ -128,9 +128,7 @@ export interface DevLauncherCommandRuntime {
     initialServiceIds?: string[],
     options?: {
       allowStartupSelection?: boolean;
-      onRequestExit?: (options: {
-        hasFailure: boolean;
-      }) => Promise<void>;
+      onRequestExit?: (options: { hasFailure: boolean }) => Promise<void>;
     }
   ) => Promise<number>;
   stderr: Pick<NodeJS.WriteStream, 'write'>;
@@ -272,7 +270,9 @@ const parseServiceIdsOption = (servicesOption: string): string[] => {
     .filter((value) => value.length > 0);
 };
 
-const parseOptionalInteger = (value: string | undefined): number | undefined => {
+const parseOptionalInteger = (
+  value: string | undefined
+): number | undefined => {
   if (value === undefined) {
     return undefined;
   }
@@ -289,7 +289,8 @@ const formatLogLine = (
   manifest: LoadedDevLauncherManifest,
   entry: DevLauncherLogEntry
 ): string => {
-  const label = manifest.servicesById[entry.serviceId]?.label ?? entry.serviceId;
+  const label =
+    manifest.servicesById[entry.serviceId]?.label ?? entry.serviceId;
   return `[${label}:${entry.stream}] ${entry.line}`;
 };
 
@@ -313,7 +314,7 @@ const writeCommandError = (
   format: DevLauncherCommandOutputFormat = 'text'
 ): never => {
   let errorCode = 'command_failed';
-  let message = error instanceof Error ? error.message : String(error);
+  const message = error instanceof Error ? error.message : String(error);
   let details: Record<string, unknown> | undefined;
 
   if (error instanceof DevLauncherSessionClientError) {
@@ -324,7 +325,7 @@ const writeCommandError = (
     details = error.details;
   }
 
-  if (format === 'json' || format === 'toon') {
+  if (format === 'toon') {
     writeStructuredOutput(
       runtime,
       {
@@ -382,18 +383,23 @@ const runAttachedSessionView = async (
     options?.selectedServiceIds ?? summary.session.snapshot.managedServiceIds;
 
   if (useTui) {
-    return await runtime.startTuiSession(manifest, controller, currentServiceIds, {
-      allowStartupSelection: options?.allowStartupSelection,
-      onRequestExit: options?.ownSession
-        ? async () => {
-            const client = runtime.createSessionClient(
-              manifest,
-              summary.session.metadata
-            );
-            await client.stopSession();
-          }
-        : async () => undefined,
-    });
+    return await runtime.startTuiSession(
+      manifest,
+      controller,
+      currentServiceIds,
+      {
+        allowStartupSelection: options?.allowStartupSelection,
+        onRequestExit: options?.ownSession
+          ? async () => {
+              const client = runtime.createSessionClient(
+                manifest,
+                summary.session.metadata
+              );
+              await client.stopSession();
+            }
+          : async () => undefined,
+      }
+    );
   }
 
   return await runtime.runPlainSession(
@@ -488,7 +494,7 @@ export const runDevLauncherCommand = async (
   const metadata = await server.start();
 
   try {
-    const { client, controller, summary } = await createAttachedController(
+    const { controller, summary } = await createAttachedController(
       manifest,
       runtime,
       metadata
@@ -558,7 +564,10 @@ export const runDevLauncherHostCommand = async (
   }
 
   const initialServiceIds = options.services
-    ? normalizeSelectedServiceIds(manifest, parseServiceIdsOption(options.services))
+    ? normalizeSelectedServiceIds(
+        manifest,
+        parseServiceIdsOption(options.services)
+      )
     : undefined;
   const server = runtime.createSessionServer(
     manifest,
@@ -574,7 +583,7 @@ export const runDevLauncherHostCommand = async (
 
   for (const signal of ['SIGINT', 'SIGTERM'] as const) {
     const handler = (): void => {
-      void server.stop();
+      server.stop().catch(() => undefined);
     };
     process.on(signal, handler);
     signalHandlers.push({ handler, signal });
@@ -656,12 +665,19 @@ const runMutatingServiceCommand = async (
       configPath: options.config,
     });
     const client = await ensureMutatingSessionClient(manifest, runtime);
-    const summary =
-      action === 'start'
-        ? await client.startService(serviceId)
-        : action === 'stop'
-          ? await client.stopService(serviceId)
-          : await client.restartService(serviceId);
+    let summary: DevLauncherSessionGetResult;
+    let actionLabel: 'Restarted' | 'Started' | 'Stopped';
+
+    if (action === 'start') {
+      summary = await client.startService(serviceId);
+      actionLabel = 'Started';
+    } else if (action === 'stop') {
+      summary = await client.stopService(serviceId);
+      actionLabel = 'Stopped';
+    } else {
+      summary = await client.restartService(serviceId);
+      actionLabel = 'Restarted';
+    }
 
     if (outputFormat !== 'text') {
       writeStructuredOutput(
@@ -673,12 +689,6 @@ const runMutatingServiceCommand = async (
         outputFormat
       );
     } else {
-      const actionLabel =
-        action === 'start'
-          ? 'Started'
-          : action === 'stop'
-            ? 'Stopped'
-            : 'Restarted';
       runtime.stdout.write(
         `${actionLabel} ${manifest.servicesById[serviceId]?.label ?? serviceId}.\n`
       );
@@ -710,7 +720,12 @@ export const runDevLauncherServiceRestartCommand = async (
   options: DevLauncherStatusCommandOptions = {},
   runtime: DevLauncherCommandRuntime = defaultRuntime
 ): Promise<number> => {
-  return await runMutatingServiceCommand('restart', serviceId, options, runtime);
+  return await runMutatingServiceCommand(
+    'restart',
+    serviceId,
+    options,
+    runtime
+  );
 };
 
 export const runDevLauncherServicesApplyCommand = async (
@@ -725,7 +740,10 @@ export const runDevLauncherServicesApplyCommand = async (
     });
     const client = await ensureMutatingSessionClient(manifest, runtime);
     const summary = await client.applyServiceSet(
-      normalizeSelectedServiceIds(manifest, parseServiceIdsOption(options.services))
+      normalizeSelectedServiceIds(
+        manifest,
+        parseServiceIdsOption(options.services)
+      )
     );
 
     if (outputFormat !== 'text') {
@@ -807,19 +825,8 @@ export const runDevLauncherLogsCommand = async (
         serviceId,
       });
 
-      if (outputFormat === 'json') {
-        runtime.stdout.write(
-          `${JSON.stringify({
-            highestSequence: result.highestSequence,
-            entries: result.entries,
-            ok: true,
-            serviceId,
-          })}\n`
-        );
-      } else {
-        for (const entry of result.entries) {
-          runtime.stdout.write(`${formatLogLine(manifest, entry)}\n`);
-        }
+      for (const entry of result.entries) {
+        runtime.stdout.write(`${formatLogLine(manifest, entry)}\n`);
       }
 
       afterSequence = result.highestSequence;

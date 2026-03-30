@@ -1,5 +1,6 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI command output is intentional. */
 import { spawn } from 'node:child_process';
+import { encode } from '@toon-format/toon';
 import { Command } from 'commander';
 import type {
   DevActionRunExecutionResult,
@@ -16,7 +17,7 @@ export interface DevActionCommandGlobalOptions {
 
 export interface DevActionListCommandOptions
   extends DevActionCommandGlobalOptions {
-  json?: boolean;
+  toon?: boolean;
 }
 
 export interface DevActionRunCommandOptions
@@ -104,8 +105,8 @@ export const runDevActionListCommand = async (
     runtime.actionRuntime
   );
 
-  if (options.json) {
-    runtime.stdout.write(`${JSON.stringify(actions, null, 2)}\n`);
+  if (options.toon) {
+    runtime.stdout.write(`${encode({ actions })}\n`);
     return 0;
   }
 
@@ -158,12 +159,15 @@ export const createDevLauncherActionCommand = (
 ): Command => {
   const command = new Command('action')
     .description('List and run one-shot developer actions')
-    .option('--config <path>', 'Path to a dev-cli.config.ts/.mts/.js/.mjs file');
+    .option(
+      '--config <path>',
+      'Path to a dev-cli.config.ts/.mts/.js/.mjs file'
+    );
 
   command
     .command('list')
     .description('List configured developer actions')
-    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
     .action(
       async (options: DevActionListCommandOptions, subcommand: Command) => {
         try {

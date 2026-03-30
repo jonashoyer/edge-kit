@@ -1,7 +1,7 @@
 import type { DevActionDefinition } from './actions';
 
 export type DevLauncherPackageManager = 'pnpm';
-export type DevLauncherCommandOutputFormat = 'json' | 'text' | 'toon';
+export type DevLauncherCommandOutputFormat = 'text' | 'toon';
 
 export interface DevLauncherUiConfig {
   logBufferLines?: number;

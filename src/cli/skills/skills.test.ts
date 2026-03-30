@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { encode } from '@toon-format/toon';
 import { describe, expect, it, vi } from 'vitest';
 import {
   computeSkillDirectoryHash,
@@ -181,8 +182,13 @@ describe('skills CLI runners', () => {
   it('lists tracked, untracked, and missing skills', async () => {
     const { codexRoot, runtime, stdout } = createRuntime();
     const trackedSkillPath = writeSkillDirectory(codexRoot, 'tracked-skill');
+    const untrackedSkillPath = writeSkillDirectory(
+      codexRoot,
+      'untracked-skill'
+    );
+    const trackedSkillHash = computeSkillDirectoryHash(trackedSkillPath);
+    const missingSkillPath = path.join(codexRoot, 'missing-skill');
 
-    writeSkillDirectory(codexRoot, 'untracked-skill');
     writeSkillsLockfile(codexRoot, {
       skills: {
         'missing-skill': {
@@ -191,7 +197,7 @@ describe('skills CLI runners', () => {
           sourceType: 'github',
         },
         'tracked-skill': {
-          computedHash: computeSkillDirectoryHash(trackedSkillPath),
+          computedHash: trackedSkillHash,
           source: 'example/tracked',
           sourceType: 'github',
         },
@@ -201,29 +207,45 @@ describe('skills CLI runners', () => {
 
     await runSkillsListCommand(
       {
-        json: true,
+        toon: true,
       },
       runtime
     );
 
-    const result = JSON.parse(getOutput(stdout)) as {
-      skills: Array<{ name: string; status: string }>;
-    };
-
-    expect(result.skills).toEqual([
-      expect.objectContaining({
-        name: 'missing-skill',
-        status: 'missing',
-      }),
-      expect.objectContaining({
-        name: 'tracked-skill',
-        status: 'tracked',
-      }),
-      expect.objectContaining({
-        name: 'untracked-skill',
-        status: 'untracked',
-      }),
-    ]);
+    expect(getOutput(stdout)).toBe(
+      `${encode({
+        root: codexRoot,
+        skills: [
+          {
+            installed: false,
+            name: 'missing-skill',
+            path: missingSkillPath,
+            source: 'example/missing',
+            sourceType: 'github',
+            status: 'missing',
+            tracked: true,
+          },
+          {
+            installed: true,
+            name: 'tracked-skill',
+            path: trackedSkillPath,
+            source: 'example/tracked',
+            sourceType: 'github',
+            status: 'tracked',
+            tracked: true,
+          },
+          {
+            installed: true,
+            name: 'untracked-skill',
+            path: untrackedSkillPath,
+            source: null,
+            sourceType: null,
+            status: 'untracked',
+            tracked: false,
+          },
+        ],
+      })}\n`
+    );
   });
 
   it('refuses to remove untracked skills without force and removes tracked skills cleanly', async () => {
@@ -255,8 +277,10 @@ describe('skills CLI runners', () => {
     const { codexRoot, runtime, stdout } = createRuntime();
     const driftSkillPath = writeSkillDirectory(codexRoot, 'drift-skill');
     const originalHash = computeSkillDirectoryHash(driftSkillPath);
+    const missingSkillPath = path.join(codexRoot, 'missing-skill');
 
     writeFile(path.join(driftSkillPath, 'SKILL.md'), '# drift-skill changed\n');
+    const driftedHash = computeSkillDirectoryHash(driftSkillPath);
     writeSkillsLockfile(codexRoot, {
       skills: {
         'drift-skill': {
@@ -275,25 +299,37 @@ describe('skills CLI runners', () => {
 
     await runSkillsVerifyCommand(
       {
-        json: true,
+        toon: true,
       },
       runtime
     );
 
-    const result = JSON.parse(getOutput(stdout)) as {
-      skills: Array<{ name: string; status: string }>;
-    };
-
-    expect(result.skills).toEqual([
-      expect.objectContaining({
-        name: 'drift-skill',
-        status: 'drifted',
-      }),
-      expect.objectContaining({
-        name: 'missing-skill',
-        status: 'missing',
-      }),
-    ]);
+    expect(getOutput(stdout)).toBe(
+      `${encode({
+        root: codexRoot,
+        skills: [
+          {
+            actualHash: driftedHash,
+            expectedHash: originalHash,
+            name: 'drift-skill',
+            path: driftSkillPath,
+            source: 'example/drift',
+            sourceSubpath: null,
+            sourceType: 'github',
+            status: 'drifted',
+          },
+          {
+            expectedHash: 'missing-hash',
+            name: 'missing-skill',
+            path: missingSkillPath,
+            source: 'example/missing',
+            sourceSubpath: null,
+            sourceType: 'github',
+            status: 'missing',
+          },
+        ],
+      })}\n`
+    );
   });
 
   it('shows provenance and hash details for a tracked skill', async () => {
@@ -316,27 +352,24 @@ describe('skills CLI runners', () => {
     await runSkillsInfoCommand(
       'info-skill',
       {
-        json: true,
+        toon: true,
       },
       runtime
     );
 
-    const result = JSON.parse(getOutput(stdout)) as {
-      actualHash: string;
-      expectedHash: string;
-      name: string;
-      sourceSubpath: string;
-      status: string;
-    };
-
-    expect(result).toEqual(
-      expect.objectContaining({
+    expect(getOutput(stdout)).toBe(
+      `${encode({
         actualHash: expectedHash,
         expectedHash,
+        installed: true,
         name: 'info-skill',
+        path: skillPath,
+        source: 'example/info',
         sourceSubpath: '.agents/skills/info-skill',
+        sourceType: 'github',
         status: 'tracked',
-      })
+        tracked: true,
+      })}\n`
     );
   });
 });

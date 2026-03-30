@@ -23,3 +23,4 @@
 | ADR-0019 | Add a socket-backed session host to the dev launcher | Implemented | 2026-03-27 |
 | ADR-0020 | Add pluggable image preview metadata builders with a sharp ThumbHash implementation | Implemented | 2026-03-27 |
 | ADR-0021 | Add a skills CLI for installing and managing Codex skills | Implemented | 2026-03-29 |
+| ADR-0022 | Use TOON as the only structured CLI output format | Implemented | 2026-03-30 |

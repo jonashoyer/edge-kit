@@ -1,3 +1,4 @@
+import { encode } from '@toon-format/toon';
 import { describe, expect, it, vi } from 'vitest';
 import {
   runDevActionListCommand,
@@ -122,7 +123,7 @@ describe('runDevActionListCommand', () => {
     );
   });
 
-  it('emits stable JSON output when requested', async () => {
+  it('emits TOON output when requested', async () => {
     const { runtime, stdout } = createRuntime({
       actions: [
         {
@@ -138,11 +139,11 @@ describe('runDevActionListCommand', () => {
       ],
     });
 
-    await runDevActionListCommand({ json: true }, runtime);
+    await runDevActionListCommand({ toon: true }, runtime);
 
     expect(stdout.write).toHaveBeenCalledWith(
-      `${JSON.stringify(
-        [
+      `${encode({
+        actions: [
           {
             available: true,
             description: 'Install stale dependencies.',
@@ -154,9 +155,7 @@ describe('runDevActionListCommand', () => {
             suggestInDev: true,
           },
         ],
-        null,
-        2
-      )}\n`
+      })}\n`
     );
   });
 });

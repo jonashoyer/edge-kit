@@ -17,17 +17,12 @@ export class DevLauncherCommandError extends Error {
 }
 
 export interface DevLauncherStructuredOutputOptions {
-  json?: boolean;
   toon?: boolean;
 }
 
 export const resolveDevLauncherCommandOutputFormat = (
   options: DevLauncherStructuredOutputOptions
 ): DevLauncherCommandOutputFormat => {
-  if (options.json) {
-    return 'json';
-  }
-
   if (options.toon) {
     return 'toon';
   }
@@ -39,10 +34,6 @@ export const formatDevLauncherStructuredOutput = (
   value: unknown,
   format: DevLauncherCommandOutputFormat
 ): string => {
-  if (format === 'json') {
-    return JSON.stringify(value, null, 2);
-  }
-
   if (format === 'toon') {
     return encode(value);
   }

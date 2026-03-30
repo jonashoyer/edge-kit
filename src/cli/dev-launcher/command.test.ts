@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DevActionSuggestion } from './action-runner';
-import { resolveInitialServiceIds, runDevLauncherCommand } from './command';
+import {
+  resolveInitialServiceIds,
+  runDevLauncherCommand,
+} from './session-commands';
 import type {
   DevLauncherSessionGetResult,
   DevLauncherSessionMetadata,
@@ -190,10 +193,11 @@ describe('runDevLauncherCommand', () => {
   });
 
   it('falls back to plain mode when no interactive TTY is available', async () => {
-    const { runPlainSession, runtime, startTuiSession, stdout } =
-      createRuntime({
+    const { runPlainSession, runtime, startTuiSession, stdout } = createRuntime(
+      {
         interactive: false,
-      });
+      }
+    );
 
     await runDevLauncherCommand({}, runtime as never);
 
@@ -207,7 +211,10 @@ describe('runDevLauncherCommand', () => {
   it('passes explicit service selections to a new foreground session', async () => {
     const { runPlainSession, runtime } = createRuntime();
 
-    await runDevLauncherCommand({ noTui: true, services: 'api' }, runtime as never);
+    await runDevLauncherCommand(
+      { noTui: true, services: 'api' },
+      runtime as never
+    );
 
     expect(runPlainSession).toHaveBeenCalledTimes(1);
     expect(runPlainSession.mock.calls[0]?.[2]).toEqual(['api']);
@@ -244,7 +251,10 @@ describe('runDevLauncherCommand', () => {
         existingSession: true,
       });
 
-    await runDevLauncherCommand({ noTui: true, services: 'api' }, runtime as never);
+    await runDevLauncherCommand(
+      { noTui: true, services: 'api' },
+      runtime as never
+    );
 
     expect(runtime.createSessionServer).not.toHaveBeenCalled();
     expect(existingClient.applyServiceSet).toHaveBeenCalledWith(['api']);

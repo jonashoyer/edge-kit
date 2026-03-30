@@ -1,8 +1,8 @@
 # Feature: Skills CLI
 
 **Status:** `Active`
-**Last Reviewed:** 2026-03-29
-**Related ADRs:** [ADR-0021]
+**Last Reviewed:** 2026-03-30
+**Related ADRs:** [ADR-0021], [ADR-0022]
 **PRD:** N/A
 
 ---
@@ -38,6 +38,7 @@ keeping the implementation reusable outside this repository.
   `SKILL.md`.
 - DO use a destination-local `skills-lock.json` to track provenance and hashes.
 - DO use the local `git` binary for `owner/repo` installs.
+- DO use `--toon` as the only structured CLI stdout contract.
 - DO keep destructive actions explicit with `--force`.
 - DO NOT overwrite an existing installed skill by default.
 - DO NOT delete untracked skill directories by default.
@@ -69,11 +70,17 @@ keeping the implementation reusable outside this repository.
   - `skills[name].computedHash`
 - CLI contract:
   - `pnpm cli skills list`
+  - `pnpm cli skills list --toon`
   - `pnpm cli skills info <name>`
+  - `pnpm cli skills info <name> --toon`
   - `pnpm cli skills verify`
+  - `pnpm cli skills verify --toon`
   - `pnpm cli skills install --path <path>`
+  - `pnpm cli skills install --path <path> --toon`
   - `pnpm cli skills install --repo <path-or-owner/repo> --name <skill-name>`
+  - `pnpm cli skills install --repo <path-or-owner/repo> --name <skill-name> --toon`
   - `pnpm cli skills remove <name>`
+  - `pnpm cli skills remove <name> --toon`
 
 ---
 
@@ -91,6 +98,9 @@ untracked skill directories.
 
 Implemented: `verify` recomputes hashes for tracked skills and reports `ok`,
 `drifted`, or `missing`.
+
+Implemented: the structured stdout contract for `list`, `info`, `verify`,
+`install`, and `remove` now uses `--toon` instead of `--json`.
 
 Implemented: `cli/index.ts` now registers the repo-level `pnpm cli skills`
 entrypoint.

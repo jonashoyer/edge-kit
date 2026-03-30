@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { encode } from '@toon-format/toon';
 import { normalizeRelativePath } from '../../utils/path-utils';
 
 const GITHUB_REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u;
@@ -22,29 +23,29 @@ export interface SkillsCommandGlobalOptions {
 }
 
 export interface SkillsInfoCommandOptions extends SkillsCommandGlobalOptions {
-  json?: boolean;
+  toon?: boolean;
 }
 
 export interface SkillsInstallCommandOptions
   extends SkillsCommandGlobalOptions {
   force?: boolean;
-  json?: boolean;
   name?: string;
   path?: string;
   repo?: string;
+  toon?: boolean;
 }
 
 export interface SkillsListCommandOptions extends SkillsCommandGlobalOptions {
-  json?: boolean;
+  toon?: boolean;
 }
 
 export interface SkillsRemoveCommandOptions extends SkillsCommandGlobalOptions {
   force?: boolean;
-  json?: boolean;
+  toon?: boolean;
 }
 
 export interface SkillsVerifyCommandOptions extends SkillsCommandGlobalOptions {
-  json?: boolean;
+  toon?: boolean;
 }
 
 interface ExecFileOptions {
@@ -258,8 +259,8 @@ const ensureSkillDirectory = (directoryPath: string, label: string): string => {
   return resolvedDirectoryPath;
 };
 
-const writeJson = (runtime: SkillsCommandRuntime, value: unknown): void => {
-  runtime.stdout.write(`${JSON.stringify(value, null, 2)}\n`);
+const writeToon = (runtime: SkillsCommandRuntime, value: unknown): void => {
+  runtime.stdout.write(`${encode(value)}\n`);
 };
 
 const sortLockfileSkills = (
@@ -835,8 +836,8 @@ export const runSkillsListCommand = async (
   const rootDirectoryPath = resolveSkillsRoot(options, runtime);
   const skills = collectSkillListEntries(rootDirectoryPath);
 
-  if (options.json) {
-    writeJson(runtime, {
+  if (options.toon) {
+    writeToon(runtime, {
       root: rootDirectoryPath,
       skills,
     });
@@ -871,8 +872,8 @@ export const runSkillsInfoCommand = async (
   const rootDirectoryPath = resolveSkillsRoot(options, runtime);
   const info = collectSkillInfoResult(name, rootDirectoryPath);
 
-  if (options.json) {
-    writeJson(runtime, info);
+  if (options.toon) {
+    writeToon(runtime, info);
     return 0;
   }
 
@@ -907,8 +908,8 @@ export const runSkillsVerifyCommand = async (
   const rootDirectoryPath = resolveSkillsRoot(options, runtime);
   const result = collectSkillsVerifyResult(rootDirectoryPath);
 
-  if (options.json) {
-    writeJson(runtime, result);
+  if (options.toon) {
+    writeToon(runtime, result);
     return 0;
   }
 
@@ -989,8 +990,8 @@ export const runSkillsInstallCommand = async (
       sourceType: resolvedSource.sourceType,
     } satisfies SkillsInstallResult;
 
-    if (options.json) {
-      writeJson(runtime, result);
+    if (options.toon) {
+      writeToon(runtime, result);
       return 0;
     }
 
@@ -1050,8 +1051,8 @@ export const runSkillsRemoveCommand = async (
     removedFromLockfile: isTracked,
   } satisfies SkillsRemoveResult;
 
-  if (options.json) {
-    writeJson(runtime, result);
+  if (options.toon) {
+    writeToon(runtime, result);
     return 0;
   }
 
