@@ -17,6 +17,8 @@ const IMPACT_POLICIES = new Set<DevActionImpactPolicy>([
   'stop-all',
   'stop-selected',
 ]);
+const ACTION_HOTKEY_REGEXP = /^[a-z0-9]$/u;
+const RESERVED_ACTION_HOTKEYS = new Set(['a', 'j', 'k', 'o', 'q', 'r', 's', 'x']);
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null;
@@ -47,6 +49,30 @@ const resolveOptionalString = (
   }
 
   return value;
+};
+
+const resolveOptionalActionHotkey = (
+  value: unknown,
+  actionId: string
+): string | undefined => {
+  const hotkey = resolveOptionalString(value, 'hotkey', actionId);
+  if (!hotkey) {
+    return undefined;
+  }
+
+  if (!ACTION_HOTKEY_REGEXP.test(hotkey)) {
+    throw new Error(
+      `Action "${actionId}" must set hotkey to a single lowercase letter or digit when provided.`
+    );
+  }
+
+  if (RESERVED_ACTION_HOTKEYS.has(hotkey)) {
+    throw new Error(
+      `Action "${actionId}" cannot use reserved hotkey "${hotkey}".`
+    );
+  }
+
+  return hotkey;
 };
 
 const validateDevActionDefinition = (
@@ -99,6 +125,7 @@ const validateDevActionDefinition = (
       'description',
       actionId
     ),
+    hotkey: resolveOptionalActionHotkey(value.hotkey, actionId),
     impactPolicy: impactPolicy as DevActionImpactPolicy,
     isAvailable: value.isAvailable as DevActionAvailabilityCheck | undefined,
     label,
@@ -128,17 +155,31 @@ const validateActionsById = (
 
   const actionIdsInOrder = Object.keys(value);
   const actionsById: Record<string, DevActionDefinition> = {};
+  const hotkeyOwners = new Map<string, string>();
 
   for (const [index, actionId] of actionIdsInOrder.entries()) {
     if (actionId.trim().length === 0) {
       throw new Error('Action ids must be non-empty strings.');
     }
 
-    actionsById[actionId] = validateDevActionDefinition(
+    const actionDefinition = validateDevActionDefinition(
       actionId,
       value[actionId],
       index
     );
+    const hotkey = actionDefinition.hotkey;
+    if (hotkey) {
+      const existingOwner = hotkeyOwners.get(hotkey);
+      if (existingOwner) {
+        throw new Error(
+          `Actions "${existingOwner}" and "${actionId}" cannot share hotkey "${hotkey}".`
+        );
+      }
+
+      hotkeyOwners.set(hotkey, actionId);
+    }
+
+    actionsById[actionId] = actionDefinition;
   }
 
   return {

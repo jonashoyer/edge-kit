@@ -250,7 +250,7 @@ const getStartupHelpText = (): string => {
 };
 
 const getActionHelpText = (): string => {
-  return '↑/↓ move, Enter run, r refresh, Esc close';
+  return '↑/↓ move, Enter run, hotkey run, r refresh, Esc close';
 };
 
 const getActionSummaryText = (actions: ResolvedDevAction[]): string => {
@@ -259,7 +259,17 @@ const getActionSummaryText = (actions: ResolvedDevAction[]): string => {
   }
 
   const availableCount = actions.filter((action) => action.available).length;
-  return `Actions: ${availableCount} available, ${actions.length - availableCount} unavailable.`;
+  const availableHotkeys = actions.filter((action) => {
+    return action.available && action.hotkey;
+  });
+  const hotkeySuffix =
+    availableHotkeys.length > 0
+      ? ` Hotkeys: ${availableHotkeys
+          .map((action) => `${action.hotkey} ${action.id}`)
+          .join(', ')}.`
+      : '';
+
+  return `Actions: ${availableCount} available, ${actions.length - availableCount} unavailable.${hotkeySuffix}`;
 };
 
 const requestOpenServiceUrl = (options: {
@@ -438,6 +448,11 @@ export function DevLauncherDashboardApp({
       ? manifest.servicesById[viewMode.serviceId]
       : null;
   const selectedAction = resolvedActions.at(overlay.cursor);
+  const actionsByHotkey = new Map(
+    resolvedActions.flatMap((action) => {
+      return action.hotkey ? [[action.hotkey, action] as const] : [];
+    })
+  );
 
   const runAction = (label: string, action: () => Promise<void>): void => {
     if (isBusy) {
@@ -581,6 +596,15 @@ export function DevLauncherDashboardApp({
   useInput((input, key) => {
     if ((input === 'c' && key.ctrl) || input === 'q') {
       requestQuit();
+      return;
+    }
+
+    const actionHotkey =
+      overlay.kind === 'service-picker' || input.length !== 1
+        ? undefined
+        : actionsByHotkey.get(input.toLowerCase());
+    if (actionHotkey) {
+      requestRunDevAction(actionHotkey);
       return;
     }
 
@@ -883,7 +907,8 @@ export function DevLauncherDashboardApp({
                   key={action.id}
                 >
                   {index === overlay.cursor ? '› ' : '  '}
-                  {action.label} [{statusLabel}]
+                  {action.label}
+                  {action.hotkey ? ` (${action.hotkey})` : ''} [{statusLabel}]
                   {action.reason ? ` — ${action.reason}` : ''}
                 </Text>
               );
@@ -955,7 +980,11 @@ export function DevLauncherDashboardApp({
         </Box>
         <Box flexGrow={1} />
         <Text dimColor>{getStartupHelpText()}</Text>
-        <Text dimColor>{getActionSummaryText(resolvedActions)}</Text>
+        {flashMessage ? (
+          <Text color='yellow'>{flashMessage}</Text>
+        ) : (
+          <Text dimColor>{getActionSummaryText(resolvedActions)}</Text>
+        )}
       </Box>
     );
   }
@@ -985,7 +1014,11 @@ export function DevLauncherDashboardApp({
           })}
         </Box>
         <Box flexGrow={1} />
-        <Text dimColor>{getActionSummaryText(resolvedActions)}</Text>
+        {flashMessage ? (
+          <Text color='yellow'>{flashMessage}</Text>
+        ) : (
+          <Text dimColor>{getActionSummaryText(resolvedActions)}</Text>
+        )}
       </Box>
     );
   }
@@ -1082,7 +1115,7 @@ export const startDevLauncherTuiSession = async (
 ): Promise<number> => {
   return await new Promise<number>((resolve) => {
     const controller = runtime.createController(manifest);
-    const instance = render(
+    render(
       <DevLauncherDashboardApp
         allowStartupSelection={options?.allowStartupSelection}
         controller={controller}
@@ -1103,20 +1136,5 @@ export const startDevLauncherTuiSession = async (
         stdout: runtime.stdout,
       }
     );
-
-    const unsubscribe = controller.subscribe(() => {
-      const snapshot = controller.getSnapshot();
-      const shouldExit =
-        options?.allowStartupSelection !== false &&
-        snapshot.managedServiceIds.length === 0 &&
-        !initialServiceIds?.length;
-      if (!shouldExit) {
-        return;
-      }
-
-      unsubscribe();
-      instance.unmount();
-      resolve(0);
-    });
   });
 };

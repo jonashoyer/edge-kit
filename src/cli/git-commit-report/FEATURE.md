@@ -12,7 +12,8 @@
 `src/cli/git-commit-report/` provides a reusable, copy-paste-friendly CLI
 module for collecting committed git history over an explicit time range and
 reporting per-commit context such as author identity, commit message, authored
-date, files changed, and line-change stats. It backs the repo-level
+date, commit-level change stats, optional file-level rows, and detected pull
+request references. It backs the repo-level
 `pnpm cli commits report` command while staying reusable in other codebases.
 
 ---
@@ -20,9 +21,11 @@ date, files changed, and line-change stats. It backs the repo-level
 ## Key Goals
 
 - Keep git history collection explicit, local, and deterministic.
-- Support author- and time-bounded reports without depending on remote APIs.
+- Support optional author filters and explicit time-bounded reports without
+  depending on remote APIs.
 - Return structured commit data that is useful to humans and automation.
-- Keep the repo-level CLI entrypoint thin and easy to lift into another codebase.
+- Keep the repo-level CLI entrypoint thin and easy to lift into another
+  codebase.
 - Keep patch and body expansion opt-in so default output stays compact.
 
 ---
@@ -31,12 +34,18 @@ date, files changed, and line-change stats. It backs the repo-level
 
 - DO use the local `git` binary as the source of truth for commit collection
   and diff statistics.
-- DO require explicit time bounds and author filters in the public CLI.
+- DO require explicit time bounds in the public CLI.
+- DO keep author filters optional and omit `git log --author` when none are
+  supplied.
+- DO default file-level change rows off and require an explicit flag to include
+  them.
+- DO expose structured LLM-friendly output via TOON instead of JSON.
+- DO detect PR references from local commit history and local git remote
+  metadata only.
 - DO keep the reusable runtime in `src/cli/git-commit-report/`; `cli/index.ts`
   is only an example consumer.
 - DO return normalized per-commit metadata, not just aggregate counts.
 - DO keep patch expansion or body-heavy output opt-in.
-- DO support JSON output for downstream tooling.
 - DO keep reusable command/runtime imports direct from
   `report-command.ts` and `report.ts`.
 - DO NOT inspect the worktree to synthesize commit history results.
@@ -67,9 +76,10 @@ date, files changed, and line-change stats. It backs the repo-level
 - Runner:
   - `runGitCommitReportCommand(...)`
 - CLI contract:
+  - `pnpm cli commits report --since <date> --until <date>`
   - `pnpm cli commits report --since <date> --until <date> --author <pattern>`
-  - `pnpm cli commits report --since <date> --author <pattern> --json`
-  - `pnpm cli commits report --since <date> --until <date> --author <pattern> --patch`
+  - `pnpm cli commits report --since <date> --until <date> --toon`
+  - `pnpm cli commits report --since <date> --until <date> --files --patch`
 
 Each report entry includes:
 
@@ -78,7 +88,10 @@ Each report entry includes:
 - authored timestamp
 - commit subject, with optional body via `--body`
 - files changed, additions, and deletions
-- per-file numstat rows, with binary files marked explicitly
+- optional per-file numstat rows via `--files`, with binary files marked
+  explicitly
+- optional PR reference metadata when commit subjects or merge messages carry
+  GitHub-style PR markers
 - optional full patch text via `--patch`
 
 ---
@@ -89,15 +102,17 @@ Implemented: the reusable module family exists in `src/cli/git-commit-report/`
 with direct imports from `report-command.ts` and `report.ts`.
 
 Implemented: `collectGitCommitReport(...)` shells out to local `git log` with
-`--since`, `--until`, `--author`, and `--numstat`, then normalizes per-commit
-metadata and diff stats.
+`--since`, `--until`, optional `--author`, and either `--shortstat` or
+`--numstat`, then normalizes per-commit metadata, diff stats, and detected PR
+references.
 
 Implemented: `pnpm cli commits report` is registered in `cli/index.ts` and
-supports human-readable output, JSON output, optional commit bodies, and
-optional patches.
+supports human-readable output, TOON output, optional author filters, optional
+commit bodies, optional file-level rows, and optional patches.
 
-Implemented: targeted Vitest coverage exists for author filtering, JSON
-serialization, body/patch expansion, and empty-author validation.
+Implemented: targeted Vitest coverage exists for optional author filtering,
+TOON serialization, PR detection, default compact output, and body/patch/file
+expansion.
 
 Verified: `pnpm exec vitest run src/cli/git-commit-report/report-command.test.ts`
 and `pnpm exec biome check cli/index.ts src/cli/git-commit-report/report.ts
@@ -105,8 +120,8 @@ src/cli/git-commit-report/report-command.ts
 src/cli/git-commit-report/report-command.test.ts README.md` pass.
 
 Verified: `pnpm cli commits report --help` works; the command surface exposes
-the required `--since`, `--until`, `--author`, `--json`, `--body`, `--patch`,
-and `--cwd` flags.
+the required `--since`, `--until`, optional `--author`, `--toon`, `--body`,
+`--files`, `--patch`, and `--cwd` flags.
 
 Blocked: repo-wide `pnpm type-check` still fails on unrelated pre-existing
 errors outside this feature area.

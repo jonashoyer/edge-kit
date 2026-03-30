@@ -4,6 +4,7 @@ import {
   collectGitCommitReport,
   defaultGitCommitReportRuntime,
   formatGitCommitReport,
+  formatGitCommitReportToon,
   type GitCommitReportRuntime,
 } from './report';
 
@@ -15,9 +16,10 @@ export interface GitCommitReportCommandOptions {
   author?: string[];
   body?: boolean;
   cwd?: string;
-  json?: boolean;
+  files?: boolean;
   patch?: boolean;
   since?: string;
+  toon?: boolean;
   until?: string;
 }
 
@@ -38,7 +40,7 @@ const normalizeAuthorOption = (author: string[] | undefined) => {
 };
 
 /**
- * Runs the git commit report command and writes either JSON or formatted text.
+ * Runs the git commit report command and writes TOON or formatted text.
  */
 export const runGitCommitReportCommand = async (
   options: GitCommitReportCommandOptions,
@@ -49,6 +51,7 @@ export const runGitCommitReportCommand = async (
       authors: normalizeAuthorOption(options.author),
       cwd: options.cwd,
       includeBody: options.body,
+      includeFileChanges: options.files,
       includePatch: options.patch,
       since: options.since ?? '',
       until: options.until ?? '',
@@ -56,8 +59,8 @@ export const runGitCommitReportCommand = async (
     runtime.gitRuntime
   );
 
-  if (options.json) {
-    runtime.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
+  if (options.toon) {
+    runtime.stdout.write(`${formatGitCommitReportToon(report)}\n`);
     return 0;
   }
 
@@ -72,13 +75,13 @@ export const createGitCommitReportCommand = (
   runtime: GitCommitReportCommandRuntime = defaultRuntime
 ): Command => {
   const command = new Command('commits').description(
-    'Collect git commit history reports for explicit authors and time ranges'
+    'Collect git commit history reports for optional authors and explicit time ranges'
   );
 
   command
     .command('report')
     .description(
-      'Report committed history for one or more authors within an explicit time range'
+      'Report committed history for optional author filters within an explicit time range'
     )
     .requiredOption('--since <value>', 'Lower date bound passed through to git')
     .requiredOption('--until <value>', 'Upper date bound passed through to git')
@@ -88,8 +91,9 @@ export const createGitCommitReportCommand = (
       collectOptionValues
     )
     .option('--cwd <path>', 'Run git in a specific repository directory')
-    .option('--json', 'Emit machine-readable JSON output')
+    .option('--toon', 'Emit LLM-friendly TOON output')
     .option('--body', 'Include commit message bodies in the output')
+    .option('--files', 'Include per-file change rows in the output')
     .option('--patch', 'Include full per-commit patches in the output')
     .action(async (options: GitCommitReportCommandOptions) => {
       try {

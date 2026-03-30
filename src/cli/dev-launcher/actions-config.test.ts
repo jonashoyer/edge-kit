@@ -151,9 +151,11 @@ export default defineDevLauncherConfig({
 
     expect(config.actionIdsInOrder).toEqual(['git-pull', 'install-deps']);
     expect(config.actionsById['git-pull']?.label).toBe('Pull latest commits');
+    expect(config.actionsById['git-pull']?.hotkey).toBe('p');
     expect(config.actionsById['install-deps']?.label).toBe(
       'Install dependencies'
     );
+    expect(config.actionsById['install-deps']?.hotkey).toBe('i');
   });
 
   it('rejects malformed default exports', async () => {
@@ -255,5 +257,37 @@ export default {
         cwd: tempDir,
       })
     ).rejects.toThrow('must use a valid impactPolicy');
+  });
+
+  it('rejects duplicate action hotkeys', async () => {
+    const tempDir = createTempDir();
+    writeFile(
+      path.join(tempDir, 'dev-cli.config.ts'),
+      `
+export default {
+  actionsById: {
+    a: { label: 'A', hotkey: 'i', impactPolicy: 'parallel', async run() {} },
+    b: { label: 'B', hotkey: 'i', impactPolicy: 'parallel', async run() {} },
+  },
+  packageManager: 'pnpm',
+  servicesById: {
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev',
+      },
+    },
+  },
+  version: 1,
+};
+`
+    );
+
+    await expect(
+      loadDevActionsConfig({
+        cwd: tempDir,
+      })
+    ).rejects.toThrow('cannot share hotkey "i"');
   });
 });

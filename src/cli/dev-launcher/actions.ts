@@ -68,6 +68,7 @@ export type DevActionAvailabilityCheck = (
 
 export interface DevActionDefinition {
   description?: string;
+  hotkey?: string;
   impactPolicy: DevActionImpactPolicy;
   isAvailable?: DevActionAvailabilityCheck;
   label: string;

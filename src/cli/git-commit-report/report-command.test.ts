@@ -9,13 +9,22 @@ const RECORD_SEPARATOR = '\u001e';
 const FIELD_SEPARATOR = '\u001f';
 const GROUP_SEPARATOR = '\u001d';
 
-const createGitLogOutput = () => {
+const createGitLogOutput = (options?: { includeFileChanges?: boolean }) => {
+  if (options?.includeFileChanges) {
+    return [
+      `${RECORD_SEPARATOR}0123456789abcdef${FIELD_SEPARATOR}0123456${FIELD_SEPARATOR}Alice Example${FIELD_SEPARATOR}alice@example.com${FIELD_SEPARATOR}2026-03-18T10:00:00+01:00${FIELD_SEPARATOR}feat(cli): add commit report (#123)${FIELD_SEPARATOR}body line 1\nbody line 2${GROUP_SEPARATOR}`,
+      '12\t3\tsrc/cli/git-commit-report/report-command.ts',
+      '1\t0\tREADME.md',
+      `${RECORD_SEPARATOR}fedcba9876543210${FIELD_SEPARATOR}fedcba9${FIELD_SEPARATOR}Bob Example${FIELD_SEPARATOR}bob@example.com${FIELD_SEPARATOR}2026-03-17T09:30:00+01:00${FIELD_SEPARATOR}fix(cli): tighten parsing${FIELD_SEPARATOR}${GROUP_SEPARATOR}`,
+      '4\t1\tsrc/cli/git-commit-report/report.ts',
+    ].join('\n');
+  }
+
   return [
-    `${RECORD_SEPARATOR}0123456789abcdef${FIELD_SEPARATOR}0123456${FIELD_SEPARATOR}Alice Example${FIELD_SEPARATOR}alice@example.com${FIELD_SEPARATOR}2026-03-18T10:00:00+01:00${FIELD_SEPARATOR}feat(cli): add commit report${FIELD_SEPARATOR}body line 1\nbody line 2${GROUP_SEPARATOR}`,
-    '12\t3\tsrc/cli/git-commit-report/report-command.ts',
-    '1\t0\tREADME.md',
+    `${RECORD_SEPARATOR}0123456789abcdef${FIELD_SEPARATOR}0123456${FIELD_SEPARATOR}Alice Example${FIELD_SEPARATOR}alice@example.com${FIELD_SEPARATOR}2026-03-18T10:00:00+01:00${FIELD_SEPARATOR}feat(cli): add commit report (#123)${FIELD_SEPARATOR}body line 1\nbody line 2${GROUP_SEPARATOR}`,
+    ' 2 files changed, 13 insertions(+), 3 deletions(-)',
     `${RECORD_SEPARATOR}fedcba9876543210${FIELD_SEPARATOR}fedcba9${FIELD_SEPARATOR}Bob Example${FIELD_SEPARATOR}bob@example.com${FIELD_SEPARATOR}2026-03-17T09:30:00+01:00${FIELD_SEPARATOR}fix(cli): tighten parsing${FIELD_SEPARATOR}${GROUP_SEPARATOR}`,
-    '4\t1\tsrc/cli/git-commit-report/report.ts',
+    ' 1 file changed, 4 insertions(+), 1 deletion(-)',
   ].join('\n');
 };
 
@@ -44,21 +53,28 @@ const createRuntime = (): {
 };
 
 describe('runGitCommitReportCommand', () => {
-  it('writes formatted commit output for matching commits', async () => {
+  it('writes formatted commit output without author or file filters by default', async () => {
     const { execFile, runtime, stdout } = createRuntime();
-    execFile.mockResolvedValueOnce({
-      stderr: '',
-      stdout: createGitLogOutput(),
-    });
+    execFile
+      .mockResolvedValueOnce({
+        stderr: '',
+        stdout: createGitLogOutput(),
+      })
+      .mockResolvedValueOnce({
+        stderr: '',
+        stdout: 'git@github.com:openai/edge-kit.git\n',
+      });
 
     await runGitCommitReportCommand(
       {
-        author: ['alice@example.com', 'bob@example.com'],
         since: '2026-03-17',
         until: '2026-03-19',
       },
       runtime
     );
+
+    const logArgs = execFile.mock.calls[0]?.[1] as string[];
+    const output = stdout.write.mock.calls[0]?.[0] as string;
 
     expect(execFile).toHaveBeenCalledWith(
       'git',
@@ -66,40 +82,42 @@ describe('runGitCommitReportCommand', () => {
         'log',
         '--no-color',
         '--no-decorate',
-        '--numstat',
+        '--shortstat',
         '--date=iso-strict',
         '--since=2026-03-17',
         '--until=2026-03-19',
-        '--author=\\(alice@example.com\\)\\|\\(bob@example.com\\)',
       ]),
       expect.objectContaining({
         cwd: '/repo',
       })
     );
-    expect(stdout.write).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'Found 2 commits for alice@example.com, bob@example.com between 2026-03-17 and 2026-03-19.'
-      )
+    expect(
+      logArgs.some((argument) => argument.startsWith('--author='))
+    ).toBeFalsy();
+    expect(output).toContain(
+      'Found 2 commits for all authors between 2026-03-17 and 2026-03-19.'
     );
-    expect(stdout.write).toHaveBeenCalledWith(
-      expect.stringContaining(
-        'src/cli/git-commit-report/report-command.ts (+12 -3)'
-      )
-    );
+    expect(output).toContain('Pull requests: 1 detected.');
+    expect(output).not.toContain('src/cli/git-commit-report/report-command.ts');
   });
 
-  it('emits JSON output when requested', async () => {
+  it('emits TOON output when requested', async () => {
     const { execFile, runtime, stdout } = createRuntime();
-    execFile.mockResolvedValueOnce({
-      stderr: '',
-      stdout: createGitLogOutput(),
-    });
+    execFile
+      .mockResolvedValueOnce({
+        stderr: '',
+        stdout: createGitLogOutput(),
+      })
+      .mockResolvedValueOnce({
+        stderr: '',
+        stdout: 'https://github.com/openai/edge-kit.git\n',
+      });
 
     await runGitCommitReportCommand(
       {
         author: ['alice@example.com'],
-        json: true,
         since: '2026-03-17',
+        toon: true,
         until: '2026-03-19',
       },
       runtime
@@ -107,25 +125,25 @@ describe('runGitCommitReportCommand', () => {
 
     const output = stdout.write.mock.calls[0]?.[0];
     expect(typeof output).toBe('string');
-
-    const parsedOutput = JSON.parse(output as string) as {
-      commits: Array<{ body?: string; hash: string }>;
-      totalAdditions: number;
-      totalCommits: number;
-    };
-
-    expect(parsedOutput.totalCommits).toBe(2);
-    expect(parsedOutput.totalAdditions).toBe(17);
-    expect(parsedOutput.commits[0]?.body).toBeUndefined();
-    expect(parsedOutput.commits[0]?.hash).toBe('0123456789abcdef');
+    expect(output).toContain('totalCommits: 2');
+    expect(output).toContain('pullRequest:');
+    expect(output).toContain('number: 123');
+    expect(output).toContain('includeFileChanges: false');
+    expect(output).toContain('https://github.com/openai/edge-kit/pull/123');
   });
 
-  it('includes body and patch output when explicitly requested', async () => {
+  it('includes body, patch, and file rows when explicitly requested', async () => {
     const { execFile, runtime, stdout } = createRuntime();
     execFile
       .mockResolvedValueOnce({
         stderr: '',
-        stdout: createGitLogOutput(),
+        stdout: createGitLogOutput({
+          includeFileChanges: true,
+        }),
+      })
+      .mockResolvedValueOnce({
+        stderr: '',
+        stdout: 'git@github.com:openai/edge-kit.git\n',
       })
       .mockResolvedValueOnce({
         stderr: '',
@@ -140,6 +158,7 @@ describe('runGitCommitReportCommand', () => {
       {
         author: ['alice@example.com'],
         body: true,
+        files: true,
         patch: true,
         since: '2026-03-17',
         until: '2026-03-19',
@@ -148,7 +167,23 @@ describe('runGitCommitReportCommand', () => {
     );
 
     expect(execFile).toHaveBeenNthCalledWith(
+      1,
+      'git',
+      expect.arrayContaining(['--numstat']),
+      expect.objectContaining({
+        cwd: '/repo',
+      })
+    );
+    expect(execFile).toHaveBeenNthCalledWith(
       2,
+      'git',
+      ['remote', 'get-url', 'origin'],
+      expect.objectContaining({
+        cwd: '/repo',
+      })
+    );
+    expect(execFile).toHaveBeenNthCalledWith(
+      3,
       'git',
       [
         'show',
@@ -168,21 +203,10 @@ describe('runGitCommitReportCommand', () => {
     expect(stdout.write).toHaveBeenCalledWith(
       expect.stringContaining('diff --git a/file b/file')
     );
-  });
-
-  it('requires at least one author filter', async () => {
-    const { runtime } = createRuntime();
-
-    await expect(
-      runGitCommitReportCommand(
-        {
-          since: '2026-03-17',
-          until: '2026-03-19',
-        },
-        runtime
+    expect(stdout.write).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'src/cli/git-commit-report/report-command.ts (+12 -3)'
       )
-    ).rejects.toThrow(
-      'At least one --author <pattern> value is required to collect commits.'
     );
   });
 });
@@ -193,13 +217,15 @@ describe('formatGitCommitReport', () => {
       formatGitCommitReport({
         commits: [],
         query: {
-          authors: ['alice@example.com'],
+          authors: [],
           cwd: '/repo',
           includeBody: false,
+          includeFileChanges: false,
           includePatch: false,
           since: '2026-03-17',
           until: '2026-03-19',
         },
+        pullRequests: [],
         totalAdditions: 0,
         totalCommits: 0,
         totalDeletions: 0,

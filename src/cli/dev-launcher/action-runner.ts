@@ -46,6 +46,7 @@ export interface DevActionRunnerRuntime {
 export interface ResolvedDevAction {
   available: boolean;
   description?: string;
+  hotkey?: string;
   id: string;
   impactPolicy: DevActionImpactPolicy;
   label: string;
@@ -323,6 +324,7 @@ const evaluateAvailabilityForAction = async (
     return {
       available: availability.available,
       description: action.description,
+      hotkey: action.hotkey,
       id: actionId,
       impactPolicy: action.impactPolicy,
       label: action.label,

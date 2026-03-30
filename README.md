@@ -126,6 +126,8 @@ importable runtime package.
   with a plain runner and Ink TUI.
 - [Git Commit Report](./src/cli/git-commit-report/report-command.ts): Reusable CLI
   module for author- and time-bounded git commit context reports.
+- [Skills CLI](./src/cli/skills/command.ts): Reusable CLI module for installing,
+  verifying, and removing global Codex skill directories.
 
 ### Feature Flags & Waitlist
 
@@ -203,8 +205,11 @@ Configured developer actions are also available inside `pnpm cli dev`. The TUI
 shows an action availability summary, and pressing `x` opens an action picker
 that displays each action's current `available` / `unavailable` state plus the
 reason when one exists. Press `Enter` in that picker to run the selected
-action. Actions with non-`parallel` impact policies pause managed services
-first and restore them afterward.
+action. Actions may also define an explicit one-character `hotkey` such as
+`i` for `install-deps`; when present, the TUI can run that action directly from
+startup, dashboard, focused-log, and action-picker views. Actions with
+non-`parallel` impact policies pause managed services first and restore them
+afterward.
 
 Startup selection is recent-history-driven now. The launcher stores the latest
 selected service combinations in a user-local state file and renders those
@@ -227,15 +232,17 @@ Other action patterns can stay fully repo-local. Typical examples include:
 Edge Kit also includes a reusable git-history reporting command for collecting
 committed changes by author within an explicit time range. The command shells
 out to the local `git` binary, returns per-commit metadata plus line-change
-stats, and can emit either human-readable text or JSON for downstream tooling.
+stats, detects GitHub-style PR references from local history, and can emit
+either human-readable text or TOON for LLM-friendly downstream tooling.
 
 Run the example repo command:
 
 ```bash
+pnpm cli commits report --since "2026-03-01" --until "2026-03-19"
 pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com"
 pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com" --author "bob@example.com"
-pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com" --json
-pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com" --body --patch
+pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --toon
+pnpm cli commits report --since "2026-03-01" --until "2026-03-19" --author "alice@example.com" --files --body --patch
 ```
 
 Each commit entry includes:
@@ -245,7 +252,28 @@ Each commit entry includes:
 - subject line
 - files changed
 - additions and deletions
+- optional per-file change rows when `--files` is passed
+- detected PR references for the timeframe when commit history carries them
 - optional body and patch output when explicitly requested
+
+## Skills CLI
+
+Edge Kit also includes a reusable skills-management command for installing
+global Codex skill directories from a local skill path or a repository. The
+command defaults to `~/.codex/skills`, tracks provenance plus content hashes in
+`skills-lock.json`, and keeps removal safe by refusing to delete untracked
+skills unless `--force` is passed.
+
+Run the example repo command:
+
+```bash
+pnpm cli skills list
+pnpm cli skills install --path /path/to/my-skill
+pnpm cli skills install --repo vercel-labs/skills --name find-skills
+pnpm cli skills info find-skills
+pnpm cli skills verify
+pnpm cli skills remove find-skills
+```
 
 ## 🎼 Composers
 

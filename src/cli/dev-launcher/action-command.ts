@@ -78,8 +78,9 @@ const getCommandGlobalOptions = (
 
 const formatActionStatusLine = (action: ResolvedDevAction): string => {
   const status = action.available ? 'available' : 'unavailable';
+  const hotkeySuffix = action.hotkey ? ` [${action.hotkey}]` : '';
   const reasonSuffix = action.reason ? ` - ${action.reason}` : '';
-  return `${status} ${action.id} (${action.label})${reasonSuffix}`;
+  return `${status} ${action.id}${hotkeySuffix} (${action.label})${reasonSuffix}`;
 };
 
 /**

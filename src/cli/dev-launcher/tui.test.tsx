@@ -349,6 +349,7 @@ describe('DevLauncherDashboardApp', () => {
       async (): Promise<ResolvedDevAction[]> => [
         {
           available: true,
+          hotkey: 'i',
           id: 'install-deps',
           impactPolicy: 'stop-all',
           label: 'Install dependencies',
@@ -379,7 +380,7 @@ describe('DevLauncherDashboardApp', () => {
     await flush(4);
 
     expect(lastFrame()).toContain('Developer actions');
-    expect(lastFrame()).toContain('Install dependencies [available]');
+    expect(lastFrame()).toContain('Install dependencies (i) [available]');
     expect(lastFrame()).toContain('Push database [unavailable]');
 
     stdin.write('\u001B');
@@ -401,6 +402,7 @@ describe('DevLauncherDashboardApp', () => {
       async (): Promise<ResolvedDevAction[]> => [
         {
           available: true,
+          hotkey: 'i',
           id: 'install-deps',
           impactPolicy: 'stop-all',
           label: 'Install dependencies',
@@ -439,6 +441,51 @@ describe('DevLauncherDashboardApp', () => {
 
     expect(controller.stopAll).toHaveBeenCalledTimes(1);
     expect(controller.applyServiceSet).toHaveBeenCalledWith(['app']);
+    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps');
+    expect(lastFrame()).toContain('Dependencies installed.');
+  });
+
+  it('runs an available action from the startup screen via its hotkey', async () => {
+    const controller = new FakeController(createSnapshot());
+    const listActions = vi.fn(
+      async (): Promise<ResolvedDevAction[]> => [
+        {
+          available: true,
+          hotkey: 'i',
+          id: 'install-deps',
+          impactPolicy: 'stop-all',
+          label: 'Install dependencies',
+          reason: 'node_modules is stale.',
+          suggestInDev: true,
+        },
+      ]
+    );
+    const runDevAction = vi.fn(async () => ({
+      action: {
+        available: true,
+        hotkey: 'i',
+        id: 'install-deps',
+        impactPolicy: 'stop-all' as const,
+        label: 'Install dependencies',
+        suggestInDev: true,
+      },
+      forced: false,
+      summary: 'Dependencies installed.',
+    }));
+    const { lastFrame, stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        listActions={listActions}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+        runDevAction={runDevAction}
+      />
+    );
+
+    await flush(4);
+    stdin.write('i');
+    await flush(6);
+
     expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps');
     expect(lastFrame()).toContain('Dependencies installed.');
   });

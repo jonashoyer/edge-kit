@@ -95,6 +95,7 @@ export default {
 export default {
   actionsById: {
     'install-deps': {
+      hotkey: 'i',
       label: 'Install dependencies',
       impactPolicy: 'stop-all',
       async run() {
@@ -146,6 +147,7 @@ export default {
     const manifest = await loadDevLauncherManifest({ cwd: tempDir });
 
     expect(manifest.actionIdsInOrder).toEqual(['install-deps']);
+    expect(manifest.actionsById['install-deps']?.hotkey).toBe('i');
     expect(manifest.serviceIdsInOrder).toEqual(['app', 'api', 'docs', 'proxy']);
     expect(manifest.servicesById.app?.openUrl).toBe('http://localhost:3000');
     expect(

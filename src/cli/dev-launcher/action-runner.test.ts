@@ -139,6 +139,7 @@ describe('listDevActions', () => {
     const manifest = createManifest();
     const config = createActionsConfig({
       'install-deps': {
+        hotkey: 'i',
         impactPolicy: 'stop-all',
         isAvailable: async () => ({
           available: true,
@@ -168,6 +169,7 @@ describe('listDevActions', () => {
     expect(actions).toEqual([
       {
         available: true,
+        hotkey: 'i',
         id: 'install-deps',
         impactPolicy: 'stop-all',
         label: 'Install dependencies',

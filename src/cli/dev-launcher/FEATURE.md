@@ -73,6 +73,7 @@ the full terminal height.
 - DO allow configs with zero actions defined.
 - DO show action availability status inside the TUI.
 - DO allow the TUI to run configured actions via an action picker.
+- DO allow actions to declare optional explicit one-character TUI hotkeys.
 - DO honor `impactPolicy` in the TUI by pausing managed services for
   non-`parallel` actions and restoring the prior managed set afterward.
 - DO keep action subprocess output from corrupting Ink rendering.
@@ -210,6 +211,9 @@ non-blocking preflight suggestions before entering TUI or plain mode.
 
 Implemented: recent service selections are stored in local per-user state and
 reused in both TUI and plain startup flows.
+
+Implemented: actions can now declare explicit one-character TUI hotkeys for
+direct execution outside the action picker.
 
 Implemented: non-`parallel` actions launched from the TUI now stop managed
 services first and restore the prior managed set afterward.

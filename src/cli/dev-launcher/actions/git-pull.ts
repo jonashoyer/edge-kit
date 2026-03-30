@@ -151,6 +151,7 @@ const getGitPullState = async (
 export const gitPullAction: DevActionDefinition = {
   description:
     'Fetch the tracked remote branch and fast-forward pull when the current branch is behind.',
+  hotkey: 'p',
   impactPolicy: 'stop-all',
   async isAvailable(context) {
     try {

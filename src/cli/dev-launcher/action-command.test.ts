@@ -92,6 +92,7 @@ describe('runDevActionListCommand', () => {
       actions: [
         {
           available: true,
+          hotkey: 'i',
           id: 'install-deps',
           impactPolicy: 'stop-all',
           label: 'Install dependencies',
@@ -113,7 +114,7 @@ describe('runDevActionListCommand', () => {
 
     expect(stdout.write).toHaveBeenNthCalledWith(
       1,
-      'available install-deps (Install dependencies) - node_modules/.modules.yaml is missing.\n'
+      'available install-deps [i] (Install dependencies) - node_modules/.modules.yaml is missing.\n'
     );
     expect(stdout.write).toHaveBeenNthCalledWith(
       2,
@@ -127,6 +128,7 @@ describe('runDevActionListCommand', () => {
         {
           available: true,
           description: 'Install stale dependencies.',
+          hotkey: 'i',
           id: 'install-deps',
           impactPolicy: 'stop-all',
           label: 'Install dependencies',
@@ -144,6 +146,7 @@ describe('runDevActionListCommand', () => {
           {
             available: true,
             description: 'Install stale dependencies.',
+            hotkey: 'i',
             id: 'install-deps',
             impactPolicy: 'stop-all',
             label: 'Install dependencies',

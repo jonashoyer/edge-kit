@@ -4,6 +4,7 @@ import { getPnpmInstallState } from '../package-state';
 export const installDepsAction: DevActionDefinition = {
   description:
     'Run pnpm install when the workspace install marker is missing or stale.',
+  hotkey: 'i',
   impactPolicy: 'stop-all',
   async isAvailable(context) {
     const installState = getPnpmInstallState(context.repoRoot);
