@@ -1,6 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DevLauncherProcessController } from './process-manager';
 import { runPlainDevSession } from './plain-runner';
+
+const {
+  loadRecentDevServiceSelectionsMock,
+  saveRecentDevServiceSelectionMock,
+} = vi.hoisted(() => ({
+  loadRecentDevServiceSelectionsMock: vi.fn(() => []),
+  saveRecentDevServiceSelectionMock: vi.fn(),
+}));
+
+vi.mock('./selection-history', () => ({
+  loadRecentDevServiceSelections: loadRecentDevServiceSelectionsMock,
+  saveRecentDevServiceSelection: saveRecentDevServiceSelectionMock,
+}));
 import type {
   DevLauncherSupervisorSnapshot,
   LoadedDevLauncherManifest,
@@ -75,6 +88,35 @@ class FakeController implements DevLauncherProcessController {
 }
 
 describe('runPlainDevSession', () => {
+  it('uses recent selection in non-interactive mode and persists launch selection', async () => {
+    const controller = new FakeController();
+    loadRecentDevServiceSelectionsMock.mockReturnValue([['app']]);
+    const stdoutWrite = vi.fn();
+
+    const exitCode = await runPlainDevSession(
+      createManifest(),
+      {
+        canPrompt: false,
+        createController: () => controller,
+        prompt: async () => ({}),
+        stderr: {
+          write: vi.fn(),
+        } as unknown as NodeJS.WriteStream,
+        stdout: {
+          write: stdoutWrite,
+        } as unknown as NodeJS.WriteStream,
+      }
+    );
+
+    expect(exitCode).toBe(0);
+    expect(controller.applyServiceSet).toHaveBeenCalledWith(['app']);
+    expect(saveRecentDevServiceSelectionMock).toHaveBeenCalledWith(
+      createManifest(),
+      ['app']
+    );
+    expect(stdoutWrite).toHaveBeenCalledWith('Launching App...\n');
+  });
+
   it('cleans up both controller subscriptions after exit', async () => {
     const controller = new FakeController();
 

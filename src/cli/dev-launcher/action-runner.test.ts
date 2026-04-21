@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
+import { resolveDevActionExecutionRequest } from './action-orchestrator';
 import {
   getDevPreflightActionSuggestions,
   listDevActions,
@@ -201,6 +202,46 @@ describe('listDevActions', () => {
     await expect(
       listDevActions(manifest, config, createRuntime().runtime)
     ).rejects.toThrow('invalid availability result');
+  });
+});
+
+describe('resolveDevActionExecutionRequest', () => {
+  it('maps unavailable actions into a shared result instead of throwing', async () => {
+    const manifest = createManifest();
+    const config = createActionsConfig({
+      'db-push': {
+        impactPolicy: 'stop-selected',
+        isAvailable: async () => ({
+          available: false,
+          reason: 'No schema changes detected.',
+        }),
+        label: 'Push database',
+        async run() {},
+      },
+    });
+
+    await expect(
+      resolveDevActionExecutionRequest(
+        manifest,
+        config,
+        {
+          actionId: 'db-push',
+        },
+        createRuntime().runtime
+      )
+    ).resolves.toEqual({
+      unavailable: {
+        action: {
+          available: false,
+          id: 'db-push',
+          impactPolicy: 'stop-selected',
+          label: 'Push database',
+          reason: 'No schema changes detected.',
+          suggestInDev: false,
+        },
+        message: 'Action "db-push" is unavailable. No schema changes detected.',
+      },
+    });
   });
 });
 

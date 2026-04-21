@@ -2,12 +2,13 @@
 import { spawn } from 'node:child_process';
 import { encode } from '@toon-format/toon';
 import { Command } from 'commander';
+import type { DevActionOrchestrationResult } from './action-orchestrator';
+import { resolveDevActionExecutionRequest } from './action-orchestrator';
 import type {
-  DevActionRunExecutionResult,
   DevActionRunnerRuntime,
   ResolvedDevAction,
 } from './action-runner';
-import { listDevActions, runDevAction } from './action-runner';
+import { listDevActions } from './action-runner';
 import { loadDevLauncherConfig } from './config';
 import type { LoadedDevLauncherManifest } from './types';
 
@@ -44,7 +45,7 @@ export interface DevActionCommandRuntime {
       force?: boolean;
       runtime?: DevActionRunnerRuntime;
     }
-  ) => Promise<DevActionRunExecutionResult>;
+  ) => Promise<DevActionOrchestrationResult>;
   stderr: Pick<NodeJS.WriteStream, 'write'>;
   stdout: Pick<NodeJS.WriteStream, 'write'>;
 }
@@ -65,7 +66,15 @@ const defaultRuntime: DevActionCommandRuntime = {
   },
   loadManifest: async (options) => await loadDevLauncherConfig(options),
   runAction: async (manifest, actionsConfig, actionId, options) => {
-    return await runDevAction(manifest, actionsConfig, actionId, options);
+    return await resolveDevActionExecutionRequest(
+      manifest,
+      actionsConfig,
+      {
+        actionId,
+        force: options?.force,
+      },
+      options?.runtime
+    );
   },
   stderr: process.stderr,
   stdout: process.stdout,
@@ -138,8 +147,17 @@ export const runDevActionRunCommand = async (
     runtime: runtime.actionRuntime,
   });
 
-  if (result.summary) {
-    runtime.stdout.write(`${result.summary}\n`);
+  if (result.unavailable) {
+    throw new Error(result.unavailable.message);
+  }
+
+  const execution = result.execution;
+  if (!execution) {
+    throw new Error(`Action "${actionId}" did not produce a result.`);
+  }
+
+  if (execution.summary) {
+    runtime.stdout.write(`${execution.summary}\n`);
   } else {
     runtime.stdout.write(`Completed action "${actionId}".\n`);
   }

@@ -1,32 +1,15 @@
 /** biome-ignore-all lint/suspicious/noConsole: CLI runner output is intentional. */
 import prompts from 'prompts';
-import { normalizeSelectedServiceIds } from './manifest';
 import type { DevLauncherProcessController } from './process-manager';
 import { DevLauncherProcessManager } from './process-manager';
 import {
-  loadRecentDevServiceSelections,
-  saveRecentDevServiceSelection,
-} from './selection-history';
+  applySessionServiceSelection,
+  type DevLauncherPromptRuntime,
+  formatSelectedServiceListLabel,
+  promptForServiceSelection,
+  requestSessionViewExit,
+} from './session-view-orchestrator';
 import type { LoadedDevLauncherManifest } from './types';
-
-export interface PromptChoice {
-  description?: string;
-  title: string;
-  value: string | 'custom';
-}
-
-export interface PromptMultiSelectChoice {
-  description?: string;
-  title: string;
-  value: string;
-}
-
-export interface DevLauncherPromptRuntime {
-  canPrompt: boolean;
-  prompt: (
-    question: Record<string, unknown>
-  ) => Promise<Record<string, unknown>>;
-}
 
 export interface PlainDevSessionRuntime extends DevLauncherPromptRuntime {
   createController: (
@@ -58,135 +41,7 @@ const defaultRuntime: PlainDevSessionRuntime = {
   stdout: process.stdout,
 };
 
-const getServiceListLabel = (
-  manifest: LoadedDevLauncherManifest,
-  serviceIds: Iterable<string>
-): string => {
-  const normalizedServiceIds = normalizeSelectedServiceIds(
-    manifest,
-    serviceIds
-  );
-  return normalizedServiceIds
-    .map((serviceId) => manifest.servicesById[serviceId]?.label ?? serviceId)
-    .join(', ');
-};
 
-export const buildStartupChoices = (
-  manifest: LoadedDevLauncherManifest
-): PromptChoice[] => {
-  const recentSelections = loadRecentDevServiceSelections(manifest);
-  const recentChoices = recentSelections.map((serviceIds, index) => ({
-    title: getServiceListLabel(manifest, serviceIds),
-    value: `${index}`,
-  }));
-
-  return [
-    ...recentChoices,
-    {
-      description: 'Choose an ad hoc combination of declared services',
-      title: 'Custom selection',
-      value: 'custom',
-    },
-  ];
-};
-
-export const buildServiceChoices = (
-  manifest: LoadedDevLauncherManifest
-): PromptMultiSelectChoice[] => {
-  return manifest.serviceIdsInOrder.map((serviceId) => {
-    const service = manifest.servicesById[serviceId];
-
-    return {
-      description: service?.description,
-      title: service?.label ?? serviceId,
-      value: serviceId,
-    };
-  });
-};
-
-/**
- * Resolves the service selection for plain mode. Uses an explicit selection
- * when provided, otherwise prompts the user or falls back to the latest saved
- * selection.
- */
-export const promptForServiceSelection = async (
-  manifest: LoadedDevLauncherManifest,
-  runtime: DevLauncherPromptRuntime = defaultPromptRuntime,
-  initialServiceIds?: string[],
-  options?: {
-    allowStartupSelection?: boolean;
-  }
-): Promise<string[] | null> => {
-  if (options?.allowStartupSelection === false) {
-    return initialServiceIds
-      ? normalizeSelectedServiceIds(manifest, initialServiceIds)
-      : [];
-  }
-
-  if (initialServiceIds && initialServiceIds.length > 0) {
-    return normalizeSelectedServiceIds(manifest, initialServiceIds);
-  }
-
-  const recentSelections = loadRecentDevServiceSelections(manifest);
-
-  if (!runtime.canPrompt) {
-    return recentSelections.at(0) ?? manifest.serviceIdsInOrder;
-  }
-
-  if (recentSelections.length === 0) {
-    const serviceResponse = await runtime.prompt({
-      choices: buildServiceChoices(manifest),
-      hint: '- Space to toggle, Enter to launch',
-      instructions: false,
-      message: 'Select services to launch',
-      min: 1,
-      name: 'serviceIds',
-      type: 'multiselect',
-    });
-    const selectedServiceIds = serviceResponse.serviceIds;
-
-    if (!Array.isArray(selectedServiceIds) || selectedServiceIds.length === 0) {
-      return null;
-    }
-
-    return normalizeSelectedServiceIds(manifest, selectedServiceIds);
-  }
-
-  const presetResponse = await runtime.prompt({
-    choices: buildStartupChoices(manifest),
-    initial: 0,
-    message: 'Choose a recent service selection or start a custom selection',
-    name: 'selection',
-    type: 'select',
-  });
-  const selection = presetResponse.selection;
-
-  if (selection == null) {
-    return null;
-  }
-
-  if (selection !== 'custom') {
-    const selectedIndex = Number(selection);
-    return recentSelections.at(selectedIndex) ?? null;
-  }
-
-  const serviceResponse = await runtime.prompt({
-    choices: buildServiceChoices(manifest),
-    hint: '- Space to toggle, Enter to launch',
-    instructions: false,
-    message: 'Select services to launch',
-    min: 1,
-    name: 'serviceIds',
-    type: 'multiselect',
-  });
-  const selectedServiceIds = serviceResponse.serviceIds;
-
-  if (!Array.isArray(selectedServiceIds) || selectedServiceIds.length === 0) {
-    return null;
-  }
-
-  return normalizeSelectedServiceIds(manifest, selectedServiceIds);
-};
 
 const formatPrefixedLogLine = (
   manifest: LoadedDevLauncherManifest,
@@ -232,20 +87,17 @@ export const runPlainDevSession = async (
     return 0;
   }
 
-  const normalizedSelection = normalizeSelectedServiceIds(
-    manifest,
-    selectedServiceIds ?? []
-  );
+  const controller = runtime.createController(manifest);
+  const normalizedSelection = selectedServiceIds ?? [];
   const shouldApplyInitialSelection = options?.applyInitialSelection !== false;
 
   if (shouldApplyInitialSelection && normalizedSelection.length > 0) {
-    saveRecentDevServiceSelection(manifest, normalizedSelection);
+    await applySessionServiceSelection(manifest, controller, normalizedSelection);
     runtime.stdout.write(
-      `Launching ${getServiceListLabel(manifest, normalizedSelection)}...\n`
+      `Launching ${formatSelectedServiceListLabel(manifest, normalizedSelection)}...\n`
     );
   }
 
-  const controller = runtime.createController(manifest);
   let exitCode = 0;
   let highestSequence = 0;
   let isShuttingDown = false;
@@ -332,17 +184,11 @@ export const runPlainDevSession = async (
       }
 
       isShuttingDown = true;
-      const requestExit =
-        options?.onRequestExit ??
-        (async (requestOptions: {
-          controller: DevLauncherProcessController;
-          exitCode: number;
-        }) => {
-          await requestOptions.controller.stopAll();
-        });
-      requestExit({
+      requestSessionViewExit({
         controller,
         exitCode,
+        onRequestExit: options?.onRequestExit,
+        shouldDelegateExit: Boolean(options?.onRequestExit),
       })
         .then(() => {
           if (options?.onRequestExit) {
@@ -368,9 +214,7 @@ export const runPlainDevSession = async (
       maybeResolve();
     });
 
-    const startPromise = shouldApplyInitialSelection
-      ? controller.applyServiceSet(normalizedSelection)
-      : Promise.resolve();
+    const startPromise = Promise.resolve();
 
     startPromise
       .then(() => {

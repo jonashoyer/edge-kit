@@ -1,7 +1,8 @@
-import { render } from 'ink-testing-library';
+import { render as inkRender } from 'ink-testing-library';
 /* biome-ignore lint/correctness/noUnusedImports: React must stay in scope for this JSX runtime path. */
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DevActionOrchestrationResult } from './action-orchestrator';
 import { DevLauncherDashboardApp } from './tui';
 import type { ResolvedDevAction } from './action-runner';
 import type {
@@ -11,10 +12,26 @@ import type {
   ManagedDevServiceState,
 } from './types';
 
-vi.mock('./selection-history', () => ({
-  loadRecentDevServiceSelections: vi.fn(() => [['app']]),
-  saveRecentDevServiceSelection: vi.fn(),
+const {
+  loadRecentDevServiceSelectionsMock,
+  saveRecentDevServiceSelectionMock,
+} = vi.hoisted(() => ({
+  loadRecentDevServiceSelectionsMock: vi.fn(() => [['app']]),
+  saveRecentDevServiceSelectionMock: vi.fn(),
 }));
+
+vi.mock('./selection-history', () => ({
+  loadRecentDevServiceSelections: loadRecentDevServiceSelectionsMock,
+  saveRecentDevServiceSelection: saveRecentDevServiceSelectionMock,
+}));
+
+const renderedApps: unknown[] = [];
+
+const render = (...args: Parameters<typeof inkRender>) => {
+  const rendered = inkRender(...args);
+  renderedApps.push(rendered);
+  return rendered;
+};
 
 const createManifest = (): LoadedDevLauncherManifest => ({
   actionIdsInOrder: [],
@@ -139,9 +156,50 @@ const flush = async (iterations = 2) => {
   }
 };
 
+const waitForFrameToContain = async (
+  lastFrame: () => string,
+  text: string,
+  iterations = 20
+) => {
+  for (let index = 0; index < iterations; index += 1) {
+    if (lastFrame().includes(text)) {
+      return;
+    }
+
+    await flush();
+  }
+};
+
+const waitForMockCall = async (
+  mockFn: { mock: { calls: unknown[][] } },
+  iterations = 20
+) => {
+  for (let index = 0; index < iterations; index += 1) {
+    if (mockFn.mock.calls.length > 0) {
+      return;
+    }
+
+    await flush();
+  }
+};
+
 describe('DevLauncherDashboardApp', () => {
   afterEach(() => {
+    while (renderedApps.length > 0) {
+      const renderedApp = renderedApps.pop();
+      if (
+        typeof renderedApp === 'object' &&
+        renderedApp !== null &&
+        'unmount' in renderedApp &&
+        typeof renderedApp.unmount === 'function'
+      ) {
+        renderedApp.unmount();
+      }
+    }
+
     vi.restoreAllMocks();
+    loadRecentDevServiceSelectionsMock.mockReturnValue([['app']]);
+    saveRecentDevServiceSelectionMock.mockReset();
   });
 
   it('renders the startup dashboard with presets and custom selection', () => {
@@ -179,6 +237,26 @@ describe('DevLauncherDashboardApp', () => {
     await flush();
 
     expect(controller.applyServiceSet).toHaveBeenCalledWith(['app']);
+  });
+
+  it('applies explicit initial services immediately without the startup overlay', async () => {
+    const controller = new FakeController(createSnapshot());
+    render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['api']}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+      />
+    );
+
+    await flush();
+
+    expect(controller.applyServiceSet).toHaveBeenCalledWith(['api']);
+    expect(saveRecentDevServiceSelectionMock).toHaveBeenCalledWith(
+      createManifest(),
+      ['api']
+    );
   });
 
   it('opens a focused log mode that hides the sidebar and can return to the dashboard', async () => {
@@ -377,7 +455,7 @@ describe('DevLauncherDashboardApp', () => {
 
     await flush();
     stdin.write('x');
-    await flush(4);
+    await waitForFrameToContain(lastFrame, 'Developer actions');
 
     expect(lastFrame()).toContain('Developer actions');
     expect(lastFrame()).toContain('Install dependencies (i) [available]');
@@ -389,7 +467,7 @@ describe('DevLauncherDashboardApp', () => {
     expect(lastFrame()).toContain('Start a dev session');
   });
 
-  it('runs stop-all actions from the dev tui and restores managed services', async () => {
+  it('runs stop-all actions from the dev tui and delegates orchestration to the shared boundary', async () => {
     const controller = new FakeController(
       createSnapshot({
         managedServiceIds: ['app'],
@@ -411,17 +489,21 @@ describe('DevLauncherDashboardApp', () => {
         },
       ]
     );
-    const runDevAction = vi.fn(async () => ({
-      action: {
-        available: true,
-        id: 'install-deps',
-        impactPolicy: 'stop-all' as const,
-        label: 'Install dependencies',
-        suggestInDev: true,
-      },
-      forced: false,
-      summary: 'Dependencies installed.',
-    }));
+    const runDevAction = vi.fn(
+      async (): Promise<DevActionOrchestrationResult> => ({
+        execution: {
+          action: {
+            available: true,
+            id: 'install-deps',
+            impactPolicy: 'stop-all' as const,
+            label: 'Install dependencies',
+            suggestInDev: true,
+          },
+          forced: false,
+          summary: 'Dependencies installed.',
+        },
+      })
+    );
     const { lastFrame, stdin } = render(
       <DevLauncherDashboardApp
         controller={controller}
@@ -435,13 +517,19 @@ describe('DevLauncherDashboardApp', () => {
 
     await flush();
     stdin.write('x');
-    await flush(6);
+    await waitForFrameToContain(lastFrame, 'Developer actions');
+    await waitForFrameToContain(
+      lastFrame,
+      'Install dependencies (i) [available]'
+    );
     stdin.write('\r');
-    await flush(6);
+    await waitForMockCall(runDevAction);
+    await waitForFrameToContain(lastFrame, 'Dependencies installed.');
 
-    expect(controller.stopAll).toHaveBeenCalledTimes(1);
-    expect(controller.applyServiceSet).toHaveBeenCalledWith(['app']);
-    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps');
+    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps', {
+      controller,
+      refreshActions: expect.any(Function),
+    });
     expect(lastFrame()).toContain('Dependencies installed.');
   });
 
@@ -460,18 +548,22 @@ describe('DevLauncherDashboardApp', () => {
         },
       ]
     );
-    const runDevAction = vi.fn(async () => ({
-      action: {
-        available: true,
-        hotkey: 'i',
-        id: 'install-deps',
-        impactPolicy: 'stop-all' as const,
-        label: 'Install dependencies',
-        suggestInDev: true,
-      },
-      forced: false,
-      summary: 'Dependencies installed.',
-    }));
+    const runDevAction = vi.fn(
+      async (): Promise<DevActionOrchestrationResult> => ({
+        execution: {
+          action: {
+            available: true,
+            hotkey: 'i',
+            id: 'install-deps',
+            impactPolicy: 'stop-all' as const,
+            label: 'Install dependencies',
+            suggestInDev: true,
+          },
+          forced: false,
+          summary: 'Dependencies installed.',
+        },
+      })
+    );
     const { lastFrame, stdin } = render(
       <DevLauncherDashboardApp
         controller={controller}
@@ -483,10 +575,15 @@ describe('DevLauncherDashboardApp', () => {
     );
 
     await flush(4);
+    await waitForFrameToContain(lastFrame, 'Actions: 1 available');
     stdin.write('i');
-    await flush(6);
+    await waitForMockCall(runDevAction);
+    await waitForFrameToContain(lastFrame, 'Dependencies installed.');
 
-    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps');
+    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps', {
+      controller,
+      refreshActions: expect.any(Function),
+    });
     expect(lastFrame()).toContain('Dependencies installed.');
   });
 });

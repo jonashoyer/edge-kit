@@ -3,19 +3,24 @@ import { Box, render, Text, useApp, useInput } from 'ink';
 import React, { useEffect, useState } from 'react';
 import { spawn } from 'node:child_process';
 import type {
-  DevActionRunExecutionResult,
   DevActionRunnerRuntime,
   ResolvedDevAction,
 } from './action-runner';
-import { listDevActions, runDevAction } from './action-runner';
-import { normalizeSelectedServiceIds } from './manifest';
+import { listDevActions } from './action-runner';
+import type { DevActionOrchestrationResult } from './action-orchestrator';
+import {
+  executeDevActionWithSession,
+  getDevActionUnavailableMessage,
+} from './action-orchestrator';
 import { openExternalUrl } from './open-url';
 import type { DevLauncherProcessController } from './process-manager';
 import { DevLauncherProcessManager } from './process-manager';
 import {
-  loadRecentDevServiceSelections,
-  saveRecentDevServiceSelection,
-} from './selection-history';
+  applySessionServiceSelection,
+  getStartupOptions,
+  requestSessionViewExit,
+  resolveSessionStartupSelection,
+} from './session-view-orchestrator';
 import type {
   DevLauncherLogEntry,
   DevLauncherSupervisorSnapshot,
@@ -26,12 +31,6 @@ import type {
 const MIN_DASHBOARD_LOG_LINES = 18;
 const MIN_FOCUSED_LOG_LINES = 28;
 const LOG_SCROLL_STEP = 8;
-
-interface StartupOption {
-  kind: 'custom' | 'recent';
-  label: string;
-  serviceIds: string[];
-}
 
 interface OverlayState {
   cursor: number;
@@ -59,8 +58,15 @@ export interface DevLauncherTuiSessionRuntime {
   openExternalUrl: (url: string) => Promise<void>;
   runDevAction: (
     manifest: LoadedDevLauncherManifest,
-    actionId: string
-  ) => Promise<DevActionRunExecutionResult>;
+    actionId: string,
+    options?: {
+      controller?: Pick<
+        DevLauncherProcessController,
+        'applyServiceSet' | 'getSnapshot' | 'stopAll'
+      >;
+      refreshActions?: () => Promise<void>;
+    }
+  ) => Promise<DevActionOrchestrationResult>;
   stderr: NodeJS.WriteStream;
   stdin: NodeJS.ReadStream;
   stdout: NodeJS.WriteStream;
@@ -82,8 +88,15 @@ interface DevLauncherDashboardAppProps {
   }) => Promise<void>;
   runDevAction?: (
     manifest: LoadedDevLauncherManifest,
-    actionId: string
-  ) => Promise<DevActionRunExecutionResult>;
+    actionId: string,
+    options?: {
+      controller?: Pick<
+        DevLauncherProcessController,
+        'applyServiceSet' | 'getSnapshot' | 'stopAll'
+      >;
+      refreshActions?: () => Promise<void>;
+    }
+  ) => Promise<DevActionOrchestrationResult>;
 }
 
 const createTuiActionRuntime = (): DevActionRunnerRuntime => ({
@@ -104,8 +117,13 @@ const defaultRuntime: DevLauncherTuiSessionRuntime = {
   createController: (manifest) => new DevLauncherProcessManager(manifest),
   listActions: async (manifest) => await listDevActions(manifest, manifest),
   openExternalUrl: async (url) => openExternalUrl(url),
-  runDevAction: async (manifest, actionId) => {
-    return await runDevAction(manifest, manifest, actionId, {
+  runDevAction: async (manifest, actionId, options) => {
+    return await executeDevActionWithSession(manifest, manifest, {
+      actionId,
+      controller: options?.controller,
+      hooks: {
+        refreshActions: options?.refreshActions,
+      },
       runtime: createTuiActionRuntime(),
     });
   },
@@ -138,28 +156,6 @@ const wrapCursor = (cursor: number, size: number): number => {
   }
 
   return ((cursor % size) + size) % size;
-};
-
-const getStartupOptions = (
-  manifest: LoadedDevLauncherManifest,
-  recentSelections: string[][]
-): StartupOption[] => {
-  return [
-    ...recentSelections.map((serviceIds) => ({
-      kind: 'recent' as const,
-      label: serviceIds
-        .map(
-          (serviceId) => manifest.servicesById[serviceId]?.label ?? serviceId
-        )
-        .join(', '),
-      serviceIds,
-    })),
-    {
-      kind: 'custom' as const,
-      label: 'Custom selection',
-      serviceIds: [] as string[],
-    },
-  ];
 };
 
 const getViewerLogs = (
@@ -317,9 +313,14 @@ export function DevLauncherDashboardApp({
   },
 }: DevLauncherDashboardAppProps) {
   const { exit } = useApp();
-  const [recentSelections] = useState(() => {
-    return loadRecentDevServiceSelections(manifest);
-  });
+  const startupSelection = resolveSessionStartupSelection(
+    manifest,
+    initialServiceIds,
+    {
+      allowStartupSelection,
+    }
+  );
+  const [recentSelections] = useState(startupSelection.recentSelections);
   const [snapshot, setSnapshot] = useState<DevLauncherSupervisorSnapshot>(
     controller.getSnapshot()
   );
@@ -338,7 +339,7 @@ export function DevLauncherDashboardApp({
     kind:
       !allowStartupSelection
         ? null
-        : initialServiceIds && initialServiceIds.length > 0
+        : startupSelection.source === 'explicit'
           ? null
           : recentSelections.length > 0
             ? 'startup'
@@ -351,7 +352,7 @@ export function DevLauncherDashboardApp({
   const [isLoadingActions, setIsLoadingActions] = useState(false);
   const [hasFailure, setHasFailure] = useState(false);
   const [didApplyInitialSelection, setDidApplyInitialSelection] = useState(
-    !allowStartupSelection || !(initialServiceIds && initialServiceIds.length > 0)
+    startupSelection.source !== 'explicit'
   );
   const [resolvedActions, setResolvedActions] = useState<ResolvedDevAction[]>(
     []
@@ -377,35 +378,28 @@ export function DevLauncherDashboardApp({
       return;
     }
 
-    const normalizedSelection = normalizeSelectedServiceIds(
-      manifest,
-      initialServiceIds as string[]
-    );
     setDidApplyInitialSelection(true);
-    saveRecentDevServiceSelection(manifest, normalizedSelection);
-    controller.applyServiceSet(normalizedSelection).catch((error: unknown) => {
+    applySessionServiceSelection(manifest, controller, initialServiceIds as string[]).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       setFlashMessage(`Error: ${message}`);
     });
   }, [controller, didApplyInitialSelection, initialServiceIds, manifest]);
 
-  const refreshActions = (): void => {
+  const refreshActions = async (): Promise<void> => {
     setIsLoadingActions(true);
-    listActions(manifest)
-      .then((actions) => {
-        setResolvedActions(actions);
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        setFlashMessage(`Error: ${message}`);
-      })
-      .finally(() => {
-        setIsLoadingActions(false);
-      });
+    try {
+      const actions = await listActions(manifest);
+      setResolvedActions(actions);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setFlashMessage(`Error: ${message}`);
+    } finally {
+      setIsLoadingActions(false);
+    }
   };
 
   useEffect(() => {
-    refreshActions();
+    void refreshActions();
   }, [listActions, manifest]);
 
   useEffect(() => {
@@ -472,14 +466,12 @@ export function DevLauncherDashboardApp({
   };
 
   const applyManagedServiceIds = (serviceIds: Iterable<string>): void => {
-    const normalizedServiceIds = normalizeSelectedServiceIds(
-      manifest,
-      serviceIds
-    );
-
     runAction('Applying service selection...', async () => {
-      await controller.applyServiceSet(normalizedServiceIds);
-      saveRecentDevServiceSelection(manifest, normalizedServiceIds);
+      const normalizedServiceIds = await applySessionServiceSelection(
+        manifest,
+        controller,
+        serviceIds
+      );
 
       setOverlay({
         cursor: 0,
@@ -504,9 +496,8 @@ export function DevLauncherDashboardApp({
 
       return {
         ...currentOverlay,
-        pendingServiceIds: normalizeSelectedServiceIds(
-          manifest,
-          nextPendingServiceIds
+        pendingServiceIds: manifest.serviceIdsInOrder.filter(
+          (candidateServiceId) => nextPendingServiceIds.includes(candidateServiceId)
         ),
       };
     });
@@ -514,11 +505,19 @@ export function DevLauncherDashboardApp({
 
   const requestQuit = (): void => {
     runAction('Exiting...', async () => {
-      if (onRequestExit) {
-        await onRequestExit({ controller, hasFailure });
-      } else {
-        await controller.stopAll();
-      }
+      await requestSessionViewExit({
+        controller,
+        exitCode: hasFailure ? 1 : 0,
+        onRequestExit: onRequestExit
+          ? async (requestOptions) => {
+              await onRequestExit({
+                controller: requestOptions.controller,
+                hasFailure,
+              });
+            }
+          : undefined,
+        shouldDelegateExit: Boolean(onRequestExit),
+      });
       onExitCode(hasFailure ? 1 : 0);
       exit();
     });
@@ -553,42 +552,35 @@ export function DevLauncherDashboardApp({
           : snapshot.managedServiceIds,
       returnToStartup: overlay.kind === 'startup',
     });
-    refreshActions();
+    void refreshActions();
   };
 
   const requestRunDevAction = (action: ResolvedDevAction): void => {
     if (!action.available) {
-      const reasonSuffix = action.reason ? ` ${action.reason}` : '';
-      setFlashMessage(
-        `Action "${action.id}" is unavailable.${reasonSuffix}`.trimEnd()
-      );
+      setFlashMessage(getDevActionUnavailableMessage(action));
       return;
     }
 
     runAction(`Running ${action.label}...`, async () => {
-      const managedServiceIdsBeforeAction = [
-        ...controller.getSnapshot().managedServiceIds,
-      ];
-      const shouldPauseServices =
-        action.impactPolicy !== 'parallel' &&
-        managedServiceIdsBeforeAction.length > 0;
+      const result = await runDevActionProp(manifest, action.id, {
+        controller,
+        refreshActions,
+      });
 
-      if (shouldPauseServices) {
-        await controller.stopAll();
+      if (result.unavailable) {
+        setFlashMessage(result.unavailable.message);
+        return;
       }
 
-      try {
-        const result = await runDevActionProp(manifest, action.id);
-        setFlashMessage(
-          result.summary ?? `Completed action "${result.action.label}".`
-        );
-      } finally {
-        if (shouldPauseServices) {
-          await controller.applyServiceSet(managedServiceIdsBeforeAction);
-        }
-
-        refreshActions();
+      const execution = result.execution;
+      if (!execution) {
+        setFlashMessage(`Action "${action.id}" did not produce a result.`);
+        return;
       }
+
+      setFlashMessage(
+        execution.summary ?? `Completed action "${execution.action.label}".`
+      );
     });
   };
 
@@ -626,7 +618,7 @@ export function DevLauncherDashboardApp({
       }
 
       if (input === 'r') {
-        refreshActions();
+        void refreshActions();
         return;
       }
 

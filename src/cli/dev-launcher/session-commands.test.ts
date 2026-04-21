@@ -1,6 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
+import { DevLauncherSessionClientError } from './session-client';
+import {
+  DevLauncherSessionAccess,
+  type DevLauncherSessionAccessRuntime,
+} from './session-access';
 import {
   runDevLauncherLogsCommand,
+  runDevLauncherServiceStartCommand,
+  runDevLauncherSessionStopCommand,
   runDevLauncherStatusCommand,
 } from './session-commands';
 import type {
@@ -79,6 +86,44 @@ const createLogsResult = (): DevLauncherLogsReadResult => ({
   highestSequence: 4,
 });
 
+const createSessionAccessRuntime = (overrides?: {
+  bootstrapSession?: () => Promise<DevLauncherSessionMetadata>;
+  getSession?: () => Promise<DevLauncherSessionGetResult>;
+  resolveSession?: () => Promise<DevLauncherSessionMetadata | null>;
+  stopSession?: () => Promise<{ stopped: true }>;
+}) => {
+  const client = {
+    getSession: vi.fn(
+      overrides?.getSession ?? (async () => createSessionSummary())
+    ),
+    resolveSession: vi.fn(
+      overrides?.resolveSession ?? (async () => createSessionMetadata())
+    ),
+    stopSession: vi.fn(
+      overrides?.stopSession ?? (async () => ({ stopped: true as const }))
+    ),
+  };
+  const createRemoteController = vi.fn((_manifest, _client, summary) => ({
+    initialSummary: summary,
+  }));
+  const runtime: DevLauncherSessionAccessRuntime = {
+    bootstrapSession: vi.fn(
+      overrides?.bootstrapSession ?? (async () => createSessionMetadata())
+    ),
+    clientRuntime: {
+      setTimeout,
+    } as never,
+    createRemoteController,
+    createSessionClient: vi.fn(() => client as never),
+  };
+
+  return {
+    client,
+    createRemoteController,
+    runtime,
+  };
+};
+
 const createRuntime = () => {
   const stdout = {
     write: vi.fn(),
@@ -90,15 +135,20 @@ const createRuntime = () => {
     getSession: vi.fn(async () => createSessionSummary()),
     readLogs: vi.fn(async () => createLogsResult()),
     resolveSession: vi.fn(async () => createSessionMetadata()),
+    startService: vi.fn(async () => createSessionSummary()),
     stopSession: vi.fn(async () => ({ stopped: true as const })),
   };
 
   return {
     client,
     runtime: {
+      bootstrapSession: vi.fn(async () => createSessionMetadata()),
       clientRuntime: {
         setTimeout,
       },
+      createRemoteController: vi.fn((_manifest, _client, summary) => ({
+        initialSummary: summary,
+      })),
       createSessionClient: vi.fn(() => client),
       loadManifest: vi.fn(async () => createManifest()),
       stderr,
@@ -108,6 +158,60 @@ const createRuntime = () => {
     stdout,
   };
 };
+
+describe('DevLauncherSessionAccess', () => {
+  it('fails read-only access with no_session when no session exists', async () => {
+    const { runtime } = createSessionAccessRuntime({
+      resolveSession: async () => null,
+    });
+
+    await expect(
+      new DevLauncherSessionAccess(createManifest(), runtime).resolve('read_only')
+    ).rejects.toMatchObject<Partial<DevLauncherSessionClientError>>({
+      errorCode: 'no_session',
+      message: 'No dev launcher session is running for this repo.',
+    });
+  });
+
+  it('bootstraps mutating access when no session exists', async () => {
+    const metadata = createSessionMetadata();
+    const { client, runtime } = createSessionAccessRuntime({
+      bootstrapSession: async () => metadata,
+      resolveSession: async () => null,
+    });
+
+    const access = await new DevLauncherSessionAccess(
+      createManifest(),
+      runtime
+    ).resolve('mutating');
+
+    expect(runtime.bootstrapSession).toHaveBeenCalledTimes(1);
+    expect(runtime.createSessionClient).toHaveBeenNthCalledWith(
+      2,
+      expect.anything(),
+      metadata
+    );
+    expect(access.client).toBe(client);
+  });
+
+  it('maps transport closure to no_session domain errors', async () => {
+    const { runtime } = createSessionAccessRuntime({
+      getSession: async () => {
+        throw new DevLauncherSessionClientError(
+          'socket_closed',
+          'Dev launcher session closed before responding.'
+        );
+      },
+    });
+
+    await expect(
+      new DevLauncherSessionAccess(createManifest(), runtime).resolve('read_only')
+    ).rejects.toMatchObject<Partial<DevLauncherSessionClientError>>({
+      errorCode: 'no_session',
+      message: 'No dev launcher session is running for this repo.',
+    });
+  });
+});
 
 describe('session-commands output formatting', () => {
   it('renders status in TOON format', async () => {
@@ -170,6 +274,36 @@ describe('session-commands output formatting', () => {
     );
     expect(stdout.write).toHaveBeenCalledWith(
       expect.stringContaining('unsupported_output_format')
+    );
+  });
+
+  it('uses mutating session access for service start commands', async () => {
+    const { client, runtime } = createRuntime();
+
+    await runDevLauncherServiceStartCommand('app', {}, runtime as never);
+
+    expect(runtime.createSessionClient).toHaveBeenCalledTimes(1);
+    expect(client.startService).toHaveBeenCalledWith('app');
+  });
+
+  it('maps stop transport failures to no_session for session stop', async () => {
+    const { client, runtime, stdout } = createRuntime();
+    client.stopSession = vi.fn(async () => {
+      throw new DevLauncherSessionClientError(
+        'socket_error',
+        'connect ENOENT /tmp/edge-kit.sock'
+      );
+    });
+
+    await expect(
+      runDevLauncherSessionStopCommand({}, runtime as never)
+    ).rejects.toMatchObject<Partial<DevLauncherSessionClientError>>({
+      errorCode: 'no_session',
+      message: 'No dev launcher session is running for this repo.',
+    });
+
+    expect(stdout.write).not.toHaveBeenCalledWith(
+      'Stopped the dev launcher session.\n'
     );
   });
 });

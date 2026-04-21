@@ -10,7 +10,36 @@ import {
   getRepoRootFromConfigPath,
   resolveDevLauncherConfigPath,
 } from './repo-utils';
-import type { DevLauncherManifest, LoadedDevLauncherManifest } from './types';
+export { resolveDevLauncherConfigPath } from './repo-utils';
+import type {
+  DevLauncherManifest,
+  LoadedDevLauncherManifest,
+  DevLauncherServiceDefinition,
+  DevLauncherUiConfig,
+} from './types';
+
+interface DevLauncherConfigLoadOptions {
+  configPath?: string;
+  cwd?: string;
+}
+
+interface ImportedDevLauncherConfigModule {
+  default?: unknown;
+}
+
+interface LoadedDevActionsConfigSubset {
+  actionIdsInOrder: string[];
+  actionsById: LoadedDevLauncherManifest['actionsById'];
+  configPath: string;
+}
+
+interface ParsedDevLauncherManifest {
+  actionsById?: Record<string, unknown>;
+  packageManager: DevLauncherManifest['packageManager'];
+  servicesById: Record<string, DevLauncherServiceDefinition>;
+  ui?: DevLauncherUiConfig;
+  version: DevLauncherManifest['version'];
+}
 
 const IMPACT_POLICIES = new Set<DevActionImpactPolicy>([
   'parallel',
@@ -188,6 +217,9 @@ const validateActionsById = (
   };
 };
 
+const DEV_CONFIG_DEFAULT_EXPORT_ERROR =
+  'Dev config must default-export an object created by defineDevLauncherConfig({ ... }).';
+
 const serviceTargetSchema = z.discriminatedUnion('kind', [
   z.object({
     kind: z.literal('root-script'),
@@ -259,21 +291,21 @@ const manifestSchema = z
     });
   });
 
-/**
- * Defines a typed TS config for long-running services plus one-shot developer
- * actions.
- */
-export const defineDevLauncherConfig = (
-  config: DevLauncherManifest
-): DevLauncherManifest => config;
+const formatConfigSchemaError = (error: z.ZodError): Error => {
+  const [firstIssue] = error.issues;
+  if (!firstIssue) {
+    return new Error(error.message);
+  }
 
-/**
- * Loads and validates the shared TS/JS dev-launcher config.
- */
-export const loadDevLauncherConfig = async (options?: {
-  configPath?: string;
-  cwd?: string;
-}): Promise<LoadedDevLauncherManifest> => {
+  return new Error(firstIssue.message);
+};
+
+const loadImportedDevLauncherConfigModule = async (
+  options?: DevLauncherConfigLoadOptions
+): Promise<{
+  configPath: string;
+  moduleRecord: ImportedDevLauncherConfigModule;
+}> => {
   const configPath = resolveDevLauncherConfigPath(options);
   const moduleUrl = `${pathToFileURL(configPath).href}?t=${Date.now()}`;
 
@@ -285,24 +317,83 @@ export const loadDevLauncherConfig = async (options?: {
     throw new Error(`Failed to load dev config "${configPath}": ${message}`);
   }
 
-  const moduleRecord = importedModule as { default?: unknown };
+  return {
+    configPath,
+    moduleRecord: importedModule as ImportedDevLauncherConfigModule,
+  };
+};
+
+const normalizeLoadedDevLauncherConfig = async (
+  options?: DevLauncherConfigLoadOptions
+): Promise<LoadedDevLauncherManifest> => {
+  const { configPath, moduleRecord } = await loadImportedDevLauncherConfigModule(
+    options
+  );
+
   if (!isRecord(moduleRecord.default)) {
-    throw new Error(
-      'Dev config must default-export an object created by defineDevLauncherConfig({ ... }).'
-    );
+    throw new Error(DEV_CONFIG_DEFAULT_EXPORT_ERROR);
   }
 
-  const manifest = manifestSchema.parse(moduleRecord.default);
+  let manifest: ParsedDevLauncherManifest;
+  try {
+    manifest = manifestSchema.parse(moduleRecord.default);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw formatConfigSchemaError(error);
+    }
+
+    throw error;
+  }
+
   const repoRoot = getRepoRootFromConfigPath(configPath);
-  const validatedActions = validateActionsById(
+  const { actionIdsInOrder, actionsById } = validateActionsById(
     moduleRecord.default.actionsById
   );
 
   return {
     ...manifest,
-    ...validatedActions,
+    actionIdsInOrder,
+    actionsById,
     configPath: path.resolve(configPath),
     repoRoot,
     serviceIdsInOrder: Object.keys(manifest.servicesById),
   };
 };
+
+/**
+ * Defines a typed TS config for long-running services plus one-shot developer
+ * actions.
+ */
+export const defineDevLauncherConfig = (
+  config: DevLauncherManifest
+): DevLauncherManifest => config;
+
+/**
+ * Loads and validates the shared TS/JS dev-launcher config.
+ */
+export const loadDevLauncherConfig = async (
+  options?: DevLauncherConfigLoadOptions
+): Promise<LoadedDevLauncherManifest> => {
+  return normalizeLoadedDevLauncherConfig(options);
+};
+
+/**
+ * Compatibility alias for callers that think in terms of manifests.
+ */
+export const loadDevLauncherManifest = loadDevLauncherConfig;
+
+/**
+ * Loads the shared dev config and returns the action subset.
+ */
+export const loadDevActionsConfigSubset = async (
+  options?: DevLauncherConfigLoadOptions
+): Promise<LoadedDevActionsConfigSubset> => {
+  const config = await normalizeLoadedDevLauncherConfig(options);
+
+  return {
+    actionIdsInOrder: config.actionIdsInOrder,
+    actionsById: config.actionsById,
+    configPath: config.configPath,
+  };
+};
+

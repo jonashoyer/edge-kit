@@ -1,5 +1,7 @@
-import { loadDevLauncherConfig } from './config';
-import { resolveDevLauncherConfigPath } from './repo-utils';
+import {
+  loadDevActionsConfigSubset,
+  resolveDevLauncherConfigPath,
+} from './config';
 import type { LoadedDevLauncherManifest } from './types';
 
 export interface LoadedDevActionsConfig {
@@ -21,11 +23,5 @@ export const loadDevActionsConfig = async (options?: {
   configPath?: string;
   cwd?: string;
 }): Promise<LoadedDevActionsConfig> => {
-  const config = await loadDevLauncherConfig(options);
-
-  return {
-    actionIdsInOrder: config.actionIdsInOrder,
-    actionsById: config.actionsById ?? {},
-    configPath: config.configPath,
-  };
+  return loadDevActionsConfigSubset(options);
 };

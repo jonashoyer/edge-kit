@@ -1,11 +1,11 @@
 import { encode } from '@toon-format/toon';
 import { describe, expect, it, vi } from 'vitest';
+import type { DevActionOrchestrationResult } from './action-orchestrator';
 import {
   runDevActionListCommand,
   runDevActionRunCommand,
 } from './action-command';
 import type {
-  DevActionRunExecutionResult,
   DevActionRunnerRuntime,
   ResolvedDevAction,
 } from './action-runner';
@@ -49,7 +49,7 @@ const createActionRuntime = (): DevActionRunnerRuntime => ({
 const createRuntime = (overrides?: {
   actions?: ResolvedDevAction[];
   runActionError?: Error;
-  runActionResult?: DevActionRunExecutionResult;
+  runActionResult?: DevActionOrchestrationResult;
 }) => {
   const stdout = {
     write: vi.fn(),
@@ -65,15 +65,17 @@ const createRuntime = (overrides?: {
 
       return (
         overrides?.runActionResult ?? {
-          action: {
-            available: true,
-            id: 'install-deps',
-            impactPolicy: 'stop-all',
-            label: 'Install dependencies',
-            suggestInDev: true,
+          execution: {
+            action: {
+              available: true,
+              id: 'install-deps',
+              impactPolicy: 'stop-all',
+              label: 'Install dependencies',
+              suggestInDev: true,
+            },
+            forced: false,
+            summary: 'Dependencies installed.',
           },
-          forced: false,
-          summary: 'Dependencies installed.',
         }
       );
     }),
@@ -202,6 +204,31 @@ describe('runDevActionRunCommand', () => {
       force: true,
       runtime: runtime.actionRuntime,
     });
+  });
+
+  it('surfaces unavailable actions with the shared message', async () => {
+    const { runtime } = createRuntime({
+      runActionResult: {
+        unavailable: {
+          action: {
+            available: false,
+            id: 'install-deps',
+            impactPolicy: 'stop-all',
+            label: 'Install dependencies',
+            reason: 'Dependencies are already installed.',
+            suggestInDev: true,
+          },
+          message:
+            'Action "install-deps" is unavailable. Dependencies are already installed.',
+        },
+      },
+    });
+
+    await expect(
+      runDevActionRunCommand('install-deps', {}, runtime)
+    ).rejects.toThrow(
+      'Action "install-deps" is unavailable. Dependencies are already installed.'
+    );
   });
 
   it('surfaces unknown action failures clearly', async () => {

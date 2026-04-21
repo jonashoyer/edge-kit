@@ -1,4 +1,4 @@
-import { loadDevLauncherConfig } from './config';
+import { loadDevLauncherManifest } from './config';
 import type { LoadedDevLauncherManifest } from './types';
 
 /**
@@ -22,4 +22,3 @@ export const normalizeSelectedServiceIds = (
   });
 };
 
-export const loadDevLauncherManifest = loadDevLauncherConfig;

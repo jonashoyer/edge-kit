@@ -10,8 +10,8 @@ import type {
   DevActionImpactPolicy,
   DevActionRunResult,
 } from './actions';
-import type { LoadedDevActionsConfig } from './actions-config';
 import type { LoadedDevLauncherManifest } from './types';
+import type { LoadedDevActionsConfig } from './actions-config';
 
 interface SpawnedExecProcess {
   on: (

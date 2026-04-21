@@ -17,8 +17,8 @@ import type { DevActionSuggestion } from './action-runner';
 import {
   getDevPreflightActionSuggestions,
   listDevActions,
-  runDevAction,
 } from './action-runner';
+import { executeDevActionWithSession } from './action-orchestrator';
 import { loadDevLauncherConfig } from './config';
 import { normalizeSelectedServiceIds } from './manifest';
 import { openExternalUrl } from './open-url';
@@ -33,12 +33,13 @@ import {
   runPlainDevSession,
 } from './plain-runner';
 import {
-  bootstrapDevLauncherSessionInTerminal,
-  type DevLauncherBootstrapRuntime,
-} from './session-bootstrap';
+  DevLauncherSessionAccess,
+  type DevLauncherSessionAccessRuntime,
+} from './session-access';
+import type { DevLauncherBootstrapRuntime } from './session-bootstrap';
 import {
-  DevLauncherRemoteProcessController,
-  DevLauncherSessionClient,
+  type DevLauncherRemoteProcessController,
+  type DevLauncherSessionClient,
   DevLauncherSessionClientError,
   type DevLauncherSessionClientRuntime,
 } from './session-client';
@@ -88,11 +89,8 @@ export interface DevLauncherSessionHostCommandOptions {
   services?: string;
 }
 
-export interface DevLauncherCommandRuntime {
-  bootstrapSession: (
-    manifest: LoadedDevLauncherManifest
-  ) => Promise<DevLauncherSessionMetadata>;
-  clientRuntime: DevLauncherSessionClientRuntime;
+export interface DevLauncherCommandRuntime
+  extends DevLauncherSessionAccessRuntime {
   createRemoteController: (
     manifest: LoadedDevLauncherManifest,
     client: DevLauncherSessionClient,
@@ -186,23 +184,10 @@ const baseBootstrapRuntime: DevLauncherBootstrapRuntime = {
 };
 
 const defaultRuntime: DevLauncherCommandRuntime = {
-  bootstrapSession: async (manifest) => {
-    return await bootstrapDevLauncherSessionInTerminal(
-      manifest,
-      baseBootstrapRuntime
-    );
-  },
-  clientRuntime: baseClientRuntime,
-  createRemoteController: (manifest, client, initialSummary) => {
-    return new DevLauncherRemoteProcessController(
-      manifest,
-      client,
-      initialSummary
-    );
-  },
-  createSessionClient: (manifest, metadata) => {
-    return new DevLauncherSessionClient(manifest, baseClientRuntime, metadata);
-  },
+  ...DevLauncherSessionAccess.createDefaultRuntime(
+    baseClientRuntime,
+    baseBootstrapRuntime
+  ),
   createSessionServer: (manifest, mode) => {
     return new DevLauncherSessionServer(manifest, mode);
   },
@@ -241,8 +226,18 @@ const defaultRuntime: DevLauncherCommandRuntime = {
         openExternalUrl: async (url) => {
           await openExternalUrl(url);
         },
-        runDevAction: async (loadedManifest, actionId) => {
-          return await runDevAction(loadedManifest, loadedManifest, actionId);
+        runDevAction: async (loadedManifest, actionId, options) => {
+          return await executeDevActionWithSession(
+            loadedManifest,
+            loadedManifest,
+            {
+              actionId,
+              controller: options?.controller,
+              hooks: {
+                refreshActions: options?.refreshActions,
+              },
+            }
+          );
         },
         stderr: process.stderr,
         stdin: process.stdin,
@@ -345,26 +340,11 @@ const writeCommandError = (
   throw error;
 };
 
-const createReadOnlyNoSessionError = (): DevLauncherSessionClientError => {
-  return new DevLauncherSessionClientError(
-    'no_session',
-    'No dev launcher session is running for this repo.'
-  );
-};
-
-const createAttachedController = async (
+const createSessionAccess = (
   manifest: LoadedDevLauncherManifest,
-  runtime: DevLauncherCommandRuntime,
-  metadata?: DevLauncherSessionMetadata | null
-) => {
-  const client = runtime.createSessionClient(manifest, metadata);
-  const summary = await client.getSession();
-
-  return {
-    client,
-    controller: runtime.createRemoteController(manifest, client, summary),
-    summary,
-  };
+  runtime: DevLauncherCommandRuntime
+): DevLauncherSessionAccess => {
+  return new DevLauncherSessionAccess(manifest, runtime);
 };
 
 const runAttachedSessionView = async (
@@ -446,21 +426,20 @@ export const runDevLauncherCommand = async (
   });
   const initialServiceIds = resolveInitialServiceIds(manifest, options);
   const useTui = !options.noTui && runtime.isInteractiveTuiSupported();
-  const existingClient = runtime.createSessionClient(manifest);
-  const existingMetadata = await existingClient.resolveSession();
+  const sessionAccess = createSessionAccess(manifest, runtime);
+  const existingMetadata = await sessionAccess.resolveExistingMetadata();
 
   if (existingMetadata) {
-    let summary = await existingClient.getSession();
+    const {
+      client,
+      controller,
+      summary: existingSummary,
+    } = await sessionAccess.resolve('read_only');
+    let summary = existingSummary;
 
     if (initialServiceIds && initialServiceIds.length > 0) {
-      summary = await existingClient.applyServiceSet(initialServiceIds);
+      summary = await client.applyServiceSet(initialServiceIds);
     }
-
-    const controller = runtime.createRemoteController(
-      manifest,
-      existingClient,
-      summary
-    );
 
     return await runAttachedSessionView(
       manifest,
@@ -494,10 +473,12 @@ export const runDevLauncherCommand = async (
   const metadata = await server.start();
 
   try {
-    const { controller, summary } = await createAttachedController(
+    const attachedClient = runtime.createSessionClient(manifest, metadata);
+    const summary = await attachedClient.getSession();
+    const controller = runtime.createRemoteController(
       manifest,
-      runtime,
-      metadata
+      attachedClient,
+      summary
     );
     const exitCode = await runAttachedSessionView(
       manifest,
@@ -525,19 +506,9 @@ export const runDevLauncherAttachCommand = async (
   const manifest = await runtime.loadManifest({
     configPath: options.config,
   });
-  const existingClient = runtime.createSessionClient(manifest);
-  const existingMetadata = await existingClient.resolveSession();
-  if (!existingMetadata) {
-    throw createReadOnlyNoSessionError();
-  }
-
+  const sessionAccess = createSessionAccess(manifest, runtime);
   const useTui = !options.noTui && runtime.isInteractiveTuiSupported();
-  const summary = await existingClient.getSession();
-  const controller = runtime.createRemoteController(
-    manifest,
-    existingClient,
-    summary
-  );
+  const { controller, summary } = await sessionAccess.resolve('read_only');
 
   return await runAttachedSessionView(
     manifest,
@@ -598,20 +569,6 @@ export const runDevLauncherHostCommand = async (
   return 0;
 };
 
-const ensureMutatingSessionClient = async (
-  manifest: LoadedDevLauncherManifest,
-  runtime: DevLauncherCommandRuntime
-) => {
-  const client = runtime.createSessionClient(manifest);
-  const existingMetadata = await client.resolveSession();
-  if (existingMetadata) {
-    return client;
-  }
-
-  const bootstrappedMetadata = await runtime.bootstrapSession(manifest);
-  return runtime.createSessionClient(manifest, bootstrappedMetadata);
-};
-
 export const runDevLauncherStatusCommand = async (
   options: DevLauncherStatusCommandOptions = {},
   runtime: DevLauncherCommandRuntime = defaultRuntime
@@ -622,13 +579,9 @@ export const runDevLauncherStatusCommand = async (
     const manifest = await runtime.loadManifest({
       configPath: options.config,
     });
-    const client = runtime.createSessionClient(manifest);
-    const metadata = await client.resolveSession();
-    if (!metadata) {
-      throw createReadOnlyNoSessionError();
-    }
-
-    const summary = await client.getSession();
+    const { summary } = await createSessionAccess(manifest, runtime).resolve(
+      'read_only'
+    );
     if (outputFormat !== 'text') {
       writeStructuredOutput(
         runtime,
@@ -664,7 +617,9 @@ const runMutatingServiceCommand = async (
     const manifest = await runtime.loadManifest({
       configPath: options.config,
     });
-    const client = await ensureMutatingSessionClient(manifest, runtime);
+    const { client } = await createSessionAccess(manifest, runtime).resolve(
+      'mutating'
+    );
     let summary: DevLauncherSessionGetResult;
     let actionLabel: 'Restarted' | 'Started' | 'Stopped';
 
@@ -738,7 +693,9 @@ export const runDevLauncherServicesApplyCommand = async (
     const manifest = await runtime.loadManifest({
       configPath: options.config,
     });
-    const client = await ensureMutatingSessionClient(manifest, runtime);
+    const { client } = await createSessionAccess(manifest, runtime).resolve(
+      'mutating'
+    );
     const summary = await client.applyServiceSet(
       normalizeSelectedServiceIds(
         manifest,
@@ -777,11 +734,9 @@ export const runDevLauncherLogsCommand = async (
     const manifest = await runtime.loadManifest({
       configPath: options.config,
     });
-    const client = runtime.createSessionClient(manifest);
-    const metadata = await client.resolveSession();
-    if (!metadata) {
-      throw createReadOnlyNoSessionError();
-    }
+    const { client } = await createSessionAccess(manifest, runtime).resolve(
+      'read_only'
+    );
 
     let afterSequence = parseOptionalInteger(options.after) ?? 0;
     const limit = parseOptionalInteger(options.limit);
@@ -849,13 +804,7 @@ export const runDevLauncherSessionStopCommand = async (
     const manifest = await runtime.loadManifest({
       configPath: options.config,
     });
-    const client = runtime.createSessionClient(manifest);
-    const metadata = await client.resolveSession();
-    if (!metadata) {
-      throw createReadOnlyNoSessionError();
-    }
-
-    await client.stopSession();
+    await createSessionAccess(manifest, runtime).stop();
     if (outputFormat !== 'text') {
       writeStructuredOutput(
         runtime,
