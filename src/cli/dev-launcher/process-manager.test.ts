@@ -144,6 +144,31 @@ describe('DevLauncherProcessManager', () => {
     expect(systemLines).toContain('restarted');
   });
 
+  it('adds directly started services to the managed set', async () => {
+    const children: FakeChildProcess[] = [];
+    const manager = new DevLauncherProcessManager(createManifest(), {
+      clearTimeout,
+      env: process.env,
+      now: () => Date.now(),
+      platform: 'darwin',
+      setTimeout,
+      spawn: () => {
+        const child = new FakeChildProcess(children.length + 1);
+        children.push(child);
+        return child;
+      },
+    });
+
+    await manager.startService('app');
+
+    expect(manager.getSnapshot().managedServiceIds).toEqual(['app']);
+
+    await manager.stopAll();
+
+    expect(children[0]?.kills).toContain('SIGTERM');
+    expect(manager.getSnapshot().serviceStates.app.status).toBe('stopped');
+  });
+
   it('marks unexpected exits as failed', async () => {
     const children: FakeChildProcess[] = [];
     const manager = new DevLauncherProcessManager(createManifest(), {

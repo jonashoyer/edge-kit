@@ -289,6 +289,7 @@ export class DevLauncherProcessManager implements DevLauncherProcessController {
 
   async startService(serviceId: string): Promise<void> {
     await this.#runServiceOperation(serviceId, async () => {
+      this.#ensureManagedService(serviceId);
       await this.#startServiceInternal(serviceId, 'started');
     });
   }
@@ -301,6 +302,7 @@ export class DevLauncherProcessManager implements DevLauncherProcessController {
 
   async restartService(serviceId: string): Promise<void> {
     await this.#runServiceOperation(serviceId, async () => {
+      this.#ensureManagedService(serviceId);
       await this.#stopServiceInternal(serviceId);
       await this.#startServiceInternal(serviceId, 'restarted');
     });
@@ -348,6 +350,18 @@ export class DevLauncherProcessManager implements DevLauncherProcessController {
 
     this.#operations.set(serviceId, nextOperation);
     await nextOperation;
+  }
+
+  #ensureManagedService(serviceId: string): void {
+    if (this.#managedServiceIds.includes(serviceId)) {
+      return;
+    }
+
+    const managedServiceIds = new Set([...this.#managedServiceIds, serviceId]);
+    this.#managedServiceIds = this.#manifest.serviceIdsInOrder.filter(
+      (candidateServiceId) => managedServiceIds.has(candidateServiceId)
+    );
+    this.#emitChange();
   }
 
   async #startServiceInternal(

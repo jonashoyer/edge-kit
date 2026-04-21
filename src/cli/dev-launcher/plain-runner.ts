@@ -279,12 +279,32 @@ export const runPlainDevSession = async (
 
   const unsubscribe = controller.subscribe(printNewLogs);
   printNewLogs();
+  let completionUnsubscribe = (): void => undefined;
+  let cleanup = (): void => {
+    completionUnsubscribe();
+    unsubscribe();
+  };
 
   const awaitCompletion = new Promise<number>((resolve, reject) => {
     const signalHandlers: Array<{
       handler: () => void;
       signal: NodeJS.Signals;
     }> = [];
+    let didCleanup = false;
+
+    cleanup = (): void => {
+      if (didCleanup) {
+        return;
+      }
+
+      didCleanup = true;
+      completionUnsubscribe();
+      unsubscribe();
+
+      for (const { handler, signal } of signalHandlers) {
+        process.off(signal, handler);
+      }
+    };
 
     const maybeResolve = (): void => {
       printNewLogs();
@@ -302,10 +322,7 @@ export const runPlainDevSession = async (
         return;
       }
 
-      unsubscribe();
-      for (const { handler, signal } of signalHandlers) {
-        process.off(signal, handler);
-      }
+      cleanup();
       resolve(exitCode);
     };
 
@@ -329,10 +346,7 @@ export const runPlainDevSession = async (
       })
         .then(() => {
           if (options?.onRequestExit) {
-            unsubscribe();
-            for (const { handler, signal } of signalHandlers) {
-              process.off(signal, handler);
-            }
+            cleanup();
             resolve(exitCode);
             return;
           }
@@ -350,7 +364,7 @@ export const runPlainDevSession = async (
       signalHandlers.push({ handler, signal });
     }
 
-    const completionUnsubscribe = controller.subscribe(() => {
+    completionUnsubscribe = controller.subscribe(() => {
       maybeResolve();
     });
 
@@ -369,6 +383,6 @@ export const runPlainDevSession = async (
   });
 
   return await awaitCompletion.finally(() => {
-    unsubscribe();
+    cleanup();
   });
 };

@@ -265,6 +265,17 @@ export class DevLauncherSessionClient {
         });
 
         socket.once('end', () => {
+          settle(
+            () => {
+              reject(
+                new DevLauncherSessionClientError(
+                  'socket_closed',
+                  'Dev launcher session closed before responding.'
+                )
+              );
+            },
+            true
+          );
           socket.destroy();
         });
       }
