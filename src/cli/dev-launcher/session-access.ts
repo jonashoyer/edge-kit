@@ -96,7 +96,9 @@ export class DevLauncherSessionAccess {
       throw createNoSessionError();
     }
 
-    const bootstrappedMetadata = await this.#runtime.bootstrapSession(this.#manifest);
+    const bootstrappedMetadata = await this.#runtime.bootstrapSession(
+      this.#manifest
+    );
     return await this.#attach(
       this.#runtime.createSessionClient(this.#manifest, bootstrappedMetadata)
     );

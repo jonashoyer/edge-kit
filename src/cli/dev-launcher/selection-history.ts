@@ -1,10 +1,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {
+  type DevLauncherStatePathRuntime,
   defaultDevLauncherStatePathRuntime,
   getDevLauncherRepoHash,
   getDevLauncherStateRoot,
-  type DevLauncherStatePathRuntime,
 } from './state-paths';
 import type { LoadedDevLauncherManifest } from './types';
 
@@ -59,7 +59,7 @@ const parsePersistedSelectionHistory = (
   value: unknown,
   manifest: LoadedDevLauncherManifest
 ): string[][] => {
-  if (!isRecord(value) || !Array.isArray(value.recentSelections)) {
+  if (!(isRecord(value) && Array.isArray(value.recentSelections))) {
     return [];
   }
 

@@ -10,12 +10,14 @@ import {
   getRepoRootFromConfigPath,
   resolveDevLauncherConfigPath,
 } from './repo-utils';
+
 export { resolveDevLauncherConfigPath } from './repo-utils';
+
 import type {
   DevLauncherManifest,
-  LoadedDevLauncherManifest,
   DevLauncherServiceDefinition,
   DevLauncherUiConfig,
+  LoadedDevLauncherManifest,
 } from './types';
 
 interface DevLauncherConfigLoadOptions {
@@ -47,7 +49,16 @@ const IMPACT_POLICIES = new Set<DevActionImpactPolicy>([
   'stop-selected',
 ]);
 const ACTION_HOTKEY_REGEXP = /^[a-z0-9]$/u;
-const RESERVED_ACTION_HOTKEYS = new Set(['a', 'j', 'k', 'o', 'q', 'r', 's', 'x']);
+const RESERVED_ACTION_HOTKEYS = new Set([
+  'a',
+  'j',
+  'k',
+  'o',
+  'q',
+  'r',
+  's',
+  'x',
+]);
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null;
@@ -326,9 +337,8 @@ const loadImportedDevLauncherConfigModule = async (
 const normalizeLoadedDevLauncherConfig = async (
   options?: DevLauncherConfigLoadOptions
 ): Promise<LoadedDevLauncherManifest> => {
-  const { configPath, moduleRecord } = await loadImportedDevLauncherConfigModule(
-    options
-  );
+  const { configPath, moduleRecord } =
+    await loadImportedDevLauncherConfigModule(options);
 
   if (!isRecord(moduleRecord.default)) {
     throw new Error(DEV_CONFIG_DEFAULT_EXPORT_ERROR);
@@ -396,4 +406,3 @@ export const loadDevActionsConfigSubset = async (
     configPath: config.configPath,
   };
 };
-

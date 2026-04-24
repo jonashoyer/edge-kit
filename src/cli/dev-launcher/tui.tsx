@@ -1,17 +1,17 @@
+import { spawn } from 'node:child_process';
 import { Box, render, Text, useApp, useInput } from 'ink';
 /* biome-ignore lint/correctness/noUnusedImports: React must stay in scope for this JSX runtime path. */
 import React, { useEffect, useState } from 'react';
-import { spawn } from 'node:child_process';
-import type {
-  DevActionRunnerRuntime,
-  ResolvedDevAction,
-} from './action-runner';
-import { listDevActions } from './action-runner';
 import type { DevActionOrchestrationResult } from './action-orchestrator';
 import {
   executeDevActionWithSession,
   getDevActionUnavailableMessage,
 } from './action-orchestrator';
+import type {
+  DevActionRunnerRuntime,
+  ResolvedDevAction,
+} from './action-runner';
+import { listDevActions } from './action-runner';
 import { openExternalUrl } from './open-url';
 import type { DevLauncherProcessController } from './process-manager';
 import { DevLauncherProcessManager } from './process-manager';
@@ -336,14 +336,13 @@ export function DevLauncherDashboardApp({
   });
   const [overlay, setOverlay] = useState<OverlayState>({
     cursor: 0,
-    kind:
-      !allowStartupSelection
+    kind: allowStartupSelection
+      ? startupSelection.source === 'explicit'
         ? null
-        : startupSelection.source === 'explicit'
-          ? null
-          : recentSelections.length > 0
-            ? 'startup'
-            : 'service-picker',
+        : recentSelections.length > 0
+          ? 'startup'
+          : 'service-picker'
+      : null,
     pendingServiceIds: [],
     returnToStartup: recentSelections.length > 0,
   });
@@ -379,7 +378,11 @@ export function DevLauncherDashboardApp({
     }
 
     setDidApplyInitialSelection(true);
-    applySessionServiceSelection(manifest, controller, initialServiceIds as string[]).catch((error: unknown) => {
+    applySessionServiceSelection(
+      manifest,
+      controller,
+      initialServiceIds as string[]
+    ).catch((error: unknown) => {
       const message = error instanceof Error ? error.message : String(error);
       setFlashMessage(`Error: ${message}`);
     });
@@ -497,7 +500,8 @@ export function DevLauncherDashboardApp({
       return {
         ...currentOverlay,
         pendingServiceIds: manifest.serviceIdsInOrder.filter(
-          (candidateServiceId) => nextPendingServiceIds.includes(candidateServiceId)
+          (candidateServiceId) =>
+            nextPendingServiceIds.includes(candidateServiceId)
         ),
       };
     });
@@ -944,9 +948,9 @@ export function DevLauncherDashboardApp({
             Focused mode renders only this service log for clean text selection.
           </Text>
         )}
-        {!flashMessage ? (
+        {flashMessage ? null : (
           <Text dimColor>{getActionSummaryText(resolvedActions)}</Text>
-        ) : null}
+        )}
       </Box>
     );
   }
@@ -1083,9 +1087,9 @@ export function DevLauncherDashboardApp({
         </Box>
       </Box>
       {flashMessage ? <Text color='yellow'>{flashMessage}</Text> : null}
-      {!flashMessage ? (
+      {flashMessage ? null : (
         <Text dimColor>{getActionSummaryText(resolvedActions)}</Text>
-      ) : null}
+      )}
     </Box>
   );
 }

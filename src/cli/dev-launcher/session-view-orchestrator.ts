@@ -137,7 +137,10 @@ export const resolveSessionStartupSelection = (
   if (initialServiceIds && initialServiceIds.length > 0) {
     return {
       recentSelections,
-      selectedServiceIds: normalizeSelectedServiceIds(manifest, initialServiceIds),
+      selectedServiceIds: normalizeSelectedServiceIds(
+        manifest,
+        initialServiceIds
+      ),
       source: 'explicit',
     };
   }
@@ -193,10 +196,12 @@ export const promptForServiceSelection = async (
   }
 
   const presetResponse = await runtime.prompt({
-    choices: getStartupOptions(manifest, recentSelections).map((option, index) => ({
-      title: option.label,
-      value: option.kind === 'custom' ? 'custom' : `${index}`,
-    })),
+    choices: getStartupOptions(manifest, recentSelections).map(
+      (option, index) => ({
+        title: option.label,
+        value: option.kind === 'custom' ? 'custom' : `${index}`,
+      })
+    ),
     initial: 0,
     message: 'Choose a recent service selection or start a custom selection',
     name: 'selection',
@@ -237,7 +242,10 @@ export const applySessionServiceSelection = async (
   serviceIds: Iterable<string>,
   options?: SessionSelectionApplicationOptions
 ): Promise<string[]> => {
-  const normalizedServiceIds = normalizeSelectedServiceIds(manifest, serviceIds);
+  const normalizedServiceIds = normalizeSelectedServiceIds(
+    manifest,
+    serviceIds
+  );
   await controller.applyServiceSet(normalizedServiceIds);
 
   if (options?.persistSelection !== false && normalizedServiceIds.length > 0) {

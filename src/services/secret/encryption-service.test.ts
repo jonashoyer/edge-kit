@@ -37,9 +37,9 @@ describe('EncryptionService', () => {
     const otherService = new EncryptionService(OTHER_MASTER_KEY);
     const encrypted = await service.encryptStringified('secret');
 
-    await expect(otherService.decryptStringified(encrypted)).rejects.toBeInstanceOf(
-      DecryptionFailedError
-    );
+    await expect(
+      otherService.decryptStringified(encrypted)
+    ).rejects.toBeInstanceOf(DecryptionFailedError);
   });
 
   it('throws DecryptionFailedError for tampered payloads', async () => {

@@ -1,12 +1,12 @@
 import fs from 'node:fs';
 import net from 'node:net';
-import path from 'node:path';
 import { tmpdir } from 'node:os';
+import path from 'node:path';
 import {
+  type DevLauncherStatePathRuntime,
   defaultDevLauncherStatePathRuntime,
   getDevLauncherRepoHash,
   getDevLauncherStateRoot,
-  type DevLauncherStatePathRuntime,
 } from './state-paths';
 import type {
   DevLauncherSessionMetadata,

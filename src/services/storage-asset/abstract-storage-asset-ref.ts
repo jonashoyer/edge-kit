@@ -37,7 +37,9 @@ const normalizeRequiredString = (value: string, label: string): string => {
   return normalized;
 };
 
-const normalizeTenantId = (tenantId: string | null | undefined): string | null => {
+const normalizeTenantId = (
+  tenantId: string | null | undefined
+): string | null => {
   if (tenantId === undefined || tenantId === null) {
     return null;
   }
@@ -70,7 +72,9 @@ export abstract class AbstractStorageAssetRefService {
 
   abstract deleteByAssetIds(assetIds: string[]): Promise<void>;
 
-  protected normalizeScope(scope: StorageAssetOwnerRefScope): Required<StorageAssetOwnerRefScope> {
+  protected normalizeScope(
+    scope: StorageAssetOwnerRefScope
+  ): Required<StorageAssetOwnerRefScope> {
     return {
       ownerType: normalizeRequiredString(scope.ownerType, 'ownerType'),
       ownerId: normalizeRequiredString(scope.ownerId, 'ownerId'),

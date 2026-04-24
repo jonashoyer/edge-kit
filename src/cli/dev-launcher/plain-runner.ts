@@ -41,8 +41,6 @@ const defaultRuntime: PlainDevSessionRuntime = {
   stdout: process.stdout,
 };
 
-
-
 const formatPrefixedLogLine = (
   manifest: LoadedDevLauncherManifest,
   serviceId: string,
@@ -92,7 +90,11 @@ export const runPlainDevSession = async (
   const shouldApplyInitialSelection = options?.applyInitialSelection !== false;
 
   if (shouldApplyInitialSelection && normalizedSelection.length > 0) {
-    await applySessionServiceSelection(manifest, controller, normalizedSelection);
+    await applySessionServiceSelection(
+      manifest,
+      controller,
+      normalizedSelection
+    );
     runtime.stdout.write(
       `Launching ${formatSelectedServiceListLabel(manifest, normalizedSelection)}...\n`
     );

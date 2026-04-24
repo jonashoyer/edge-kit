@@ -1,11 +1,9 @@
 import { EventEmitter } from 'node:events';
 import { describe, expect, it } from 'vitest';
+import type { DevLauncherSessionClientRuntime } from './session-client';
 import {
   DevLauncherSessionClient,
-  DevLauncherSessionClientError,
-} from './session-client';
-import type {
-  DevLauncherSessionClientRuntime,
+  type DevLauncherSessionClientError,
 } from './session-client';
 import type {
   DevLauncherSessionMetadata,

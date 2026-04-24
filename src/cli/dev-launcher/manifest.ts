@@ -1,4 +1,3 @@
-import { loadDevLauncherManifest } from './config';
 import type { LoadedDevLauncherManifest } from './types';
 
 /**
@@ -21,4 +20,3 @@ export const normalizeSelectedServiceIds = (
     return requestedServiceIds.has(serviceId);
   });
 };
-

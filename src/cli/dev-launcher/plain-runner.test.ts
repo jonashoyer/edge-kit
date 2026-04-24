@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { DevLauncherProcessController } from './process-manager';
 import { runPlainDevSession } from './plain-runner';
+import type { DevLauncherProcessController } from './process-manager';
 
 const {
   loadRecentDevServiceSelectionsMock,
@@ -14,6 +14,7 @@ vi.mock('./selection-history', () => ({
   loadRecentDevServiceSelections: loadRecentDevServiceSelectionsMock,
   saveRecentDevServiceSelection: saveRecentDevServiceSelectionMock,
 }));
+
 import type {
   DevLauncherSupervisorSnapshot,
   LoadedDevLauncherManifest,
@@ -93,20 +94,17 @@ describe('runPlainDevSession', () => {
     loadRecentDevServiceSelectionsMock.mockReturnValue([['app']]);
     const stdoutWrite = vi.fn();
 
-    const exitCode = await runPlainDevSession(
-      createManifest(),
-      {
-        canPrompt: false,
-        createController: () => controller,
-        prompt: async () => ({}),
-        stderr: {
-          write: vi.fn(),
-        } as unknown as NodeJS.WriteStream,
-        stdout: {
-          write: stdoutWrite,
-        } as unknown as NodeJS.WriteStream,
-      }
-    );
+    const exitCode = await runPlainDevSession(createManifest(), {
+      canPrompt: false,
+      createController: () => controller,
+      prompt: async () => ({}),
+      stderr: {
+        write: vi.fn(),
+      } as unknown as NodeJS.WriteStream,
+      stdout: {
+        write: stdoutWrite,
+      } as unknown as NodeJS.WriteStream,
+    });
 
     expect(exitCode).toBe(0);
     expect(controller.applyServiceSet).toHaveBeenCalledWith(['app']);

@@ -1,6 +1,6 @@
 import type {
-  DevActionRunnerRuntime,
   DevActionRunExecutionResult,
+  DevActionRunnerRuntime,
   ResolvedDevAction,
 } from './action-runner';
 import { listDevActions, runDevAction } from './action-runner';
@@ -27,7 +27,8 @@ export interface DevActionSessionHooks {
   refreshActions?: () => Promise<void>;
 }
 
-export interface SessionAwareDevActionOptions extends DevActionExecutionRequest {
+export interface SessionAwareDevActionOptions
+  extends DevActionExecutionRequest {
   controller?: Pick<
     DevLauncherProcessController,
     'applyServiceSet' | 'getSnapshot' | 'stopAll'
@@ -75,7 +76,11 @@ export const resolveDevActionExecutionRequest = async (
   request: DevActionExecutionRequest,
   runtime?: DevActionRunnerRuntime
 ): Promise<DevActionOrchestrationResult> => {
-  const resolvedActions = await listDevActions(manifest, actionsConfig, runtime);
+  const resolvedActions = await listDevActions(
+    manifest,
+    actionsConfig,
+    runtime
+  );
   const action = resolvedActions.find(
     (candidate) => candidate.id === request.actionId
   );
@@ -93,10 +98,15 @@ export const resolveDevActionExecutionRequest = async (
     };
   }
 
-  const execution = await runDevAction(manifest, actionsConfig, request.actionId, {
-    force: request.force,
-    runtime,
-  });
+  const execution = await runDevAction(
+    manifest,
+    actionsConfig,
+    request.actionId,
+    {
+      force: request.force,
+      runtime,
+    }
+  );
 
   return { execution };
 };
@@ -129,13 +139,22 @@ export const executeDevActionWithSession = async (
   }
 
   try {
-    return await withManagedServicePause(action, options.controller, async () => {
-      const execution = await runDevAction(manifest, actionsConfig, options.actionId, {
-        force: options.force,
-        runtime: options.runtime,
-      });
-      return { execution };
-    });
+    return await withManagedServicePause(
+      action,
+      options.controller,
+      async () => {
+        const execution = await runDevAction(
+          manifest,
+          actionsConfig,
+          options.actionId,
+          {
+            force: options.force,
+            runtime: options.runtime,
+          }
+        );
+        return { execution };
+      }
+    );
   } finally {
     await options.hooks?.refreshActions?.();
   }

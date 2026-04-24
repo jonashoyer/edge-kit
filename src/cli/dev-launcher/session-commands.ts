@@ -13,12 +13,12 @@ import {
 import { createConnection } from 'node:net';
 import { homedir } from 'node:os';
 import prompts from 'prompts';
+import { executeDevActionWithSession } from './action-orchestrator';
 import type { DevActionSuggestion } from './action-runner';
 import {
   getDevPreflightActionSuggestions,
   listDevActions,
 } from './action-runner';
-import { executeDevActionWithSession } from './action-orchestrator';
 import { loadDevLauncherConfig } from './config';
 import { normalizeSelectedServiceIds } from './manifest';
 import { openExternalUrl } from './open-url';

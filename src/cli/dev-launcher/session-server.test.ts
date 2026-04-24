@@ -52,7 +52,8 @@ class FakeController implements DevLauncherProcessController {
   readonly applyServiceSet = vi.fn(async (serviceIds: Iterable<string>) => {
     this.snapshot.managedServiceIds = [...serviceIds];
     this.snapshot.serviceStates.app = createServiceState({
-      status: this.snapshot.managedServiceIds.length > 0 ? 'running' : 'stopped',
+      status:
+        this.snapshot.managedServiceIds.length > 0 ? 'running' : 'stopped',
     });
   });
   readonly restartService = vi.fn(async (_serviceId: string) => {
@@ -137,7 +138,10 @@ class FakeController implements DevLauncherProcessController {
 
 class FakeSocket {
   peer: FakeSocket | null = null;
-  readonly persistentListeners = new Map<string, Array<(...args: any[]) => void>>();
+  readonly persistentListeners = new Map<
+    string,
+    Array<(...args: any[]) => void>
+  >();
   readonly onceListeners = new Map<string, Array<(...args: any[]) => void>>();
 
   destroy(): void {
@@ -230,7 +234,8 @@ const createStateRuntime = (
 
   return {
     clearInterval,
-    connectSocket: async (socketPath: string) => transportRegistry.has(socketPath),
+    connectSocket: async (socketPath: string) =>
+      transportRegistry.has(socketPath),
     connectSocketClient: (socketPath: string) =>
       transportRegistry.connect(socketPath),
     createController: vi.fn(),

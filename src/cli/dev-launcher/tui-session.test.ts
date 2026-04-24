@@ -75,9 +75,7 @@ const createController = (): DevLauncherProcessController => ({
 
 const createRuntime = (controller: DevLauncherProcessController) => ({
   createController: vi.fn(() => controller),
-  listActions: vi.fn(
-    async (): Promise<ResolvedDevAction[]> => []
-  ),
+  listActions: vi.fn(async (): Promise<ResolvedDevAction[]> => []),
   openExternalUrl: vi.fn(async () => undefined),
   runDevAction: vi.fn(
     async (): Promise<DevActionRunExecutionResult> => ({

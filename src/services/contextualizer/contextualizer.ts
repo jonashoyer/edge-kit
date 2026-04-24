@@ -137,7 +137,10 @@ export class Contextualizer<TProviders extends ProviderRegistry> {
   private readonly kv?: AbstractKeyValueService;
   private readonly keyNamespace: string;
   private readonly ttlSeconds: number;
-  private readonly buildCacheKey: (providerId: string, params: unknown) => string;
+  private readonly buildCacheKey: (
+    providerId: string,
+    params: unknown
+  ) => string;
 
   constructor(providers: TProviders, options: ContextualizerOptions = {}) {
     this.providers = providers;
@@ -164,7 +167,9 @@ export class Contextualizer<TProviders extends ProviderRegistry> {
     request: TRequest,
     options: ContextFetchOptions = {}
   ): Promise<ContextFetchResult<TProviders, TRequest> & { request: TRequest }> {
-    const keys = Object.keys(request) as Array<keyof TRequest & keyof TProviders>;
+    const keys = Object.keys(request) as Array<
+      keyof TRequest & keyof TProviders
+    >;
     const result = {} as ContextFetchResult<TProviders, TRequest>;
 
     await Promise.all(
@@ -227,7 +232,9 @@ export class Contextualizer<TProviders extends ProviderRegistry> {
   }> {
     const fetched = await this.fetch(request, options);
     const data = {} as ContextFetchResult<TProviders, TRequest>;
-    const keys = Object.keys(request) as Array<keyof TRequest & keyof TProviders>;
+    const keys = Object.keys(request) as Array<
+      keyof TRequest & keyof TProviders
+    >;
     const rendered = {} as ContextRenderResult<TProviders, TRequest>;
 
     for (const key of keys) {
@@ -245,7 +252,10 @@ export class Contextualizer<TProviders extends ProviderRegistry> {
     };
   }
 
-  private getProviderCacheKey(provider: ContextProvider, params: unknown): string {
+  private getProviderCacheKey(
+    provider: ContextProvider,
+    params: unknown
+  ): string {
     const providerKey = provider.getCacheKey
       ? provider.getCacheKey(params)
       : this.buildCacheKey(provider.id, params);

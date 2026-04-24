@@ -3,8 +3,8 @@ import { render as inkRender } from 'ink-testing-library';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { DevActionOrchestrationResult } from './action-orchestrator';
-import { DevLauncherDashboardApp } from './tui';
 import type { ResolvedDevAction } from './action-runner';
+import { DevLauncherDashboardApp } from './tui';
 import type {
   DevLauncherLogEntry,
   DevLauncherSupervisorSnapshot,
@@ -526,10 +526,14 @@ describe('DevLauncherDashboardApp', () => {
     await waitForMockCall(runDevAction);
     await waitForFrameToContain(lastFrame, 'Dependencies installed.');
 
-    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps', {
-      controller,
-      refreshActions: expect.any(Function),
-    });
+    expect(runDevAction).toHaveBeenCalledWith(
+      createManifest(),
+      'install-deps',
+      {
+        controller,
+        refreshActions: expect.any(Function),
+      }
+    );
     expect(lastFrame()).toContain('Dependencies installed.');
   });
 
@@ -580,10 +584,14 @@ describe('DevLauncherDashboardApp', () => {
     await waitForMockCall(runDevAction);
     await waitForFrameToContain(lastFrame, 'Dependencies installed.');
 
-    expect(runDevAction).toHaveBeenCalledWith(createManifest(), 'install-deps', {
-      controller,
-      refreshActions: expect.any(Function),
-    });
+    expect(runDevAction).toHaveBeenCalledWith(
+      createManifest(),
+      'install-deps',
+      {
+        controller,
+        refreshActions: expect.any(Function),
+      }
+    );
     expect(lastFrame()).toContain('Dependencies installed.');
   });
 });

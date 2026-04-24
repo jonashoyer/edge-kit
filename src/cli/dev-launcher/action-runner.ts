@@ -10,8 +10,8 @@ import type {
   DevActionImpactPolicy,
   DevActionRunResult,
 } from './actions';
-import type { LoadedDevLauncherManifest } from './types';
 import type { LoadedDevActionsConfig } from './actions-config';
+import type { LoadedDevLauncherManifest } from './types';
 
 interface SpawnedExecProcess {
   on: (
@@ -459,7 +459,7 @@ export const getDevPreflightActionSuggestions = async (
 
   for (const actionId of actionsConfig.actionIdsInOrder) {
     const action = actionsConfig.actionsById[actionId];
-    if (!action || !action.suggestInDev) {
+    if (!(action && action.suggestInDev)) {
       continue;
     }
 

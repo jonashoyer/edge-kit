@@ -117,7 +117,9 @@ export const createAiProviderProbe = (
 
       const text = result.text.trim();
       if (!text) {
-        throw new Error('Expected model output text but received an empty response');
+        throw new Error(
+          'Expected model output text but received an empty response'
+        );
       }
 
       const meta = options.validate

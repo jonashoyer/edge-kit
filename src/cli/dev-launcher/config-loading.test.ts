@@ -11,7 +11,9 @@ import {
 } from './config';
 
 const createTempDir = (): string => {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-dev-launcher-config-'));
+  return fs.mkdtempSync(
+    path.join(os.tmpdir(), 'edge-kit-dev-launcher-config-')
+  );
 };
 
 const writeFile = (filePath: string, content: string): void => {
@@ -114,7 +116,10 @@ describe('dev-launcher config loading boundary', () => {
       path.resolve(process.cwd(), 'src/cli/dev-launcher/actions/git-pull.ts')
     ).href;
     const installDepsActionUrl = pathToFileURL(
-      path.resolve(process.cwd(), 'src/cli/dev-launcher/actions/install-deps.ts')
+      path.resolve(
+        process.cwd(),
+        'src/cli/dev-launcher/actions/install-deps.ts'
+      )
     ).href;
     writeFile(
       path.join(tempDir, 'package.json'),
@@ -152,7 +157,9 @@ export default defineDevLauncherConfig({
     expect(config.actionIdsInOrder).toEqual(['git-pull', 'install-deps']);
     expect(config.actionsById['git-pull']?.label).toBe('Pull latest commits');
     expect(config.actionsById['git-pull']?.hotkey).toBe('p');
-    expect(config.actionsById['install-deps']?.label).toBe('Install dependencies');
+    expect(config.actionsById['install-deps']?.label).toBe(
+      'Install dependencies'
+    );
     expect(config.actionsById['install-deps']?.hotkey).toBe('i');
   });
 

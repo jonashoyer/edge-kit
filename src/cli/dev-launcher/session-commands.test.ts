@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { DevLauncherSessionClientError } from './session-client';
 import {
   DevLauncherSessionAccess,
   type DevLauncherSessionAccessRuntime,
 } from './session-access';
+import { DevLauncherSessionClientError } from './session-client';
 import {
   runDevLauncherLogsCommand,
   runDevLauncherServiceStartCommand,
@@ -166,7 +166,9 @@ describe('DevLauncherSessionAccess', () => {
     });
 
     await expect(
-      new DevLauncherSessionAccess(createManifest(), runtime).resolve('read_only')
+      new DevLauncherSessionAccess(createManifest(), runtime).resolve(
+        'read_only'
+      )
     ).rejects.toMatchObject<Partial<DevLauncherSessionClientError>>({
       errorCode: 'no_session',
       message: 'No dev launcher session is running for this repo.',
@@ -205,7 +207,9 @@ describe('DevLauncherSessionAccess', () => {
     });
 
     await expect(
-      new DevLauncherSessionAccess(createManifest(), runtime).resolve('read_only')
+      new DevLauncherSessionAccess(createManifest(), runtime).resolve(
+        'read_only'
+      )
     ).rejects.toMatchObject<Partial<DevLauncherSessionClientError>>({
       errorCode: 'no_session',
       message: 'No dev launcher session is running for this repo.',

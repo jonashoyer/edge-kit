@@ -1,19 +1,19 @@
-import net from 'node:net';
 import { randomUUID } from 'node:crypto';
+import net from 'node:net';
+import type { DevLauncherProcessController } from './process-manager';
 import {
-  DEV_LAUNCHER_RPC_METHODS,
   createDevLauncherRpcRequest,
-  isDevLauncherRpcResponseFailure,
+  DEV_LAUNCHER_RPC_METHODS,
   type DevLauncherRpcMethod,
   type DevLauncherRpcMethodParams,
   type DevLauncherRpcMethodResult,
+  isDevLauncherRpcResponseFailure,
 } from './session-rpc';
 import {
+  type DevLauncherSessionStateRuntime,
   defaultDevLauncherSessionStateRuntime,
   resolveReachableDevLauncherSession,
-  type DevLauncherSessionStateRuntime,
 } from './session-state';
-import type { DevLauncherProcessController } from './process-manager';
 import type {
   DevLauncherLogEntry,
   DevLauncherLogsReadParams,
@@ -28,10 +28,7 @@ import type {
 interface ClientSocketLike {
   destroy: () => void;
   end: () => void;
-  on: (
-    event: 'data' | 'error',
-    listener: (...args: any[]) => void
-  ) => void;
+  on: (event: 'data' | 'error', listener: (...args: any[]) => void) => void;
   once: (
     event: 'connect' | 'data' | 'end' | 'error',
     listener: (...args: any[]) => void
@@ -140,7 +137,9 @@ export class DevLauncherSessionClient {
     return response;
   }
 
-  async applyServiceSet(serviceIds: string[]): Promise<DevLauncherSessionGetResult> {
+  async applyServiceSet(
+    serviceIds: string[]
+  ): Promise<DevLauncherSessionGetResult> {
     return await this.#request(DEV_LAUNCHER_RPC_METHODS.servicesApplySet, {
       serviceIds,
     });
@@ -158,7 +157,9 @@ export class DevLauncherSessionClient {
     });
   }
 
-  async restartService(serviceId: string): Promise<DevLauncherSessionGetResult> {
+  async restartService(
+    serviceId: string
+  ): Promise<DevLauncherSessionGetResult> {
     return await this.#request(DEV_LAUNCHER_RPC_METHODS.serviceRestart, {
       serviceId,
     });
@@ -206,7 +207,11 @@ export class DevLauncherSessionClient {
         };
 
         socket.once('connect', () => {
-          const request = createDevLauncherRpcRequest(requestId, method, params);
+          const request = createDevLauncherRpcRequest(
+            requestId,
+            method,
+            params
+          );
           socket.write(`${JSON.stringify(request)}\n`);
         });
 
@@ -214,7 +219,7 @@ export class DevLauncherSessionClient {
           bufferedData += chunk.toString();
           const [line] = bufferedData.split('\n');
 
-          if (!line || !bufferedData.includes('\n')) {
+          if (!(line && bufferedData.includes('\n'))) {
             return;
           }
 
@@ -251,31 +256,22 @@ export class DevLauncherSessionClient {
         });
 
         socket.once('error', (error: Error) => {
-          settle(
-            () => {
-              reject(
-                new DevLauncherSessionClientError(
-                  'socket_error',
-                  error.message
-                )
-              );
-            },
-            true
-          );
+          settle(() => {
+            reject(
+              new DevLauncherSessionClientError('socket_error', error.message)
+            );
+          }, true);
         });
 
         socket.once('end', () => {
-          settle(
-            () => {
-              reject(
-                new DevLauncherSessionClientError(
-                  'socket_closed',
-                  'Dev launcher session closed before responding.'
-                )
-              );
-            },
-            true
-          );
+          settle(() => {
+            reject(
+              new DevLauncherSessionClientError(
+                'socket_closed',
+                'Dev launcher session closed before responding.'
+              )
+            );
+          }, true);
           socket.destroy();
         });
       }
@@ -334,17 +330,15 @@ export class DevLauncherRemoteProcessController
     return {
       allLogs: [...this.#snapshot.allLogs],
       logsByServiceId: Object.fromEntries(
-        Object.entries(this.#snapshot.logsByServiceId).map(([serviceId, entries]) => [
-          serviceId,
-          [...entries],
-        ])
+        Object.entries(this.#snapshot.logsByServiceId).map(
+          ([serviceId, entries]) => [serviceId, [...entries]]
+        )
       ) as Record<string, DevLauncherLogEntry[]>,
       managedServiceIds: [...this.#snapshot.managedServiceIds],
       serviceStates: Object.fromEntries(
-        Object.entries(this.#snapshot.serviceStates).map(([serviceId, state]) => [
-          serviceId,
-          { ...state },
-        ])
+        Object.entries(this.#snapshot.serviceStates).map(
+          ([serviceId, state]) => [serviceId, { ...state }]
+        )
       ) as Record<string, ManagedDevServiceState>,
     };
   }

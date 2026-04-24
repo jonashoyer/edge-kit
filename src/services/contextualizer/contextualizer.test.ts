@@ -1,17 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
 import { InMemoryKeyValueService } from '../key-value/in-memory-key-value';
-import {
-  Contextualizer,
-  type ContextProvider,
-} from './contextualizer';
+import { type ContextProvider, Contextualizer } from './contextualizer';
 
 describe('Contextualizer', () => {
   it('fetches multiple providers in parallel', async () => {
     let inFlight = 0;
     let maxInFlight = 0;
 
-    const createProvider = (id: string): ContextProvider<{ value: string }, string> => ({
+    const createProvider = (
+      id: string
+    ): ContextProvider<{ value: string }, string> => ({
       id,
       async fetch(params) {
         inFlight += 1;

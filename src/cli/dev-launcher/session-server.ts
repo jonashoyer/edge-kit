@@ -9,10 +9,10 @@ import {
 } from './session-rpc';
 import {
   cleanupDevLauncherSessionArtifacts,
+  type DevLauncherSessionStateRuntime,
   defaultDevLauncherSessionStateRuntime,
   resolveDevLauncherSocketPath,
   writeDevLauncherSessionMetadata,
-  type DevLauncherSessionStateRuntime,
 } from './session-state';
 import type {
   DevLauncherLogEntry,
@@ -30,14 +30,20 @@ import type {
 
 interface SocketLike {
   destroy: () => void;
-  on: (event: 'close' | 'data' | 'error', listener: (...args: any[]) => void) => void;
+  on: (
+    event: 'close' | 'data' | 'error',
+    listener: (...args: any[]) => void
+  ) => void;
   write: (chunk: string) => boolean;
 }
 
 interface ServerLike {
   close: (callback?: (error?: Error | undefined) => void) => void;
   listen: (path: string, listeningListener?: () => void) => void;
-  on: (event: 'connection' | 'error', listener: (...args: any[]) => void) => void;
+  on: (
+    event: 'connection' | 'error',
+    listener: (...args: any[]) => void
+  ) => void;
 }
 
 export interface DevLauncherSessionServerRuntime
@@ -100,7 +106,11 @@ const isRpcRequest = (value: unknown): value is DevLauncherRpcRequest => {
     isRecord(value) &&
     value.jsonrpc === DEV_LAUNCHER_RPC_VERSION &&
     typeof value.method === 'string' &&
-    ('id' in value ? value.id === null || typeof value.id === 'number' || typeof value.id === 'string' : true)
+    ('id' in value
+      ? value.id === null ||
+        typeof value.id === 'number' ||
+        typeof value.id === 'string'
+      : true)
   );
 };
 
@@ -109,7 +119,7 @@ const clampLogLimit = (value: number | undefined): number => {
     return 200;
   }
 
-  return Math.max(1, Math.min(Math.trunc(value), 1_000));
+  return Math.max(1, Math.min(Math.trunc(value), 1000));
 };
 
 const getLogsReadResult = (
@@ -117,10 +127,14 @@ const getLogsReadResult = (
   params: DevLauncherLogsReadParams
 ) => {
   const afterSequence = Math.max(0, Math.trunc(params.afterSequence ?? 0));
-  const filteredEntries = entries.filter((entry) => entry.sequence > afterSequence);
+  const filteredEntries = entries.filter(
+    (entry) => entry.sequence > afterSequence
+  );
   const limitedEntries = filteredEntries.slice(-clampLogLimit(params.limit));
   const highestSequence =
-    limitedEntries.at(-1)?.sequence ?? entries.at(-1)?.sequence ?? afterSequence;
+    limitedEntries.at(-1)?.sequence ??
+    entries.at(-1)?.sequence ??
+    afterSequence;
 
   return {
     entries: limitedEntries,
@@ -190,7 +204,9 @@ export class DevLauncherSessionServer {
     return this.#metadata;
   }
 
-  async start(initialServiceIds?: string[]): Promise<DevLauncherSessionMetadata> {
+  async start(
+    initialServiceIds?: string[]
+  ): Promise<DevLauncherSessionMetadata> {
     if (this.#started) {
       return this.getMetadata();
     }
@@ -264,7 +280,7 @@ export class DevLauncherSessionServer {
   ): Promise<DevLauncherRpcResponse<unknown>> {
     if (!isRpcRequest(request)) {
       return createFailureResponse(null, {
-        code: -32600,
+        code: -32_600,
         errorCode: 'invalid_request',
         message: 'Invalid JSON-RPC request.',
       });
@@ -285,7 +301,8 @@ export class DevLauncherSessionServer {
           });
           return createSuccessResponse(request.id, { stopped: true });
         case DEV_LAUNCHER_RPC_METHODS.servicesApplySet: {
-          const params = (request.params ?? {}) as DevLauncherServicesApplySetParams;
+          const params = (request.params ??
+            {}) as DevLauncherServicesApplySetParams;
           if (!Array.isArray(params.serviceIds)) {
             throw new Error('services.applySet requires serviceIds.');
           }
@@ -299,7 +316,8 @@ export class DevLauncherSessionServer {
           );
         }
         case DEV_LAUNCHER_RPC_METHODS.serviceStart: {
-          const params = (request.params ?? {}) as DevLauncherServiceActionParams;
+          const params = (request.params ??
+            {}) as DevLauncherServiceActionParams;
           if (typeof params.serviceId !== 'string') {
             throw new Error('service.start requires serviceId.');
           }
@@ -312,7 +330,8 @@ export class DevLauncherSessionServer {
           );
         }
         case DEV_LAUNCHER_RPC_METHODS.serviceStop: {
-          const params = (request.params ?? {}) as DevLauncherServiceActionParams;
+          const params = (request.params ??
+            {}) as DevLauncherServiceActionParams;
           if (typeof params.serviceId !== 'string') {
             throw new Error('service.stop requires serviceId.');
           }
@@ -325,7 +344,8 @@ export class DevLauncherSessionServer {
           );
         }
         case DEV_LAUNCHER_RPC_METHODS.serviceRestart: {
-          const params = (request.params ?? {}) as DevLauncherServiceActionParams;
+          const params = (request.params ??
+            {}) as DevLauncherServiceActionParams;
           if (typeof params.serviceId !== 'string') {
             throw new Error('service.restart requires serviceId.');
           }
@@ -343,7 +363,9 @@ export class DevLauncherSessionServer {
             params.serviceId !== undefined &&
             typeof params.serviceId !== 'string'
           ) {
-            throw new Error('logs.read serviceId must be a string when provided.');
+            throw new Error(
+              'logs.read serviceId must be a string when provided.'
+            );
           }
 
           if (params.serviceId) {
@@ -352,7 +374,7 @@ export class DevLauncherSessionServer {
 
           const snapshot = this.#controller.getSnapshot();
           const sourceEntries = params.serviceId
-            ? snapshot.logsByServiceId[params.serviceId] ?? []
+            ? (snapshot.logsByServiceId[params.serviceId] ?? [])
             : snapshot.allLogs;
           return createSuccessResponse(
             request.id,
@@ -361,7 +383,7 @@ export class DevLauncherSessionServer {
         }
         default:
           return createFailureResponse(request.id, {
-            code: -32601,
+            code: -32_601,
             errorCode: 'method_not_found',
             message: `Unknown JSON-RPC method "${request.method}".`,
           });
@@ -369,7 +391,7 @@ export class DevLauncherSessionServer {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return createFailureResponse(request.id, {
-        code: -32602,
+        code: -32_602,
         errorCode: 'invalid_params',
         message,
       });
@@ -395,7 +417,7 @@ export class DevLauncherSessionServer {
           payload = JSON.parse(trimmedLine);
         } catch {
           const response = createFailureResponse(null, {
-            code: -32700,
+            code: -32_700,
             errorCode: 'parse_error',
             message: 'Invalid JSON payload.',
           });
@@ -413,7 +435,7 @@ export class DevLauncherSessionServer {
             socket.write(
               `${JSON.stringify(
                 createFailureResponse(null, {
-                  code: -32603,
+                  code: -32_603,
                   errorCode: 'internal_error',
                   message,
                 })

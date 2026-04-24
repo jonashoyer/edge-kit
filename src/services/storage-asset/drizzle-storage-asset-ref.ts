@@ -19,12 +19,12 @@ import {
 } from 'drizzle-orm/pg-core';
 import {
   BaseSQLiteDatabase,
-  index as sqliteIndex,
   integer,
-  sqliteTable,
-  text,
   type SQLiteTableWithColumns,
+  index as sqliteIndex,
+  sqliteTable,
   uniqueIndex as sqliteUniqueIndex,
+  text,
 } from 'drizzle-orm/sqlite-core';
 
 import type {
@@ -55,7 +55,9 @@ const normalizeRequiredString = (value: string, label: string): string => {
   return normalized;
 };
 
-const normalizeTenantId = (tenantId: string | null | undefined): string | null => {
+const normalizeTenantId = (
+  tenantId: string | null | undefined
+): string | null => {
   if (tenantId === undefined || tenantId === null) {
     return null;
   }
@@ -152,8 +154,14 @@ export const createMySqlStorageAssetRefTable = (
       assetId: mysqlVarchar('asset_id', { length: 191 }).notNull(),
       ownerType: mysqlVarchar('owner_type', { length: 191 }).notNull(),
       ownerId: mysqlVarchar('owner_id', { length: 191 }).notNull(),
-      createdAt: mysqlTimestamp('created_at', { mode: 'date', fsp: 3 }).notNull(),
-      updatedAt: mysqlTimestamp('updated_at', { mode: 'date', fsp: 3 }).notNull(),
+      createdAt: mysqlTimestamp('created_at', {
+        mode: 'date',
+        fsp: 3,
+      }).notNull(),
+      updatedAt: mysqlTimestamp('updated_at', {
+        mode: 'date',
+        fsp: 3,
+      }).notNull(),
     },
     (table) => ({
       ownerAssetUnique: mysqlUniqueIndex(`${name}_owner_asset_unique`).on(
@@ -164,7 +172,7 @@ export const createMySqlStorageAssetRefTable = (
       ),
       assetIdIndex: mysqlIndex(`${name}_asset_lookup_idx`).on(
         table.tenantKey,
-        table.assetId,
+        table.assetId
       ),
     })
   ) as MySqlStorageAssetRefTable;
@@ -326,7 +334,11 @@ class BaseDrizzleStorageAssetRefService<
       table.ownerId,
       normalizeRequiredString(scope.ownerId, 'ownerId')
     );
-    const predicate = and(tenantCondition, ownerTypeCondition, ownerIdCondition);
+    const predicate = and(
+      tenantCondition,
+      ownerTypeCondition,
+      ownerIdCondition
+    );
 
     if (!predicate) {
       throw new Error('Failed to build storage asset ref owner predicate');
@@ -369,7 +381,9 @@ class BaseDrizzleStorageAssetRefService<
     return rows.map((row) => this.toRecord(row));
   }
 
-  override async listByAssetIds(assetIds: string[]): Promise<StorageAssetOwnerRef[]> {
+  override async listByAssetIds(
+    assetIds: string[]
+  ): Promise<StorageAssetOwnerRef[]> {
     if (assetIds.length === 0) {
       return [];
     }
@@ -388,7 +402,9 @@ class BaseDrizzleStorageAssetRefService<
     return rows.map((row) => this.toRecord(row));
   }
 
-  protected async persist(row: StorageAssetRefRow): Promise<StorageAssetOwnerRef> {
+  protected async persist(
+    row: StorageAssetRefRow
+  ): Promise<StorageAssetOwnerRef> {
     throw new Error('Not implemented');
   }
 
@@ -425,7 +441,10 @@ class BaseDrizzleStorageAssetRefService<
     );
     const { db, table } = this.internal;
 
-    await db.delete(table).where(inArray(table.assetId, normalizedIds)).execute();
+    await db
+      .delete(table)
+      .where(inArray(table.assetId, normalizedIds))
+      .execute();
   }
 }
 

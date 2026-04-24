@@ -72,7 +72,9 @@ const normalizeRequiredString = (value: string, label: string): string => {
   return normalized;
 };
 
-const normalizeTenantId = (tenantId: string | null | undefined): string | null => {
+const normalizeTenantId = (
+  tenantId: string | null | undefined
+): string | null => {
   if (tenantId === undefined || tenantId === null) {
     return null;
   }
@@ -160,7 +162,9 @@ export abstract class AbstractStorageUploadLedgerService<
     return normalizeRequiredString(id, 'id');
   }
 
-  protected normalizeTenantId(tenantId: string | null | undefined): string | null {
+  protected normalizeTenantId(
+    tenantId: string | null | undefined
+  ): string | null {
     return normalizeTenantId(tenantId);
   }
 }

@@ -99,7 +99,10 @@ export class StorageAssetStillReferencedError extends CustomError<'CONFLICT'> {
 
 export class StorageAssetFamilyConsistencyError extends CustomError<'INVALID_STATE'> {
   constructor(id: string) {
-    super(`Storage asset family is inconsistent for asset: ${id}`, 'INVALID_STATE');
+    super(
+      `Storage asset family is inconsistent for asset: ${id}`,
+      'INVALID_STATE'
+    );
   }
 }
 
@@ -182,10 +185,7 @@ export abstract class AbstractStorageAssetService<
     input: UpsertStorageAssetInput<TMeta>
   ): Promise<StorageAssetRecord<TMeta>>;
 
-  abstract setOrphanedAt(
-    ids: string[],
-    orphanedAt: Date | null
-  ): Promise<void>;
+  abstract setOrphanedAt(ids: string[], orphanedAt: Date | null): Promise<void>;
 
   abstract resolveRoot(
     assetId: string

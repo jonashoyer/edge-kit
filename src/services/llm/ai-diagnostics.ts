@@ -106,7 +106,7 @@ const toIssue = (value: unknown): AiDiagnosticIssue | null => {
 };
 
 const getIssuesFromUnknown = (value: unknown): AiDiagnosticIssue[] => {
-  if (!isRecord(value) || !Array.isArray(value.issues)) {
+  if (!(isRecord(value) && Array.isArray(value.issues))) {
     return [];
   }
 

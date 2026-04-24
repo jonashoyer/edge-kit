@@ -1,31 +1,31 @@
 import { and, asc, eq, inArray, is, isNull, lte, type SQL } from 'drizzle-orm';
 import {
   MySqlDatabase,
-  int as mysqlInt,
-  index as mysqlIndex,
-  json as mysqlJson,
   type MySqlTableWithColumns,
+  index as mysqlIndex,
+  int as mysqlInt,
+  json as mysqlJson,
   mysqlTable,
   timestamp as mysqlTimestamp,
   varchar as mysqlVarchar,
 } from 'drizzle-orm/mysql-core';
 import {
   PgDatabase,
+  type PgTableWithColumns,
   index as pgIndex,
   integer as pgInteger,
   json as pgJson,
   pgTable,
   text as pgText,
   timestamp as pgTimestamp,
-  type PgTableWithColumns,
 } from 'drizzle-orm/pg-core';
 import {
   BaseSQLiteDatabase,
-  index as sqliteIndex,
   integer,
+  type SQLiteTableWithColumns,
+  index as sqliteIndex,
   sqliteTable,
   text,
-  type SQLiteTableWithColumns,
 } from 'drizzle-orm/sqlite-core';
 
 import type {
@@ -67,7 +67,9 @@ const normalizeRequiredString = (value: string, label: string): string => {
   return normalized;
 };
 
-const normalizeTenantId = (tenantId: string | null | undefined): string | null => {
+const normalizeTenantId = (
+  tenantId: string | null | undefined
+): string | null => {
   if (tenantId === undefined || tenantId === null) {
     return null;
   }
@@ -218,10 +220,15 @@ export const createMySqlStorageUploadLedgerTable = <
       tenantId: mysqlVarchar('tenant_id', { length: 191 }),
       objectKey: mysqlVarchar('object_key', { length: 512 }).notNull(),
       mimeType: mysqlVarchar('mime_type', { length: 255 }).notNull(),
-      status: mysqlVarchar('status', { length: 32 }).notNull().$type<StorageUploadStatus>(),
+      status: mysqlVarchar('status', { length: 32 })
+        .notNull()
+        .$type<StorageUploadStatus>(),
       sizeBytes: mysqlInt('size_bytes'),
       etag: mysqlVarchar('etag', { length: 255 }),
-      expiresAt: mysqlTimestamp('expires_at', { mode: 'date', fsp: 3 }).notNull(),
+      expiresAt: mysqlTimestamp('expires_at', {
+        mode: 'date',
+        fsp: 3,
+      }).notNull(),
       issuedAt: mysqlTimestamp('issued_at', { mode: 'date', fsp: 3 }).notNull(),
       uploadedAt: mysqlTimestamp('uploaded_at', { mode: 'date', fsp: 3 }),
       consumedAt: mysqlTimestamp('consumed_at', { mode: 'date', fsp: 3 }),

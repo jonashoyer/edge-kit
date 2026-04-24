@@ -70,7 +70,10 @@ describe('session-state', () => {
     tempDirectories.push(stateRoot);
     const runtime = createRuntime(stateRoot);
 
-    const metadataPath = resolveDevLauncherSessionMetadataPath(manifest, runtime);
+    const metadataPath = resolveDevLauncherSessionMetadataPath(
+      manifest,
+      runtime
+    );
     const socketPath = resolveDevLauncherSocketPath(manifest);
 
     expect(metadataPath).toContain('/dev-launcher/');
@@ -100,8 +103,12 @@ describe('session-state', () => {
     fs.writeFileSync(metadata.socketPath, '');
 
     expect(readDevLauncherSessionMetadata(manifest, runtime)).toEqual(metadata);
-    expect(await resolveReachableDevLauncherSession(manifest, runtime)).toBeNull();
-    expect(fs.existsSync(resolveDevLauncherSessionMetadataPath(manifest, runtime))).toBe(false);
+    expect(
+      await resolveReachableDevLauncherSession(manifest, runtime)
+    ).toBeNull();
+    expect(
+      fs.existsSync(resolveDevLauncherSessionMetadataPath(manifest, runtime))
+    ).toBe(false);
     expect(fs.existsSync(metadata.socketPath)).toBe(false);
 
     cleanupDevLauncherSessionArtifacts(manifest, runtime);

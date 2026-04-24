@@ -1,19 +1,16 @@
 import { spawn } from 'node:child_process';
-import type { LoadedDevLauncherManifest } from './types';
 import {
-  resolveReachableDevLauncherSession,
   type DevLauncherSessionStateRuntime,
   defaultDevLauncherSessionStateRuntime,
+  resolveReachableDevLauncherSession,
 } from './session-state';
+import type { LoadedDevLauncherManifest } from './types';
 
 const BOOTSTRAP_TIMEOUT_MS = 15_000;
 const BOOTSTRAP_POLL_INTERVAL_MS = 250;
 
 interface SpawnResultLike {
-  on: (
-    event: 'close' | 'error',
-    listener: (...args: any[]) => void
-  ) => void;
+  on: (event: 'close' | 'error', listener: (...args: any[]) => void) => void;
 }
 
 export interface DevLauncherBootstrapRuntime
@@ -55,7 +52,10 @@ export const waitForReachableDevLauncherSession = async (
   const timeoutAt = Date.now() + timeoutMs;
 
   while (Date.now() < timeoutAt) {
-    const metadata = await resolveReachableDevLauncherSession(manifest, runtime);
+    const metadata = await resolveReachableDevLauncherSession(
+      manifest,
+      runtime
+    );
     if (metadata) {
       return metadata;
     }

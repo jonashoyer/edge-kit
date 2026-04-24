@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-
-import { InMemoryKeyValueService } from './in-memory-key-value';
 import { AbstractKeyValueService } from './abstract-key-value';
+import { InMemoryKeyValueService } from './in-memory-key-value';
 
 describe('AbstractKeyValueService.withCache', () => {
   it('stores cached values with a TTL and reuses them before expiry', async () => {
