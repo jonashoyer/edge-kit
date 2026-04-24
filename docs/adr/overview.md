@@ -24,3 +24,4 @@
 | ADR-0020 | Add pluggable image preview metadata builders with a sharp ThumbHash implementation | Implemented | 2026-03-27 |
 | ADR-0021 | Add a skills CLI for installing and managing Codex skills | Implemented | 2026-03-29 |
 | ADR-0022 | Use TOON as the only structured CLI output format | Implemented | 2026-03-30 |
+| ADR-0023 | Use a dedicated Deep Research service for Gemini Interactions API agents | Implemented | 2026-04-24 |

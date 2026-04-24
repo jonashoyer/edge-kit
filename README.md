@@ -99,6 +99,9 @@ importable runtime package.
 - [AI cache middleware](./src/services/llm/ai-cache-middleware.ts)
 - [Optimistic LLM warm-up](./src/services/llm/optimistic-llm.ts)
 - [AI diagnostics](./src/services/llm/ai-diagnostics.ts)
+- [Deep Research](./src/services/deep-research/gemini-deep-research.ts):
+  async Gemini Deep Research agent lifecycle with start, poll, continue, and
+  wait helpers
 - [Image generation](./src/services/image-generation/image-generation-service.ts):
   pure generation, optional storage persistence, optional asset inventory, and
   inventory-backed preview metadata hooks

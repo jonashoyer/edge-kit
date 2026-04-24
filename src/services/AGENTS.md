@@ -12,6 +12,7 @@ Service implementations organized by domain.
 | Task                     | Location                     |
 | ------------------------ | ---------------------------- |
 | Billing                  | `stripe/`                    |
+| Deep Research            | `deep-research/`             |
 | Storage                  | `storage/`                   |
 | Key-Value                | `key-value/`                 |
 | Vector DB                | `vector/`                    |
