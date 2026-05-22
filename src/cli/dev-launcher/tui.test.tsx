@@ -26,11 +26,61 @@ vi.mock('./selection-history', () => ({
 }));
 
 const renderedApps: unknown[] = [];
+const defaultTerminalSize = {
+  columns: process.stdout.columns,
+  rows: process.stdout.rows,
+};
 
 const render = (...args: Parameters<typeof inkRender>) => {
   const rendered = inkRender(...args);
   renderedApps.push(rendered);
   return rendered;
+};
+
+const roundedBorderCharacters = ['╭', '╮', '╰', '╯'] as const;
+
+const hasRoundedBorders = (frame: string): boolean => {
+  for (const character of roundedBorderCharacters) {
+    if (frame.includes(character)) {
+      return true;
+    }
+  }
+
+  return false;
+};
+
+const getFrameLineCount = (frame: string): number => {
+  return frame.split('\n').length;
+};
+
+const hasBlankLineBetween = (
+  frame: string,
+  beforeText: string,
+  afterText: string
+): boolean => {
+  const lines = frame.split('\n');
+  const beforeIndex = lines.findIndex((line) => line.includes(beforeText));
+  const afterIndex = lines.findIndex((line) => line.includes(afterText));
+
+  if (beforeIndex < 0 || afterIndex <= beforeIndex) {
+    return false;
+  }
+
+  return lines.slice(beforeIndex + 1, afterIndex).includes('');
+};
+
+const setTerminalSize = (options: {
+  columns?: number;
+  rows?: number;
+}): void => {
+  Object.defineProperty(process.stdout, 'columns', {
+    configurable: true,
+    value: options.columns,
+  });
+  Object.defineProperty(process.stdout, 'rows', {
+    configurable: true,
+    value: options.rows,
+  });
 };
 
 const createManifest = (): LoadedDevLauncherManifest => ({
@@ -200,6 +250,7 @@ describe('DevLauncherDashboardApp', () => {
     vi.restoreAllMocks();
     loadRecentDevServiceSelectionsMock.mockReturnValue([['app']]);
     saveRecentDevServiceSelectionMock.mockReset();
+    setTerminalSize(defaultTerminalSize);
   });
 
   it('renders the startup dashboard with presets and custom selection', () => {
@@ -215,6 +266,10 @@ describe('DevLauncherDashboardApp', () => {
     expect(lastFrame()).toContain('Start a dev session');
     expect(lastFrame()).toContain('App');
     expect(lastFrame()).toContain('Custom selection');
+    expect(hasRoundedBorders(lastFrame())).toBe(false);
+    expect(
+      hasBlankLineBetween(lastFrame(), 'Custom selection', 'move, Enter')
+    ).toBe(true);
   });
 
   it('supports custom service selection from startup', async () => {
@@ -314,6 +369,185 @@ describe('DevLauncherDashboardApp', () => {
 
     expect(lastFrame()).toContain('Dev dashboard');
     expect(lastFrame()).toContain('All logs');
+    expect(hasRoundedBorders(lastFrame())).toBe(false);
+  });
+
+  it('keeps wrapped dashboard logs within the terminal height', async () => {
+    setTerminalSize({ columns: 50, rows: 30 });
+    const logEntries = Array.from({ length: 10 }, (_, index) => ({
+      line: `app line ${index + 1} ${'x'.repeat(100)}`,
+      runId: 1,
+      sequence: index + 1,
+      serviceId: 'app',
+      stream: 'stdout' as const,
+      timestamp: index + 1,
+    }));
+    const controller = new FakeController(
+      createSnapshot({
+        logsByServiceId: {
+          api: [],
+          app: logEntries,
+        },
+        managedServiceIds: ['app'],
+        statuses: {
+          app: 'running',
+        },
+      })
+    );
+    const { lastFrame } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['app']}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+      />
+    );
+
+    await flush();
+
+    const frame = lastFrame();
+    expect(frame).toContain('Dev dashboard');
+    expect(frame).toContain('│');
+    expect(frame).toContain('app line 10');
+    expect(frame).not.toContain('app line 1 ');
+    expect(getFrameLineCount(frame)).toBeLessThanOrEqual(30);
+    expect(hasRoundedBorders(frame)).toBe(false);
+  });
+
+  it('stops dashboard log scrolling at the first full screen', async () => {
+    setTerminalSize({ columns: 100, rows: 30 });
+    const logEntries = Array.from({ length: 40 }, (_, index) => ({
+      line: `app line ${index + 1}`,
+      runId: 1,
+      sequence: index + 1,
+      serviceId: 'app',
+      stream: 'stdout' as const,
+      timestamp: index + 1,
+    }));
+    const controller = new FakeController(
+      createSnapshot({
+        logsByServiceId: {
+          api: [],
+          app: logEntries,
+        },
+        managedServiceIds: ['app'],
+        statuses: {
+          app: 'running',
+        },
+      })
+    );
+    const { lastFrame, stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['app']}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+      />
+    );
+
+    await flush();
+
+    for (let index = 0; index < 10; index += 1) {
+      stdin.write('k');
+      await flush();
+    }
+
+    const frame = lastFrame();
+    expect(frame).toContain('app line 1');
+    expect(frame).toContain('app line 20');
+    expect(frame).not.toContain('app line 21');
+  });
+
+  it('keeps wrapped focused logs within the terminal height', async () => {
+    setTerminalSize({ columns: 30, rows: 36 });
+    const logEntries = Array.from({ length: 10 }, (_, index) => ({
+      line: `app line ${index + 1} ${'x'.repeat(100)}`,
+      runId: 1,
+      sequence: index + 1,
+      serviceId: 'app',
+      stream: 'stdout' as const,
+      timestamp: index + 1,
+    }));
+    const controller = new FakeController(
+      createSnapshot({
+        logsByServiceId: {
+          api: [],
+          app: logEntries,
+        },
+        managedServiceIds: ['app'],
+        statuses: {
+          app: 'running',
+        },
+      })
+    );
+    const { lastFrame, stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['app']}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+      />
+    );
+
+    await flush();
+    stdin.write('\u001B[B');
+    await flush(6);
+    stdin.write('\r');
+    await flush(8);
+
+    const frame = lastFrame();
+    expect(frame).toContain('App log');
+    expect(frame).toContain('app line 10');
+    expect(frame).not.toContain('app line 1 ');
+    expect(getFrameLineCount(frame)).toBeLessThanOrEqual(36);
+  });
+
+  it('stops focused log scrolling at the first full screen', async () => {
+    setTerminalSize({ columns: 100, rows: 36 });
+    const logEntries = Array.from({ length: 40 }, (_, index) => ({
+      line: `app line ${index + 1}`,
+      runId: 1,
+      sequence: index + 1,
+      serviceId: 'app',
+      stream: 'stdout' as const,
+      timestamp: index + 1,
+    }));
+    const controller = new FakeController(
+      createSnapshot({
+        logsByServiceId: {
+          api: [],
+          app: logEntries,
+        },
+        managedServiceIds: ['app'],
+        statuses: {
+          app: 'running',
+        },
+      })
+    );
+    const { lastFrame, stdin } = render(
+      <DevLauncherDashboardApp
+        controller={controller}
+        initialServiceIds={['app']}
+        manifest={createManifest()}
+        onExitCode={() => undefined}
+      />
+    );
+
+    await flush();
+    stdin.write('\u001B[B');
+    await flush(6);
+    stdin.write('\r');
+    await flush(8);
+
+    for (let index = 0; index < 10; index += 1) {
+      stdin.write('\u001B[A');
+      await flush();
+    }
+
+    const frame = lastFrame();
+    expect(frame).toContain('app line 1');
+    expect(frame).toContain('app line 30');
+    expect(frame).not.toContain('app line 31');
   });
 
   it('opens the selected service url from the dashboard', async () => {
@@ -460,6 +694,13 @@ describe('DevLauncherDashboardApp', () => {
     expect(lastFrame()).toContain('Developer actions');
     expect(lastFrame()).toContain('Install dependencies (i) [available]');
     expect(lastFrame()).toContain('Push database [unavailable]');
+    expect(
+      hasBlankLineBetween(
+        lastFrame(),
+        'Push database [unavailable]',
+        'Actions: 1 available'
+      )
+    ).toBe(true);
 
     stdin.write('\u001B');
     await flush(8);

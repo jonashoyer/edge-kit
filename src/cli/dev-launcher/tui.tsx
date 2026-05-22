@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { Box, render, Text, useApp, useInput } from 'ink';
 /* biome-ignore lint/correctness/noUnusedImports: React must stay in scope for this JSX runtime path. */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import type { DevActionOrchestrationResult } from './action-orchestrator';
 import {
   executeDevActionWithSession,
@@ -31,6 +31,10 @@ import type {
 const MIN_DASHBOARD_LOG_LINES = 18;
 const MIN_FOCUSED_LOG_LINES = 28;
 const LOG_SCROLL_STEP = 8;
+const DEFAULT_TERMINAL_COLUMNS = 80;
+const DASHBOARD_SERVICE_LIST_WIDTH = 28;
+const DASHBOARD_DIVIDER_WIDTH = 3;
+const MIN_LOG_VIEWER_WIDTH = 20;
 
 interface OverlayState {
   cursor: number;
@@ -132,6 +136,19 @@ const defaultRuntime: DevLauncherTuiSessionRuntime = {
   stdout: process.stdout,
 };
 
+const defaultListActions = async (
+  loadedManifest: LoadedDevLauncherManifest
+): Promise<ResolvedDevAction[]> => {
+  return await defaultRuntime.listActions(loadedManifest);
+};
+
+const defaultRunDevAction = async (
+  loadedManifest: LoadedDevLauncherManifest,
+  actionId: string
+): Promise<DevActionOrchestrationResult> => {
+  return await defaultRuntime.runDevAction(loadedManifest, actionId);
+};
+
 const STATUS_COLORS: Record<ManagedDevServiceStatus, string> = {
   failed: 'red',
   idle: 'gray',
@@ -188,23 +205,78 @@ const formatViewerLine = (
   return entry.line;
 };
 
-const getVisibleLogs = (
+const getRenderedRowCount = (value: string, width: number): number => {
+  const lineWidth = Math.max(width, 1);
+  const rows = value.split('\n').reduce((total, line) => {
+    return total + Math.max(Math.ceil(line.length / lineWidth), 1);
+  }, 0);
+
+  return Math.max(rows, 1);
+};
+
+const getVisibleLogsByRenderedRows = (
   logs: DevLauncherLogEntry[],
   scrollOffset: number,
-  maxLines: number
+  maxRows: number,
+  width: number,
+  formatLine: (entry: DevLauncherLogEntry) => string
 ): DevLauncherLogEntry[] => {
   const clampedOffset = Math.max(scrollOffset, 0);
   const endIndex = Math.max(logs.length - clampedOffset, 0);
-  const startIndex = Math.max(endIndex - maxLines, 0);
+  const visibleLogs: DevLauncherLogEntry[] = [];
+  let usedRows = 0;
 
-  return logs.slice(startIndex, endIndex);
+  for (let index = endIndex - 1; index >= 0; index -= 1) {
+    const entry = logs[index];
+
+    if (!entry) {
+      continue;
+    }
+
+    const rowCount = getRenderedRowCount(formatLine(entry), width);
+    if (visibleLogs.length > 0 && usedRows + rowCount > maxRows) {
+      break;
+    }
+
+    visibleLogs.unshift(entry);
+    usedRows += rowCount;
+
+    if (usedRows >= maxRows) {
+      break;
+    }
+  }
+
+  return visibleLogs;
 };
 
-const getMaxScrollOffset = (
+const getMaxScrollOffsetByRenderedRows = (
   logs: DevLauncherLogEntry[],
-  maxLines: number
+  maxRows: number,
+  width: number,
+  formatLine: (entry: DevLauncherLogEntry) => string
 ): number => {
-  return Math.max(logs.length - maxLines, 0);
+  let usedRows = 0;
+
+  for (let index = 0; index < logs.length; index += 1) {
+    const entry = logs[index];
+
+    if (!entry) {
+      continue;
+    }
+
+    const rowCount = getRenderedRowCount(formatLine(entry), width);
+    if (index > 0 && usedRows + rowCount > maxRows) {
+      return Math.max(logs.length - index, 0);
+    }
+
+    usedRows += rowCount;
+
+    if (usedRows >= maxRows) {
+      return Math.max(logs.length - index - 1, 0);
+    }
+  }
+
+  return 0;
 };
 
 const getDashboardLogLines = (terminalRows: number | undefined): number => {
@@ -213,6 +285,47 @@ const getDashboardLogLines = (terminalRows: number | undefined): number => {
 
 const getFocusedLogLines = (terminalRows: number | undefined): number => {
   return Math.max((terminalRows ?? 24) - 6, MIN_FOCUSED_LOG_LINES);
+};
+
+const getDashboardLogColumns = (
+  terminalColumns: number | undefined
+): number => {
+  return Math.max(
+    (terminalColumns ?? DEFAULT_TERMINAL_COLUMNS) -
+      DASHBOARD_SERVICE_LIST_WIDTH -
+      DASHBOARD_DIVIDER_WIDTH,
+    MIN_LOG_VIEWER_WIDTH
+  );
+};
+
+const getFocusedLogColumns = (terminalColumns: number | undefined): number => {
+  return Math.max(
+    terminalColumns ?? DEFAULT_TERMINAL_COLUMNS,
+    MIN_LOG_VIEWER_WIDTH
+  );
+};
+
+const getVerticalDivider = (rows: number): string => {
+  return Array.from({ length: Math.max(rows, 1) }, () => '│').join('\n');
+};
+
+const getInitialOverlayKind = (
+  allowStartupSelection: boolean | undefined,
+  startupSelectionSource:
+    | 'explicit'
+    | 'non_interactive_fallback'
+    | 'startup_disabled',
+  recentSelectionCount: number
+): OverlayState['kind'] => {
+  if (!allowStartupSelection || startupSelectionSource === 'explicit') {
+    return null;
+  }
+
+  if (recentSelectionCount > 0) {
+    return 'startup';
+  }
+
+  return 'service-picker';
 };
 
 const isEscapeKey = (input: string, key: { escape?: boolean }): boolean => {
@@ -301,16 +414,12 @@ export function DevLauncherDashboardApp({
   allowStartupSelection = true,
   controller,
   initialServiceIds,
-  listActions = async (loadedManifest) => {
-    return await defaultRuntime.listActions(loadedManifest);
-  },
+  listActions = defaultListActions,
   manifest,
   openExternalUrl: openExternalUrlProp = openExternalUrl,
   onExitCode,
   onRequestExit,
-  runDevAction: runDevActionProp = async (loadedManifest, actionId) => {
-    return await defaultRuntime.runDevAction(loadedManifest, actionId);
-  },
+  runDevAction: runDevActionProp = defaultRunDevAction,
 }: DevLauncherDashboardAppProps) {
   const { exit } = useApp();
   const startupSelection = resolveSessionStartupSelection(
@@ -336,13 +445,11 @@ export function DevLauncherDashboardApp({
   });
   const [overlay, setOverlay] = useState<OverlayState>({
     cursor: 0,
-    kind: allowStartupSelection
-      ? startupSelection.source === 'explicit'
-        ? null
-        : recentSelections.length > 0
-          ? 'startup'
-          : 'service-picker'
-      : null,
+    kind: getInitialOverlayKind(
+      allowStartupSelection,
+      startupSelection.source,
+      recentSelections.length
+    ),
     pendingServiceIds: [],
     returnToStartup: recentSelections.length > 0,
   });
@@ -388,7 +495,7 @@ export function DevLauncherDashboardApp({
     });
   }, [controller, didApplyInitialSelection, initialServiceIds, manifest]);
 
-  const refreshActions = async (): Promise<void> => {
+  const refreshActions = useCallback(async (): Promise<void> => {
     setIsLoadingActions(true);
     try {
       const actions = await listActions(manifest);
@@ -399,11 +506,14 @@ export function DevLauncherDashboardApp({
     } finally {
       setIsLoadingActions(false);
     }
-  };
+  }, [listActions, manifest]);
 
   useEffect(() => {
-    void refreshActions();
-  }, [listActions, manifest]);
+    refreshActions().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      setFlashMessage(`Error: ${message}`);
+    });
+  }, [refreshActions]);
 
   useEffect(() => {
     if (
@@ -428,10 +538,12 @@ export function DevLauncherDashboardApp({
     ...snapshot.managedServiceIds,
   ];
   const dashboardLogLines = getDashboardLogLines(process.stdout.rows);
+  const dashboardLogColumns = getDashboardLogColumns(process.stdout.columns);
   const selectedService =
     selectedRowId === 'all-logs' ? null : manifest.servicesById[selectedRowId];
   const dashboardViewerLogs = getViewerLogs(snapshot, manifest, selectedRowId);
   const focusedLogLines = getFocusedLogLines(process.stdout.rows);
+  const focusedLogColumns = getFocusedLogColumns(process.stdout.columns);
   const focusedViewerLogs =
     viewMode.kind === 'focused-log'
       ? getViewerLogs(snapshot, manifest, viewMode.serviceId)
@@ -532,9 +644,11 @@ export function DevLauncherDashboardApp({
       return;
     }
 
-    const maxScrollOffset = getMaxScrollOffset(
+    const maxScrollOffset = getMaxScrollOffsetByRenderedRows(
       focusedViewerLogs,
-      focusedLogLines
+      focusedLogLines,
+      focusedLogColumns,
+      (entry) => formatViewerLine(manifest, entry, viewMode.serviceId)
     );
 
     setFocusedLogScrollOffsets((current) => ({
@@ -556,7 +670,10 @@ export function DevLauncherDashboardApp({
           : snapshot.managedServiceIds,
       returnToStartup: overlay.kind === 'startup',
     });
-    void refreshActions();
+    refreshActions().catch((error: unknown) => {
+      const message = error instanceof Error ? error.message : String(error);
+      setFlashMessage(`Error: ${message}`);
+    });
   };
 
   const requestRunDevAction = (action: ResolvedDevAction): void => {
@@ -622,7 +739,11 @@ export function DevLauncherDashboardApp({
       }
 
       if (input === 'r') {
-        void refreshActions();
+        refreshActions().catch((error: unknown) => {
+          const message =
+            error instanceof Error ? error.message : String(error);
+          setFlashMessage(`Error: ${message}`);
+        });
         return;
       }
 
@@ -858,9 +979,11 @@ export function DevLauncherDashboardApp({
     }
 
     if (input === 'k') {
-      const maxScrollOffset = getMaxScrollOffset(
+      const maxScrollOffset = getMaxScrollOffsetByRenderedRows(
         dashboardViewerLogs,
-        dashboardLogLines
+        dashboardLogLines,
+        dashboardLogColumns,
+        (entry) => formatViewerLine(manifest, entry, selectedRowId)
       );
       setDashboardLogScrollOffset((currentOffset) => {
         return Math.min(currentOffset + LOG_SCROLL_STEP, maxScrollOffset);
@@ -883,13 +1006,7 @@ export function DevLauncherDashboardApp({
         {isLoadingActions ? (
           <Text dimColor>Refreshing action availability...</Text>
         ) : null}
-        <Box
-          borderColor='cyan'
-          borderStyle='round'
-          flexDirection='column'
-          marginTop={1}
-          paddingX={1}
-        >
+        <Box flexDirection='column' marginTop={1}>
           {resolvedActions.length === 0 ? (
             <Text dimColor>No actions configured.</Text>
           ) : (
@@ -911,6 +1028,7 @@ export function DevLauncherDashboardApp({
             })
           )}
         </Box>
+        <Text> </Text>
         <Box flexGrow={1} />
         <Text dimColor>{getActionSummaryText(resolvedActions)}</Text>
         {flashMessage ? <Text color='yellow'>{flashMessage}</Text> : null}
@@ -919,10 +1037,12 @@ export function DevLauncherDashboardApp({
   }
 
   if (viewMode.kind === 'focused-log') {
-    const visibleLogs = getVisibleLogs(
+    const visibleLogs = getVisibleLogsByRenderedRows(
       focusedViewerLogs,
       focusedScrollOffset,
-      focusedLogLines
+      focusedLogLines,
+      focusedLogColumns,
+      (entry) => formatViewerLine(manifest, entry, viewMode.serviceId)
     );
     const service = manifest.servicesById[viewMode.serviceId];
 
@@ -960,13 +1080,7 @@ export function DevLauncherDashboardApp({
       <Box flexDirection='column' height='100%' width='100%'>
         <Text color='cyan'>Start a dev session</Text>
         <Text dimColor>{manifest.configPath}</Text>
-        <Box
-          borderColor='cyan'
-          borderStyle='round'
-          flexDirection='column'
-          marginTop={1}
-          paddingX={1}
-        >
+        <Box flexDirection='column' marginTop={1}>
           {startupOptions.map((option, index) => (
             <Text key={option.label}>
               {index === overlay.cursor ? '› ' : '  '}
@@ -974,6 +1088,7 @@ export function DevLauncherDashboardApp({
             </Text>
           ))}
         </Box>
+        <Text> </Text>
         <Box flexGrow={1} />
         <Text dimColor>{getStartupHelpText()}</Text>
         {flashMessage ? (
@@ -990,13 +1105,7 @@ export function DevLauncherDashboardApp({
       <Box flexDirection='column' height='100%' width='100%'>
         <Text color='cyan'>Select services</Text>
         <Text dimColor>Space toggle, Enter apply, Esc cancel</Text>
-        <Box
-          borderColor='cyan'
-          borderStyle='round'
-          flexDirection='column'
-          marginTop={1}
-          paddingX={1}
-        >
+        <Box flexDirection='column' marginTop={1}>
           {manifest.serviceIdsInOrder.map((serviceId, index) => {
             const service = manifest.servicesById[serviceId];
             const isSelected = overlay.pendingServiceIds.includes(serviceId);
@@ -1009,6 +1118,7 @@ export function DevLauncherDashboardApp({
             );
           })}
         </Box>
+        <Text> </Text>
         <Box flexGrow={1} />
         {flashMessage ? (
           <Text color='yellow'>{flashMessage}</Text>
@@ -1019,10 +1129,12 @@ export function DevLauncherDashboardApp({
     );
   }
 
-  const visibleDashboardLogs = getVisibleLogs(
+  const visibleDashboardLogs = getVisibleLogsByRenderedRows(
     dashboardViewerLogs,
     dashboardLogScrollOffset,
-    dashboardLogLines
+    dashboardLogLines,
+    dashboardLogColumns,
+    (entry) => formatViewerLine(manifest, entry, selectedRowId)
   );
 
   return (
@@ -1034,13 +1146,7 @@ export function DevLauncherDashboardApp({
       </Text>
       <Text dimColor>{getDashboardHelpText(selectedService?.openUrl)}</Text>
       <Box flexGrow={1} marginTop={1}>
-        <Box
-          borderColor='cyan'
-          borderStyle='round'
-          flexDirection='column'
-          paddingX={1}
-          width={28}
-        >
+        <Box flexDirection='column' width={DASHBOARD_SERVICE_LIST_WIDTH}>
           {dashboardRows.map((rowId) => {
             if (rowId === 'all-logs') {
               return (
@@ -1062,14 +1168,10 @@ export function DevLauncherDashboardApp({
             );
           })}
         </Box>
-        <Box
-          borderColor='cyan'
-          borderStyle='round'
-          flexDirection='column'
-          flexGrow={1}
-          marginLeft={1}
-          paddingX={1}
-        >
+        <Box marginX={1}>
+          <Text dimColor>{getVerticalDivider(dashboardLogLines + 1)}</Text>
+        </Box>
+        <Box flexDirection='column' flexGrow={1}>
           <Text color='cyan'>
             {selectedRowId === 'all-logs'
               ? 'All logs'
