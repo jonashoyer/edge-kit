@@ -15,7 +15,7 @@ import type {
 
 const DEFAULT_LOG_BUFFER_SIZE = 400;
 const LINE_SPLIT_REGEX = /\r?\n/u;
-const STOP_TIMEOUT_MS = 4000;
+const STOP_TIMEOUT_MS = 1500;
 
 interface ReadableLike {
   on: (event: 'data', listener: (chunk: Buffer | string) => void) => void;
@@ -34,6 +34,7 @@ export interface SpawnedDevProcess {
 
 interface SpawnOptionsLike {
   cwd: string;
+  detached?: boolean;
   env: NodeJS.ProcessEnv;
   stdio: ['ignore', 'pipe', 'pipe'];
 }
@@ -41,6 +42,7 @@ interface SpawnOptionsLike {
 export interface DevLauncherProcessManagerRuntime {
   clearTimeout: (timeout: NodeJS.Timeout) => void;
   env: NodeJS.ProcessEnv;
+  kill: (pid: number, signal: NodeJS.Signals | number) => boolean;
   now: () => number;
   platform: NodeJS.Platform;
   setTimeout: (callback: () => void, delay: number) => NodeJS.Timeout;
@@ -85,12 +87,17 @@ class RingBuffer<T> {
 const defaultRuntime: DevLauncherProcessManagerRuntime = {
   clearTimeout,
   env: process.env,
+  kill: (pid, signal) => process.kill(pid, signal),
   now: () => Date.now(),
   platform: process.platform,
   setTimeout,
   spawn: (command, args, options) => {
     return spawn(command, args, options);
   },
+};
+
+const shouldUseProcessGroup = (platform: NodeJS.Platform): boolean => {
+  return platform !== 'win32';
 };
 
 const getPackageManagerCommand = (
@@ -401,6 +408,7 @@ export class DevLauncherProcessManager implements DevLauncherProcessController {
 
     const child = this.#runtime.spawn(spawnSpec.command, spawnSpec.args, {
       cwd: spawnSpec.cwd,
+      detached: shouldUseProcessGroup(this.#runtime.platform),
       env: this.#runtime.env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
@@ -474,13 +482,34 @@ export class DevLauncherProcessManager implements DevLauncherProcessController {
     this.#setServiceState(serviceId, { status: 'stopping' });
     this.#pushLifecycleLog(serviceId, childState.runId, 'stopping');
 
-    childState.child.kill('SIGTERM');
+    this.#signalChildState(childState, 'SIGTERM');
     childState.stopTimeout = this.#runtime.setTimeout(() => {
       this.#pushLifecycleLog(serviceId, childState.runId, 'force-killed');
-      childState.child.kill('SIGKILL');
+      this.#signalChildState(childState, 'SIGKILL');
     }, STOP_TIMEOUT_MS);
 
     await childState.exitPromise;
+  }
+
+  #signalChildState(
+    childState: RunningChildState,
+    signal: NodeJS.Signals
+  ): void {
+    const childPid = childState.child.pid;
+
+    if (childPid && shouldUseProcessGroup(this.#runtime.platform)) {
+      try {
+        const didSignalGroup = this.#runtime.kill(-childPid, signal);
+        if (didSignalGroup) {
+          return;
+        }
+      } catch {
+        // Fall back to the direct child below when group signaling is not
+        // available for this process.
+      }
+    }
+
+    childState.child.kill(signal);
   }
 
   #handleChildExit(

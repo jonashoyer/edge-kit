@@ -58,8 +58,11 @@ the full terminal height.
   - `command`
 - DO require `workspace-script` to use exactly one of `packageName` or
   `packagePath`.
-- DO supervise one child per selected service and keep unchanged healthy
-  services running when the managed set changes.
+- DO supervise one owned process group per selected service on POSIX/macOS and
+  keep unchanged healthy services running when the managed set changes.
+- DO model long-running local tools, including `drizzle-kit studio`, as
+  services instead of developer actions so the launcher can stop their full
+  process group.
 - DO preserve bounded in-memory logs and inject lifecycle markers for start,
   stop, fail, and restart events.
 - DO expose the live supervisor through JSON-RPC 2.0 on a Unix domain socket.
@@ -90,6 +93,8 @@ the full terminal height.
 - DO NOT add script auto-discovery, auto-respawn, readiness checks, or
   persistent log files in this phase.
 - DO NOT add action flows to the non-TTY plain runner in this phase.
+- DO NOT use developer actions as the primary surface for long-running local
+  servers; actions are one-shot workflows in this phase.
 - DO NOT add HTTP, MCP, or push-based log subscriptions in this phase.
 
 ---
@@ -179,8 +184,9 @@ Implemented: shared TS/JS config loading with upward lookup and optional
 Implemented: root-script, workspace-script, and command target resolution for
 single-package repos and PNPM workspaces.
 
-Implemented: a shared process supervisor with one child per service, bounded
-log buffers, lifecycle markers, and explicit stop/restart behavior.
+Implemented: a shared process supervisor with one owned POSIX process group per
+service, bounded log buffers, lifecycle markers, and explicit stop/restart
+behavior.
 
 Implemented: one local session host per repo root now owns the shared process
 supervisor and exposes JSON-RPC 2.0 over a Unix domain socket.
