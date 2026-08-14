@@ -81,6 +81,7 @@ importable runtime package.
 
 - [Axiom Logger](./src/services/logging/axiom-logger.ts)
 - [Alerting](./src/services/alerting/): Axiom, Slack, PagerDuty implementations.
+- [Internal Error Persistence](./src/services/escalation/internal-error-persistence.ts): KV-backed aggregate and per-actor diagnostics.
 
 ### Analytics
 

@@ -20,6 +20,8 @@ See `src/services/escalation/error-escalation-service.ts` for a rules-based erro
 
 `src/services/escalation/trpc-error-escalation.ts` provides a tRPC `onError` adapter. By default, it alerts immediately for matching 5xx errors and after three matching 4xx errors in one hour, with a one-day cooldown per error fingerprint. Callers can replace the defaults with `clientErrorRules` and `serverErrorRules`.
 
+`src/services/escalation/internal-error-persistence.ts` stores aggregate diagnostics and optional per-actor occurrence records for internal server errors. Records retain the raw stack, first and last occurrence timestamps, counts, and a public support hash.
+
 It requires a `AbstractKeyValueService` and an `AbstractNotificationService` (e.g., Slack). Keys are namespaced under `err:` and grouped by an optional `groupId`.
 
 ## Abstract Alerting Service

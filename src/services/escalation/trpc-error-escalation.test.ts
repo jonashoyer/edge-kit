@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { fnv1a64 } from '../../utils/crypto-utils';
 import type { CaptureConfig } from './error-escalation-service';
 import {
   createTrpcErrorEscalationHandler,
@@ -9,6 +10,16 @@ const createError = (code: string, message = 'Request failed') =>
   Object.assign(new Error(message), { code });
 
 describe('createTrpcErrorEscalationHandler', () => {
+  it('hashes the canonical error identity with FNV-1a 64-bit', () => {
+    const error = createError('INTERNAL_SERVER_ERROR');
+    const canonicalError =
+      'report.build:INTERNAL_SERVER_ERROR:Error:request failed';
+
+    expect(getTrpcErrorFingerprint({ error, path: 'report.build' })).toBe(
+      fnv1a64(canonicalError).toString(16)
+    );
+  });
+
   it('uses an immediate daily rule for 5xx errors', async () => {
     const capture = vi
       .fn<(error: unknown, config: CaptureConfig) => Promise<void>>()

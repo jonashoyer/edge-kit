@@ -1,3 +1,4 @@
+import { fnv1a64 } from '../../utils/crypto-utils';
 import type { CaptureConfig, EscalationRule } from './error-escalation-service';
 
 export type TrpcErrorLike = Error & {
@@ -82,13 +83,15 @@ export const getTrpcErrorHttpStatus = (error: TrpcErrorLike) => {
 export const getTrpcErrorFingerprint = ({
   error,
   path,
-}: Pick<TrpcOnErrorParams, 'error' | 'path'>) =>
-  [
+}: Pick<TrpcOnErrorParams, 'error' | 'path'>) => {
+  const canonicalError = [
     path ?? 'unknown-path',
     error.code,
     error.name,
     normalizeFingerprintPart(error.message),
   ].join(':');
+  return fnv1a64(canonicalError).toString(16);
+};
 
 /**
  * Creates a callback compatible with tRPC's `onError` parameters.
