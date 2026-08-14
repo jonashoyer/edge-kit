@@ -15,6 +15,7 @@ export type ThresholdRule = {
   type: 'threshold';
   count: number;
   windowSeconds: number;
+  cooldownSeconds?: number;
 };
 
 export type EscalationRule = AlwaysRule | ThresholdRule;
@@ -24,6 +25,7 @@ export type CaptureConfig = {
   severity: AlertSeverity;
   message?: string;
   groupId?: string;
+  tags?: Record<string, string>;
   rules: EscalationRule[];
 };
 
@@ -176,7 +178,21 @@ export class ErrorEscalationService {
     });
     const count = await this.kv.increment(k, 1);
     await this.kv.expire(k, rule.windowSeconds);
-    return count === rule.count;
+    if (!rule.cooldownSeconds) {
+      return count === rule.count;
+    }
+
+    if (count < rule.count) {
+      return false;
+    }
+
+    const cooldownKey = `${k}:cooldown`;
+    if (await this.kv.exists(cooldownKey)) {
+      return false;
+    }
+
+    await this.kv.set(cooldownKey, 1, rule.cooldownSeconds);
+    return true;
   }
 
   private async handleAlways(args: {
@@ -209,7 +225,7 @@ export class ErrorEscalationService {
       case 'always':
         return `rule=always interval=${rule.intervalSeconds}s`;
       case 'threshold':
-        return `rule=threshold count=${rule.count} window=${rule.windowSeconds}s`;
+        return `rule=threshold count=${rule.count} window=${rule.windowSeconds}s cooldown=${rule.cooldownSeconds ?? 0}s`;
       default:
         return '';
     }
@@ -247,6 +263,7 @@ export class ErrorEscalationService {
     await this.alerting.alert(this.buildText(opts), {
       severity: opts.severity,
       source: 'error-escalation',
+      tags: opts.config.tags,
     });
   }
 }

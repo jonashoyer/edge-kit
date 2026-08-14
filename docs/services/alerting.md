@@ -15,9 +15,10 @@ The alerting services allow you to:
 
 See `src/services/escalation/error-escalation-service.ts` for a rules-based error notification helper supporting:
 
-- always: notify every occurrence
-- threshold: notify on N errors within a window (deduped per window)
-- cooldown: notify at most once per interval
+- always: notify every occurrence, optionally at most once per interval
+- threshold: notify on N errors within a window, with an optional cooldown
+
+`src/services/escalation/trpc-error-escalation.ts` provides a tRPC `onError` adapter. By default, it alerts immediately for matching 5xx errors and after three matching 4xx errors in one hour, with a one-day cooldown per error fingerprint. Callers can replace the defaults with `clientErrorRules` and `serverErrorRules`.
 
 It requires a `AbstractKeyValueService` and an `AbstractNotificationService` (e.g., Slack). Keys are namespaced under `err:` and grouped by an optional `groupId`.
 

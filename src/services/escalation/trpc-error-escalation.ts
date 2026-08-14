@@ -1,0 +1,135 @@
+import type { CaptureConfig, EscalationRule } from './error-escalation-service';
+
+export type TrpcErrorLike = Error & {
+  code: string;
+  data?: { httpStatus?: number };
+};
+
+export type TrpcOnErrorParams<TContext = unknown> = {
+  ctx?: TContext;
+  error: TrpcErrorLike;
+  path?: string;
+  type?: 'query' | 'mutation' | 'subscription' | 'unknown';
+};
+
+type ErrorEscalationCapture = {
+  capture(error: unknown, config: CaptureConfig): Promise<unknown>;
+};
+
+export type TrpcErrorEscalationOptions<TContext> = {
+  getEscalation: (
+    params: TrpcOnErrorParams<TContext>
+  ) => ErrorEscalationCapture | undefined;
+  enabled?: boolean;
+  environment?: string;
+  clientErrorRules?: EscalationRule[];
+  serverErrorRules?: EscalationRule[];
+};
+
+const HTTP_STATUS_BY_CODE: Record<string, number> = {
+  BAD_GATEWAY: 502,
+  BAD_REQUEST: 400,
+  CLIENT_CLOSED_REQUEST: 499,
+  CONFLICT: 409,
+  FORBIDDEN: 403,
+  GATEWAY_TIMEOUT: 504,
+  INTERNAL_SERVER_ERROR: 500,
+  METHOD_NOT_SUPPORTED: 405,
+  NOT_FOUND: 404,
+  NOT_IMPLEMENTED: 501,
+  PARSE_ERROR: 400,
+  PAYMENT_REQUIRED: 402,
+  PAYLOAD_TOO_LARGE: 413,
+  PRECONDITION_FAILED: 412,
+  SERVICE_UNAVAILABLE: 503,
+  TIMEOUT: 408,
+  TOO_MANY_REQUESTS: 429,
+  UNAUTHORIZED: 401,
+  UNPROCESSABLE_CONTENT: 422,
+  UNSUPPORTED_MEDIA_TYPE: 415,
+};
+
+const ONE_HOUR_SECONDS = 60 * 60;
+const ONE_DAY_SECONDS = 24 * ONE_HOUR_SECONDS;
+const DEFAULT_CLIENT_ERROR_RULES: EscalationRule[] = [
+  {
+    type: 'threshold',
+    count: 3,
+    windowSeconds: ONE_HOUR_SECONDS,
+    cooldownSeconds: ONE_DAY_SECONDS,
+  },
+];
+const DEFAULT_SERVER_ERROR_RULES: EscalationRule[] = [
+  { type: 'always', intervalSeconds: ONE_DAY_SECONDS },
+];
+const NUMBER_SEQUENCE = /\d+/g;
+const WHITESPACE_SEQUENCE = /\s+/g;
+
+const normalizeFingerprintPart = (value: string) =>
+  value
+    .toLowerCase()
+    .replace(NUMBER_SEQUENCE, '#')
+    .replace(WHITESPACE_SEQUENCE, ' ')
+    .trim();
+
+export const getTrpcErrorHttpStatus = (error: TrpcErrorLike) => {
+  if (error.data?.httpStatus) {
+    return error.data.httpStatus;
+  }
+  return HTTP_STATUS_BY_CODE[error.code];
+};
+
+export const getTrpcErrorFingerprint = ({
+  error,
+  path,
+}: Pick<TrpcOnErrorParams, 'error' | 'path'>) =>
+  [
+    path ?? 'unknown-path',
+    error.code,
+    error.name,
+    normalizeFingerprintPart(error.message),
+  ].join(':');
+
+/**
+ * Creates a callback compatible with tRPC's `onError` parameters.
+ * Alerts immediately for 5xx errors and after three matching 4xx errors in one hour.
+ */
+export const createTrpcErrorEscalationHandler =
+  <TContext>({
+    getEscalation,
+    enabled = true,
+    environment = 'unknown',
+    clientErrorRules = DEFAULT_CLIENT_ERROR_RULES,
+    serverErrorRules = DEFAULT_SERVER_ERROR_RULES,
+  }: TrpcErrorEscalationOptions<TContext>) =>
+  async (params: TrpcOnErrorParams<TContext>): Promise<void> => {
+    if (!enabled) {
+      return;
+    }
+
+    const status = getTrpcErrorHttpStatus(params.error);
+    if (!status || status < 400 || status >= 600) {
+      return;
+    }
+
+    const escalation = getEscalation(params);
+    if (!escalation) {
+      return;
+    }
+
+    const fingerprint = getTrpcErrorFingerprint(params);
+
+    await escalation.capture(params.error, {
+      name: `tRPC ${status >= 500 ? 'server' : 'client'} error`,
+      severity: 'error',
+      groupId: fingerprint,
+      message: `HTTP ${status}, procedure: ${params.path ?? 'unknown'}, type: ${params.type ?? 'unknown'}`,
+      tags: {
+        environment,
+        path: params.path ?? 'unknown',
+        status: String(status),
+        trpcCode: params.error.code,
+      },
+      rules: status >= 500 ? serverErrorRules : clientErrorRules,
+    });
+  };
