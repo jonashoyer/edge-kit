@@ -34,6 +34,23 @@ export const dedupeBy = <T>(arr: T[], key: (item: T) => string) => {
   });
 };
 
+export const groupBy = <T>(
+  arr: T[],
+  key: (item: T) => string
+): Record<string, T[]> => {
+  return arr.reduce(
+    (acc, item) => {
+      const groupKey = key(item);
+      if (!acc[groupKey]) {
+        acc[groupKey] = [];
+      }
+      acc[groupKey].push(item);
+      return acc;
+    },
+    {} as Record<string, T[]>
+  );
+};
+
 type MapByBaseOptions<T, V> = {
   include?: (item: T) => boolean;
   resolveDuplicate?: (existing: V, next: V, key: string) => V;
