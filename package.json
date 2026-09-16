@@ -42,7 +42,7 @@
     "@huggingface/transformers": "^3.5.1",
     "@mastra/core": "^1.0.4",
     "@mastra/rag": "^2.0.0",
-    "@modelcontextprotocol/sdk": "^1.17.3",
+    "@modelcontextprotocol/sdk": "^1.30.0",
     "@notionhq/client": "^5.1.0",
     "@toon-format/toon": "^2.1.0",
     "@tryfabric/martian": "^1.2.4",
