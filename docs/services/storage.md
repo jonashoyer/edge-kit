@@ -9,6 +9,8 @@ The storage family is split into:
 
 - object-level operations on `AbstractStorage`
 - optional browse support on `storage.explorer`
+- optional immutable-object operations on `storage.immutable`
+- optional multipart session operations on `storage.multipart`
 - directory-style convenience helpers in `StorageInventoryService`
 
 This keeps the base provider contract small while still allowing providers
@@ -22,6 +24,20 @@ type StorageBody = string | Uint8Array | ArrayBuffer | Blob;
 type StorageWriteOptions = {
   contentType?: string;
   metadata?: Record<string, unknown>;
+};
+
+type StorageObjectReference = {
+  key: string;
+  etag?: string;
+  versionId?: string | null;
+  checksum?: { algorithm: string; value: string };
+};
+
+type StorageObjectDescriptor<TMeta = never> = StorageObjectReference & {
+  contentLength: number;
+  contentType?: string;
+  lastModified?: number;
+  meta: TMeta;
 };
 
 type StorageWritePresignedUrlOptions = {
@@ -46,6 +62,8 @@ type StorageExplorerCapability = {
 
 abstract class AbstractStorage {
   readonly explorer?: StorageExplorerCapability;
+  readonly immutable?: StorageImmutableCapability;
+  readonly multipart?: StorageMultipartCapability;
 
   abstract write(
     key: string,
@@ -79,6 +97,81 @@ abstract class AbstractStorage {
   }>;
 }
 ```
+
+## Immutable Capability
+
+Providers that can expose stable object references, create-only writes, pinned
+reads, and explicit cleanup semantics attach `storage.immutable`.
+
+```typescript
+const storage = new S3Storage({
+  bucket: 'recordings',
+  region: 'us-east-1',
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  maxAttempts: 1,
+  versioning: 'enabled',
+});
+
+const result = await storage.immutable?.createObject(
+  'transcripts/meeting-1.md',
+  '# Meeting',
+  {
+    contentType: 'text/markdown; charset=utf-8',
+  }
+);
+
+if (result?.status === 'already-exists') {
+  // caller decides whether the existing object is acceptable
+}
+
+const pinned = await storage.immutable?.createReadPresignedUrl(
+  result!.object
+);
+
+await storage.immutable?.delete('transcripts/meeting-1.md', {
+  mode: 'all-versions',
+});
+```
+
+`S3Storage` only exposes `storage.immutable` when the caller passes an explicit
+`versioning: 'enabled' | 'disabled'` mode. Edge Kit does not probe bucket
+versioning at runtime.
+
+## Multipart Capability
+
+Providers that can manage multipart sessions attach `storage.multipart`.
+
+```typescript
+const session = await storage.multipart?.create('recordings/original.webm', {
+  contentType: 'video/webm',
+  metadata: { uploadId: 'upload-123' },
+});
+
+const upload = {
+  key: session!.key,
+  uploadId: session!.uploadId,
+  expectedBytes: 20 * 1024 * 1024,
+  partSizeBytes: 8 * 1024 * 1024,
+  partCount: 3,
+};
+
+const part = await storage.multipart?.createPartPresignedUrl(upload, 3, {
+  contentType: 'video/webm',
+});
+
+const object = await storage.multipart?.complete(upload, {
+  contentType: 'video/webm',
+});
+```
+
+Multipart uploads stay low-level on purpose:
+
+- callers choose part sizes and persist operation identity themselves
+- part URLs are signed for exact byte ranges only
+- completion validates part ordering and sizes before finalizing
+- abort verification only proves whether parts still remain visible after the
+  abort attempt; it does not claim in-flight writes were stopped
 
 ## Explorer Capability
 
@@ -129,13 +222,16 @@ not a filesystem guarantee.
 ### S3Storage
 
 AWS S3-compatible storage provider with object operations plus optional
-explorer support.
+explorer support. It can also expose `storage.immutable` when `versioning` is
+configured explicitly, plus `storage.multipart` for S3 multipart sessions.
 
 **Location**: `src/services/storage/s3-storage.ts`
 
 ### R2Storage
 
 Cloudflare R2 provider built on top of the S3-compatible implementation.
+Immutable and multipart capabilities are intentionally not advertised here
+until provider-specific behavior is validated.
 
 **Location**: `src/services/storage/r2-storage.ts`
 
@@ -192,7 +288,8 @@ const upload = await storage.createWritePresignedUrl('documents/report.pdf', {
 ## Custom Implementations
 
 You can create a custom provider by extending `AbstractStorage`. Add
-`explorer` only if your provider supports flat key listing.
+`explorer`, `immutable`, and `multipart` only when the provider can uphold the
+corresponding guarantees natively.
 
 ```typescript
 import type {

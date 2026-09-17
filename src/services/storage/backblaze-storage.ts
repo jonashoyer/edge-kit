@@ -13,6 +13,9 @@ interface R2StorageOptions extends StorageOptions {
  * Configures the S3Storage client to work with Backblaze B2 endpoints.
  */
 export class BackblazeStorage extends S3Storage {
+  override readonly immutable = undefined;
+  override readonly multipart = undefined;
+
   constructor(options: R2StorageOptions) {
     // FIXME: Configure for backblaze
     super({

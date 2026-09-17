@@ -1,3 +1,5 @@
+import { CustomError } from '../../utils/custom-error';
+
 export interface StorageOptions {
   region?: string;
   endpoint?: string;
@@ -9,6 +11,8 @@ export interface StorageWriteOptions {
   contentType?: string;
   metadata?: Record<string, unknown>;
 }
+
+export type StorageVersioningMode = 'enabled' | 'disabled';
 
 export interface StorageExplorerListPageOptions {
   maxKeys?: number;
@@ -35,12 +39,146 @@ export interface StorageWritePresignedUrlOptions {
   bytesLimit?: number;
 }
 
+export interface StorageObjectChecksum {
+  algorithm: string;
+  value: string;
+}
+
+export interface StorageObjectReference {
+  key: string;
+  etag?: string;
+  versionId?: string | null;
+  checksum?: StorageObjectChecksum;
+}
+
 export interface StorageObjectMetadata<TMeta = never> {
   contentLength: number;
   contentType?: string;
   etag?: string;
   lastModified?: number;
   meta: TMeta;
+}
+
+export interface StorageObjectDescriptor<TMeta = never>
+  extends StorageObjectReference,
+    StorageObjectMetadata<TMeta> {}
+
+export interface StorageReadObjectOptions {
+  versionId?: string | null;
+}
+
+export interface StorageCreateObjectOptions extends StorageWriteOptions {
+  checksum?: StorageObjectChecksum;
+}
+
+export interface StorageCreateObjectResult<TMeta = never> {
+  status: 'created' | 'already-exists';
+  object: StorageObjectDescriptor<TMeta>;
+}
+
+export interface StorageDeleteObjectVersionError {
+  key: string;
+  versionId?: string;
+  code?: string;
+  message: string;
+}
+
+export interface StorageDeleteObjectOptions {
+  versionId?: string | null;
+  mode?: 'current' | 'all-versions';
+}
+
+export interface StorageMultipartUploadSession {
+  key: string;
+  uploadId: string;
+}
+
+export interface StorageMultipartUploadDescriptor
+  extends StorageMultipartUploadSession {
+  expectedBytes: number;
+  partSizeBytes: number;
+  partCount: number;
+}
+
+export interface StorageMultipartUploadOptions extends StorageWriteOptions {}
+
+export interface StorageMultipartPart {
+  partNumber: number;
+  etag: string;
+  sizeBytes: number;
+}
+
+export interface StorageMultipartPartInstruction {
+  key: string;
+  uploadId: string;
+  partNumber: number;
+  method: 'PUT';
+  url: string;
+  headers: Record<string, string>;
+  expiresAt: number;
+  offsetBytes: number;
+  lengthBytes: number;
+  maxBytes: number;
+}
+
+export interface StorageMultipartPartUrlOptions {
+  contentType?: string;
+}
+
+export interface StorageMultipartCompleteOptions extends StorageWriteOptions {}
+
+/**
+ * Optional immutable object capability for providers that can expose stable
+ * object references, create-only publication, version-pinned reads, and
+ * explicit cleanup semantics.
+ */
+export interface StorageImmutableCapability {
+  readonly versioning: StorageVersioningMode;
+
+  head<TMeta = never>(
+    key: string,
+    options?: StorageReadObjectOptions
+  ): Promise<StorageObjectDescriptor<TMeta> | null>;
+  read(
+    ref: StorageObjectReference,
+    options?: StorageReadObjectOptions
+  ): Promise<Buffer>;
+  createObject<TMeta = never>(
+    key: string,
+    data: StorageBody,
+    options?: StorageCreateObjectOptions
+  ): Promise<StorageCreateObjectResult<TMeta>>;
+  createReadPresignedUrl(
+    ref: StorageObjectReference,
+    options?: StorageReadObjectOptions
+  ): Promise<{ url: string; expiresAt: number }>;
+  delete(key: string, options?: StorageDeleteObjectOptions): Promise<void>;
+}
+
+/**
+ * Optional multipart capability for providers that can manage upload sessions,
+ * sign individual parts, validate part listings, and complete or abort on the
+ * server side.
+ */
+export interface StorageMultipartCapability {
+  create(
+    key: string,
+    options?: StorageMultipartUploadOptions
+  ): Promise<StorageMultipartUploadSession>;
+  find(key: string): Promise<StorageMultipartUploadSession[]>;
+  listParts(
+    upload: StorageMultipartUploadSession
+  ): Promise<StorageMultipartPart[]>;
+  createPartPresignedUrl(
+    upload: StorageMultipartUploadDescriptor,
+    partNumber: number,
+    options?: StorageMultipartPartUrlOptions
+  ): Promise<StorageMultipartPartInstruction>;
+  complete<TMeta = never>(
+    upload: StorageMultipartUploadDescriptor,
+    options?: StorageMultipartCompleteOptions
+  ): Promise<StorageObjectDescriptor<TMeta>>;
+  abort(upload: StorageMultipartUploadSession): Promise<void>;
 }
 
 const isBlobLike = (value: unknown): value is Blob =>
@@ -91,6 +229,8 @@ export const storageBodyToUint8Array = async (
 export abstract class AbstractStorage {
   protected options: StorageOptions;
   readonly explorer?: StorageExplorerCapability;
+  readonly immutable?: StorageImmutableCapability;
+  readonly multipart?: StorageMultipartCapability;
 
   constructor(options: StorageOptions) {
     this.options = options;
@@ -131,5 +271,20 @@ export abstract class AbstractStorage {
 export class ObjectStorageExistsError extends Error {
   constructor(key: string) {
     super(`Object storage key already exists: ${key}`);
+  }
+}
+
+export class StorageDeleteObjectError extends CustomError<'DELETE_FAILED'> {
+  readonly errors: StorageDeleteObjectVersionError[];
+
+  constructor(key: string, errors: StorageDeleteObjectVersionError[]) {
+    super(`Object storage cleanup failed for key: ${key}`, 'DELETE_FAILED');
+    this.errors = errors;
+  }
+}
+
+export class StorageMultipartUploadError extends CustomError<'INVALID_UPLOAD'> {
+  constructor(message: string) {
+    super(message, 'INVALID_UPLOAD');
   }
 }

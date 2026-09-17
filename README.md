@@ -55,6 +55,7 @@ importable runtime package.
 
 - [S3](./src/services/storage/s3-storage.ts)
 - [Cloudflare R2](./src/services/storage/r2-storage.ts)
+- [Storage Bytes, Immutable Refs, and Multipart Uploads](./docs/services/storage.md)
 - [Storage Asset Catalog](./src/services/storage-asset/abstract-storage-asset.ts)
 - [Storage Asset Refs](./src/services/storage-asset/abstract-storage-asset-ref.ts)
 - [Storage Upload Ledger](./src/services/storage-asset/abstract-storage-upload-ledger.ts)

@@ -13,6 +13,9 @@ interface R2StorageOptions extends StorageOptions {
  * Configures the S3Storage client to work with Cloudflare R2 endpoints.
  */
 export class R2Storage extends S3Storage {
+  override readonly immutable = undefined;
+  override readonly multipart = undefined;
+
   constructor(options: R2StorageOptions) {
     super({
       ...options,

@@ -49,4 +49,13 @@ describe('LocalStorage explorer', () => {
       'docs/nested/b.txt',
     ]);
   });
+
+  it('does not advertise immutable or multipart capabilities', async () => {
+    const basePath = await mkdtemp(path.join(os.tmpdir(), 'edge-kit-storage-'));
+    tempDirs.push(basePath);
+    const storage = new LocalStorage({ basePath });
+
+    expect(storage.immutable).toBeUndefined();
+    expect(storage.multipart).toBeUndefined();
+  });
 });
