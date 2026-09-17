@@ -100,7 +100,8 @@ asset-catalog workflows; those remain in `src/services/storage-asset/`.
 Implemented: `AbstractStorage` now owns only object-level operations, S3 and
 local storage providers expose optional `storage.explorer` capabilities for
 flat key browsing, `S3Storage` can optionally expose immutable-object and
-multipart capabilities when configured explicitly, and
+multipart capabilities when configured explicitly, `BackblazeStorage` is a
+thin B2 endpoint/region preset over the shared S3 implementation, and
 `StorageInventoryService` derives directory-like listings from those flat keys.
 Root-level `list` and `listPage` methods were removed from the base storage
 contract.
@@ -110,10 +111,12 @@ contract.
 - `StorageInventoryService` derives directory views by scanning flat keys
   rather than using provider-optimized delimiter or common-prefix APIs. This
   keeps the contract simple, but it is not optimized for very large keyspaces.
-- `R2Storage` and `BackblazeStorage` intentionally do not advertise immutable
-  or multipart support yet. Their real provider behavior still needs
-  provider-specific verification before Edge Kit should expose those
-  guarantees.
+- `R2Storage` still does not advertise immutable or multipart support. That is
+  a repository verification limit, not a statement that the provider lacks the
+  underlying S3-compatible APIs.
+- `BackblazeStorage` now routes to the shared S3 implementation with explicit
+  B2 endpoint/region configuration, but this repo still lacks live B2
+  integration coverage.
 
 ## What NOT To Do
 

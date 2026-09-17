@@ -1,27 +1,23 @@
-import type { StorageOptions } from './abstract-storage';
-import { S3Storage } from './s3-storage';
+import { S3Storage, type S3StorageOptions } from './s3-storage';
 
-interface R2StorageOptions extends StorageOptions {
-  accountId: string;
-  accessKeyId: string;
-  secretAccessKey: string;
-  bucket: string;
+interface BackblazeStorageOptions
+  extends Omit<S3StorageOptions, 'maxAttempts' | 'versioning'> {
+  endpoint: string;
+  region: string;
 }
 
 /**
  * Backblaze B2 implementation of AbstractStorage (via S3 compatibility).
- * Configures the S3Storage client to work with Backblaze B2 endpoints.
+ * Thin configuration preset over `S3Storage`.
+ * Callers must supply the exact B2 S3 endpoint and matching region from their
+ * bucket details.
  */
 export class BackblazeStorage extends S3Storage {
-  override readonly immutable = undefined;
-  override readonly multipart = undefined;
-
-  constructor(options: R2StorageOptions) {
-    // FIXME: Configure for backblaze
+  constructor(options: BackblazeStorageOptions) {
     super({
       ...options,
-      endpoint: `https://${options.accountId}.r2.cloudflarestorage.com`,
-      region: 'auto',
+      maxAttempts: 1,
+      versioning: 'enabled',
     });
   }
 }

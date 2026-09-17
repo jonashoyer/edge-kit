@@ -167,14 +167,8 @@ describe('S3Storage', () => {
     expect(storage.multipart).toBeDefined();
   });
 
-  it('keeps R2 and Backblaze multipart and immutable capabilities absent', () => {
+  it('keeps R2 immutable and multipart capabilities absent until validated', () => {
     const r2 = new R2Storage({
-      accountId: 'account',
-      bucket: 'bucket',
-      accessKeyId: 'key',
-      secretAccessKey: 'secret',
-    });
-    const backblaze = new BackblazeStorage({
       accountId: 'account',
       bucket: 'bucket',
       accessKeyId: 'key',
@@ -183,8 +177,26 @@ describe('S3Storage', () => {
 
     expect(r2.immutable).toBeUndefined();
     expect(r2.multipart).toBeUndefined();
-    expect(backblaze.immutable).toBeUndefined();
-    expect(backblaze.multipart).toBeUndefined();
+  });
+
+  it('configures Backblaze with the supplied B2 endpoint and shared S3 capabilities', () => {
+    const endpoint = 'https://s3.us-west-004.backblazeb2.com';
+    const region = 'us-west-004';
+    const backblaze = new BackblazeStorage({
+      endpoint,
+      region,
+      bucket: 'bucket',
+      accessKeyId: 'key',
+      secretAccessKey: 'secret',
+    });
+
+    expect(backblaze.immutable?.versioning).toBe('enabled');
+    expect(backblaze.multipart).toBeDefined();
+    expect(clientOptions.at(-1)).toMatchObject({
+      endpoint,
+      region,
+      maxAttempts: 1,
+    });
   });
 
   it('writes metadata through provider-native object metadata', async () => {

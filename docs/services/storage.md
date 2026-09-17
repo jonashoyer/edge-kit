@@ -3,6 +3,10 @@
 Edge Kit provides object-storage abstractions plus concrete providers for
 S3-compatible backends and the local filesystem.
 
+Copy the storage component files you need, plus the focused tests that cover
+the provider behavior you depend on. Edge Kit is not presenting storage as a
+required runtime package dependency.
+
 ## Overview
 
 The storage family is split into:
@@ -231,9 +235,19 @@ configured explicitly, plus `storage.multipart` for S3 multipart sessions.
 
 Cloudflare R2 provider built on top of the S3-compatible implementation.
 Immutable and multipart capabilities are intentionally not advertised here
-until provider-specific behavior is validated.
+yet. That is a repository verification limit, not a claim that the provider
+lacks those APIs.
 
 **Location**: `src/services/storage/r2-storage.ts`
+
+### BackblazeStorage
+
+Backblaze B2 preset built on top of the shared `S3Storage` implementation.
+Callers must pass the exact B2 S3 endpoint and matching region from Backblaze
+bucket details. The preset pins `versioning: 'enabled'` and `maxAttempts: 1`
+to match the shared immutable and multipart semantics.
+
+**Location**: `src/services/storage/backblaze-storage.ts`
 
 ### LocalStorage
 
@@ -284,6 +298,32 @@ const upload = await storage.createWritePresignedUrl('documents/report.pdf', {
   maxBytes: 10 * 1024 * 1024,
 });
 ```
+
+## Provider Notes
+
+### Backblaze B2
+
+- Official Backblaze docs describe the B2 S3-compatible API as supporting
+  multipart upload actions, version-listing actions, and AWS SDK for
+  JavaScript v3 configuration with a caller-supplied endpoint and matching
+  region.
+- `BackblazeStorage` is therefore a thin preset over the shared `S3Storage`
+  implementation instead of a separate adapter with duplicated operations.
+- Backblaze also documents some S3 incompatibilities, including limited ACL
+  support and unsupported object tagging. Edge Kit's current storage surface
+  does not rely on those features, but that does not make AWS S3 and B2
+  identical.
+- This repository has not run live B2 integration tests. Documented protocol
+  support and shared unit tests are the current evidence, not a deployment
+  guarantee.
+
+### Cloudflare R2
+
+- `R2Storage` remains a convenience endpoint preset only.
+- Edge Kit does not currently advertise immutable or multipart capabilities on
+  `R2Storage` because this repository has not yet validated the provider's
+  behavior for the exact create-only, version-aware cleanup, and abort
+  semantics the optional capabilities promise.
 
 ## Custom Implementations
 
