@@ -63,6 +63,7 @@ asset-catalog workflows; those remain in `src/services/storage-asset/`.
 - `StorageObjectMetadata`
 - `StorageObjectReference`
 - `StorageObjectDescriptor`
+- `StorageReadPresignedUrlOptions`
 - `StorageCreateObjectOptions`
 - `StorageCreateObjectResult`
 - `StorageDeleteObjectOptions`
@@ -100,11 +101,11 @@ asset-catalog workflows; those remain in `src/services/storage-asset/`.
 Implemented: `AbstractStorage` now owns only object-level operations, S3 and
 local storage providers expose optional `storage.explorer` capabilities for
 flat key browsing, `S3Storage` can optionally expose immutable-object and
-multipart capabilities when configured explicitly, `BackblazeStorage` is a
-thin B2 endpoint/region preset over the shared S3 implementation, and
-`StorageInventoryService` derives directory-like listings from those flat keys.
-Root-level `list` and `listPage` methods were removed from the base storage
-contract.
+multipart capabilities when configured explicitly, caller-owned `S3Client`
+injection is supported for hosts that already own SDK configuration/lifecycle,
+and `StorageInventoryService` derives directory-like listings from those flat
+keys. Root-level `list` and `listPage` methods were removed from the base
+storage contract.
 
 ## Known Tech Debt
 
@@ -114,8 +115,8 @@ contract.
 - `R2Storage` still does not advertise immutable or multipart support. That is
   a repository verification limit, not a statement that the provider lacks the
   underlying S3-compatible APIs.
-- `BackblazeStorage` now routes to the shared S3 implementation with explicit
-  B2 endpoint/region configuration, but this repo still lacks live B2
+- Consumers targeting Backblaze B2 now configure `S3Storage` directly with the
+  B2 S3 endpoint and matching region. This repo still lacks live B2
   integration coverage.
 
 ## What NOT To Do

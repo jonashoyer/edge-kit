@@ -46,6 +46,7 @@ import {
   type StorageObjectReference,
   type StorageOptions,
   type StorageReadObjectOptions,
+  type StorageReadPresignedUrlOptions,
   type StorageVersioningMode,
   type StorageWriteOptions,
   type StorageWritePresignedUrlOptions,
@@ -64,7 +65,7 @@ const createCompatiblePresignedPost = async (
   );
 };
 
-export interface S3StorageOptions extends StorageOptions {
+export interface S3StorageCredentialsOptions extends StorageOptions {
   bucket: string;
   accessKeyId: string;
   secretAccessKey: string;
@@ -73,13 +74,41 @@ export interface S3StorageOptions extends StorageOptions {
   versioning?: StorageVersioningMode;
 }
 
+export interface S3StorageClientOptions extends StorageOptions {
+  bucket: string;
+  client: S3Client;
+  versioning?: StorageVersioningMode;
+}
+
+export type S3StorageOptions =
+  | S3StorageCredentialsOptions
+  | S3StorageClientOptions;
+
+const MAX_PRESIGNED_URL_TTL_SECONDS = 604_800;
+
 const isSafeInteger = (value: unknown): value is number =>
   typeof value === 'number' && Number.isSafeInteger(value);
+
+const isClientOwnedS3StorageOptions = (
+  options: S3StorageOptions
+): options is S3StorageClientOptions => 'client' in options;
 
 type S3CompatibleBody = Exclude<StorageBody, ArrayBuffer>;
 
 const normalizeBody = (data: StorageBody): S3CompatibleBody =>
   data instanceof ArrayBuffer ? new Uint8Array(data) : data;
+
+const assertPresignedTtlSeconds = (value: number): void => {
+  if (
+    !Number.isSafeInteger(value) ||
+    value <= 0 ||
+    value > MAX_PRESIGNED_URL_TTL_SECONDS
+  ) {
+    throw new Error(
+      `Presigned URL ttl must be a positive safe integer up to ${MAX_PRESIGNED_URL_TTL_SECONDS} seconds`
+    );
+  }
+};
 
 const getErrorStatusCode = (error: unknown): number | undefined => {
   if (!(error && typeof error === 'object')) {
@@ -176,30 +205,37 @@ const assertMultipartDescriptor = (
   upload: StorageMultipartUploadDescriptor
 ): void => {
   if (upload.key.length === 0) {
-    throw new StorageMultipartUploadError('Multipart upload key is required');
+    throw new StorageMultipartUploadError(
+      'Multipart upload key is required',
+      'invalid'
+    );
   }
 
   if (upload.uploadId.length === 0) {
     throw new StorageMultipartUploadError(
-      'Multipart upload identifier is required'
+      'Multipart upload identifier is required',
+      'invalid'
     );
   }
 
   if (!isSafeInteger(upload.expectedBytes) || upload.expectedBytes <= 0) {
     throw new StorageMultipartUploadError(
-      'Multipart expectedBytes must be a positive safe integer'
+      'Multipart expectedBytes must be a positive safe integer',
+      'invalid'
     );
   }
 
   if (!isSafeInteger(upload.partSizeBytes) || upload.partSizeBytes <= 0) {
     throw new StorageMultipartUploadError(
-      'Multipart partSizeBytes must be a positive safe integer'
+      'Multipart partSizeBytes must be a positive safe integer',
+      'invalid'
     );
   }
 
   if (!isSafeInteger(upload.partCount) || upload.partCount <= 0) {
     throw new StorageMultipartUploadError(
-      'Multipart partCount must be a positive safe integer'
+      'Multipart partCount must be a positive safe integer',
+      'invalid'
     );
   }
 };
@@ -231,16 +267,18 @@ export class S3Storage extends AbstractStorage {
     this.bucket = options.bucket;
     this.endpoint = options.endpoint;
     this.versioning = options.versioning;
-    this.client = new S3Client({
-      endpoint: options.endpoint,
-      region: options.region,
-      forcePathStyle: options.forcePathStyle,
-      maxAttempts: options.maxAttempts,
-      credentials: {
-        accessKeyId: options.accessKeyId,
-        secretAccessKey: options.secretAccessKey,
-      },
-    });
+    this.client = isClientOwnedS3StorageOptions(options)
+      ? options.client
+      : new S3Client({
+          endpoint: options.endpoint,
+          region: options.region,
+          forcePathStyle: options.forcePathStyle,
+          maxAttempts: options.maxAttempts,
+          credentials: {
+            accessKeyId: options.accessKeyId,
+            secretAccessKey: options.secretAccessKey,
+          },
+        });
     this.explorer = {
       list: async (prefix?: string) => {
         const keys: string[] = [];
@@ -302,7 +340,7 @@ export class S3Storage extends AbstractStorage {
           },
           createReadPresignedUrl: async (
             ref: StorageObjectReference,
-            readOptions?: StorageReadObjectOptions
+            readOptions?: StorageReadPresignedUrlOptions
           ) => {
             return await this.createPinnedReadPresignedUrl(ref, readOptions);
           },
@@ -328,7 +366,8 @@ export class S3Storage extends AbstractStorage {
 
         if (!response.UploadId) {
           throw new StorageMultipartUploadError(
-            'Storage did not return a multipart upload ID'
+            'Storage did not return a multipart upload ID',
+            'invalid'
           );
         }
 
@@ -563,9 +602,12 @@ export class S3Storage extends AbstractStorage {
 
   private async createPinnedReadPresignedUrl(
     ref: StorageObjectReference,
-    options?: StorageReadObjectOptions
+    options?: StorageReadPresignedUrlOptions
   ) {
     const versionId = this.resolveVersionId(ref, options);
+    const expiresInSeconds =
+      options?.expiresInSeconds ?? this.presignedTtlSeconds;
+    assertPresignedTtlSeconds(expiresInSeconds);
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: ref.key,
@@ -573,12 +615,12 @@ export class S3Storage extends AbstractStorage {
       ResponseCacheControl: 'private, no-store',
     });
     const url = await getSignedUrl(this.client, command, {
-      expiresIn: this.presignedTtlSeconds,
+      expiresIn: expiresInSeconds,
     });
 
     return {
       url,
-      expiresAt: Date.now() + this.presignedTtlMs,
+      expiresAt: Date.now() + expiresInSeconds * 1000,
     };
   }
 
@@ -825,7 +867,8 @@ export class S3Storage extends AbstractStorage {
           )
         ) {
           throw new StorageMultipartUploadError(
-            'Multipart part listing returned incomplete part metadata'
+            'Multipart part listing returned incomplete part metadata',
+            'invalid'
           );
         }
 
@@ -862,13 +905,15 @@ export class S3Storage extends AbstractStorage {
 
     if (!Number.isInteger(partNumber) || partNumber < 1) {
       throw new StorageMultipartUploadError(
-        'Multipart partNumber must be a positive integer'
+        'Multipart partNumber must be a positive integer',
+        'invalid'
       );
     }
 
     if (partNumber > upload.partCount) {
       throw new StorageMultipartUploadError(
-        'Multipart partNumber exceeds the declared partCount'
+        'Multipart partNumber exceeds the declared partCount',
+        'invalid'
       );
     }
 
@@ -878,7 +923,8 @@ export class S3Storage extends AbstractStorage {
 
     if (lengthBytes <= 0) {
       throw new StorageMultipartUploadError(
-        'Multipart part range does not describe any bytes'
+        'Multipart part range does not describe any bytes',
+        'invalid'
       );
     }
 
@@ -935,20 +981,23 @@ export class S3Storage extends AbstractStorage {
 
       if (part.partNumber !== expectedPartNumber) {
         throw new StorageMultipartUploadError(
-          'Multipart parts must be sequential and start at part 1'
+          'Multipart parts must be sequential and start at part 1',
+          'mismatch'
         );
       }
 
       if (part.sizeBytes !== expectedSize) {
         throw new StorageMultipartUploadError(
-          'Multipart part size does not match the declared byte layout'
+          'Multipart part size does not match the declared byte layout',
+          'mismatch'
         );
       }
     }
 
     if (parts.length !== upload.partCount) {
       throw new StorageMultipartUploadError(
-        'Multipart upload is missing one or more declared parts'
+        'Multipart upload is missing one or more declared parts',
+        'incomplete'
       );
     }
 
@@ -971,7 +1020,8 @@ export class S3Storage extends AbstractStorage {
 
     if (object.contentLength !== upload.expectedBytes) {
       throw new StorageMultipartUploadError(
-        'Completed multipart object length does not match the declared byte layout'
+        'Completed multipart object length does not match the declared byte layout',
+        'mismatch'
       );
     }
 
@@ -980,7 +1030,8 @@ export class S3Storage extends AbstractStorage {
       object.contentType !== options.contentType
     ) {
       throw new StorageMultipartUploadError(
-        'Completed multipart object content type does not match the requested content type'
+        'Completed multipart object content type does not match the requested content type',
+        'mismatch'
       );
     }
 
@@ -1011,7 +1062,8 @@ export class S3Storage extends AbstractStorage {
 
       if (remaining.length > 0) {
         throw new StorageMultipartUploadError(
-          'Multipart parts remain visible after abort'
+          'Multipart parts remain visible after abort',
+          'incomplete'
         );
       }
     } catch (error) {

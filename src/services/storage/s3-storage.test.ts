@@ -1,8 +1,7 @@
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { StorageMultipartUploadError } from './abstract-storage';
-import { BackblazeStorage } from './backblaze-storage';
+import type { StorageMultipartUploadError } from './abstract-storage';
 import { R2Storage } from './r2-storage';
 import { S3Storage } from './s3-storage';
 
@@ -177,26 +176,6 @@ describe('S3Storage', () => {
 
     expect(r2.immutable).toBeUndefined();
     expect(r2.multipart).toBeUndefined();
-  });
-
-  it('configures Backblaze with the supplied B2 endpoint and shared S3 capabilities', () => {
-    const endpoint = 'https://s3.us-west-004.backblazeb2.com';
-    const region = 'us-west-004';
-    const backblaze = new BackblazeStorage({
-      endpoint,
-      region,
-      bucket: 'bucket',
-      accessKeyId: 'key',
-      secretAccessKey: 'secret',
-    });
-
-    expect(backblaze.immutable?.versioning).toBe('enabled');
-    expect(backblaze.multipart).toBeDefined();
-    expect(clientOptions.at(-1)).toMatchObject({
-      endpoint,
-      region,
-      maxAttempts: 1,
-    });
   });
 
   it('writes metadata through provider-native object metadata', async () => {
@@ -466,10 +445,15 @@ describe('S3Storage', () => {
 
     vi.mocked(getSignedUrl).mockResolvedValueOnce('https://download.example');
 
-    const result = await storage.immutable?.createReadPresignedUrl({
-      key: 'objects/file.txt',
-      versionId: 'version-1',
-    });
+    const result = await storage.immutable?.createReadPresignedUrl(
+      {
+        key: 'objects/file.txt',
+        versionId: 'version-1',
+      },
+      {
+        expiresInSeconds: 300,
+      }
+    );
 
     expect(result).toEqual({
       url: 'https://download.example',
@@ -480,6 +464,9 @@ describe('S3Storage', () => {
       Key: 'objects/file.txt',
       VersionId: 'version-1',
       ResponseCacheControl: 'private, no-store',
+    });
+    expect(vi.mocked(getSignedUrl).mock.calls.at(-1)?.[2]).toMatchObject({
+      expiresIn: 300,
     });
   });
 
@@ -719,7 +706,9 @@ describe('S3Storage', () => {
           contentType: 'video/webm',
         }
       )
-    ).rejects.toBeInstanceOf(StorageMultipartUploadError);
+    ).rejects.toMatchObject({
+      reason: 'mismatch',
+    } satisfies Partial<StorageMultipartUploadError>);
   });
 
   it('keeps abort outcomes visible when parts remain after abort verification', async () => {
@@ -735,6 +724,8 @@ describe('S3Storage', () => {
         key: 'objects/file.txt',
         uploadId: 'upload-1',
       })
-    ).rejects.toBeInstanceOf(StorageMultipartUploadError);
+    ).rejects.toMatchObject({
+      reason: 'incomplete',
+    } satisfies Partial<StorageMultipartUploadError>);
   });
 });

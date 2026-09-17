@@ -67,6 +67,11 @@ export interface StorageReadObjectOptions {
   versionId?: string | null;
 }
 
+export interface StorageReadPresignedUrlOptions
+  extends StorageReadObjectOptions {
+  expiresInSeconds?: number;
+}
+
 export interface StorageCreateObjectOptions extends StorageWriteOptions {
   checksum?: StorageObjectChecksum;
 }
@@ -127,6 +132,11 @@ export interface StorageMultipartPartUrlOptions {
 
 export interface StorageMultipartCompleteOptions extends StorageWriteOptions {}
 
+export type StorageMultipartUploadErrorReason =
+  | 'invalid'
+  | 'incomplete'
+  | 'mismatch';
+
 /**
  * Optional immutable object capability for providers that can expose stable
  * object references, create-only publication, version-pinned reads, and
@@ -150,7 +160,7 @@ export interface StorageImmutableCapability {
   ): Promise<StorageCreateObjectResult<TMeta>>;
   createReadPresignedUrl(
     ref: StorageObjectReference,
-    options?: StorageReadObjectOptions
+    options?: StorageReadPresignedUrlOptions
   ): Promise<{ url: string; expiresAt: number }>;
   delete(key: string, options?: StorageDeleteObjectOptions): Promise<void>;
 }
@@ -284,7 +294,13 @@ export class StorageDeleteObjectError extends CustomError<'DELETE_FAILED'> {
 }
 
 export class StorageMultipartUploadError extends CustomError<'INVALID_UPLOAD'> {
-  constructor(message: string) {
+  readonly reason: StorageMultipartUploadErrorReason;
+
+  constructor(
+    message: string,
+    reason: StorageMultipartUploadErrorReason = 'invalid'
+  ) {
     super(message, 'INVALID_UPLOAD');
+    this.reason = reason;
   }
 }

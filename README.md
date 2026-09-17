@@ -54,7 +54,6 @@ importable runtime package.
 ### Storage
 
 - [S3](./src/services/storage/s3-storage.ts)
-- [Backblaze B2](./src/services/storage/backblaze-storage.ts)
 - [Cloudflare R2](./src/services/storage/r2-storage.ts)
 - [Storage Bytes, Immutable Refs, and Multipart Uploads](./docs/services/storage.md)
 - [Storage Asset Catalog](./src/services/storage-asset/abstract-storage-asset.ts)

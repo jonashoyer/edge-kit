@@ -130,7 +130,10 @@ if (result?.status === 'already-exists') {
 }
 
 const pinned = await storage.immutable?.createReadPresignedUrl(
-  result!.object
+  result!.object,
+  {
+    expiresInSeconds: 300,
+  }
 );
 
 await storage.immutable?.delete('transcripts/meeting-1.md', {
@@ -141,6 +144,8 @@ await storage.immutable?.delete('transcripts/meeting-1.md', {
 `S3Storage` only exposes `storage.immutable` when the caller passes an explicit
 `versioning: 'enabled' | 'disabled'` mode. Edge Kit does not probe bucket
 versioning at runtime.
+Pinned read grants can also request a shorter TTL with
+`expiresInSeconds`.
 
 ## Multipart Capability
 
@@ -228,6 +233,8 @@ not a filesystem guarantee.
 AWS S3-compatible storage provider with object operations plus optional
 explorer support. It can also expose `storage.immutable` when `versioning` is
 configured explicitly, plus `storage.multipart` for S3 multipart sessions.
+You can either let `S3Storage` build its own SDK client from credentials, or
+pass a caller-owned `S3Client` together with `bucket` and `versioning`.
 
 **Location**: `src/services/storage/s3-storage.ts`
 
@@ -239,15 +246,6 @@ yet. That is a repository verification limit, not a claim that the provider
 lacks those APIs.
 
 **Location**: `src/services/storage/r2-storage.ts`
-
-### BackblazeStorage
-
-Backblaze B2 preset built on top of the shared `S3Storage` implementation.
-Callers must pass the exact B2 S3 endpoint and matching region from Backblaze
-bucket details. The preset pins `versioning: 'enabled'` and `maxAttempts: 1`
-to match the shared immutable and multipart semantics.
-
-**Location**: `src/services/storage/backblaze-storage.ts`
 
 ### LocalStorage
 
@@ -307,8 +305,9 @@ const upload = await storage.createWritePresignedUrl('documents/report.pdf', {
   multipart upload actions, version-listing actions, and AWS SDK for
   JavaScript v3 configuration with a caller-supplied endpoint and matching
   region.
-- `BackblazeStorage` is therefore a thin preset over the shared `S3Storage`
-  implementation instead of a separate adapter with duplicated operations.
+- Edge Kit does not keep a separate `BackblazeStorage` class anymore. Copy
+  `S3Storage` and instantiate it directly with the B2 S3 endpoint, matching
+  region, and any explicit storage options your consumer needs.
 - Backblaze also documents some S3 incompatibilities, including limited ACL
   support and unsupported object tagging. Edge Kit's current storage surface
   does not rely on those features, but that does not make AWS S3 and B2
@@ -316,6 +315,23 @@ const upload = await storage.createWritePresignedUrl('documents/report.pdf', {
 - This repository has not run live B2 integration tests. Documented protocol
   support and shared unit tests are the current evidence, not a deployment
   guarantee.
+
+```typescript
+const storage = new S3Storage({
+  bucket: process.env.B2_BUCKET_NAME!,
+  endpoint: process.env.B2_S3_ENDPOINT!,
+  region: process.env.B2_S3_REGION!,
+  accessKeyId: process.env.B2_KEY_ID!,
+  secretAccessKey: process.env.B2_APPLICATION_KEY!,
+  maxAttempts: 1,
+  versioning: 'enabled',
+});
+```
+
+If you inject a caller-owned `S3Client` instead, also pass `endpoint` in the
+`S3Storage` options when you need Edge Kit's Backblaze-specific write-presign
+branch. The shared wrapper does not inspect an arbitrary SDK client's
+configured endpoint.
 
 ### Cloudflare R2
 
