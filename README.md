@@ -1,3 +1,7 @@
+---
+provenance: Unvetted Synthetic
+---
+
 # Edge Kit
 
 Edge Kit is a comprehensive toolkit for TypeScript projects, designed to accelerate development with high-quality, copy-paste-ready components. Ideal for NextJS and other serverless platforms, Edge Kit prioritizes type safety, minimal dependencies, and architectural best practices.
@@ -87,6 +91,13 @@ importable runtime package.
 ### Analytics
 
 - [PostHog](./src/services/analytics/posthog-analytics.ts)
+
+### Notion
+
+- [Notion client](./src/services/notion/notion-client.ts): Official SDK access,
+  native Markdown reads and writes, data source queries, and bounded block trees.
+  See the [copy and usage guide](./docs/services/notion.md) for transport options,
+  read-only mode, and migration notes.
 
 ### CRM
 

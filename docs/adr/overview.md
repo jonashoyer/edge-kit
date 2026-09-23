@@ -1,3 +1,7 @@
+---
+provenance: Unvetted Synthetic
+---
+
 # Architecture Decision Records
 
 | ID | Title | Status | Date |
@@ -25,3 +29,4 @@
 | ADR-0021 | Add a skills CLI for installing and managing Codex skills | Implemented | 2026-03-29 |
 | ADR-0022 | Use TOON as the only structured CLI output format | Implemented | 2026-03-30 |
 | ADR-0023 | Use a dedicated Deep Research service for Gemini Interactions API agents | Implemented | 2026-04-24 |
+| ADR-0024 | Use the official Notion SDK and native Markdown for a general-purpose client | Implemented | 2026-09-23 |

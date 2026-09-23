@@ -1,19 +1,70 @@
 import {
-  type BlockObjectRequest,
-  type BlockObjectResponse,
   Client,
   type CreatePageParameters,
-  collectPaginatedAPI,
+  type CreatePageResponse,
+  type GetDatabaseResponse,
+  type GetPageParameters,
+  isFullPage,
   type PageObjectResponse,
-  type PartialBlockObjectResponse,
   type QueryDataSourceParameters,
+  type QueryDataSourceResponse,
   type RichTextItemResponse,
+  type SearchParameters,
   type SearchResponse,
 } from '@notionhq/client';
-import type { QueryDataSourceResponse } from '@notionhq/client/build/src/api-endpoints';
-import { markdownToBlocks } from '@tryfabric/martian';
+import type {
+  GetPageMarkdownParameters,
+  GetPageMarkdownResponse,
+  UpdatePageMarkdownParameters,
+  UpdatePageMarkdownResponse,
+} from '@notionhq/client/build/src/api-endpoints/pages';
+import {
+  type GetPageBlocksOptions,
+  type NotionBlockTreeNode,
+  readNotionBlockTree,
+} from './notion-blocks';
+import { NotionError } from './notion-errors';
+import {
+  isNonemptyString,
+  isRecord,
+  iterateNotionList,
+} from './notion-pagination';
+import {
+  createNotionFetch,
+  type NotionClientOptions,
+} from './notion-transport';
+
+const DEFAULT_NOTION_VERSION = '2026-03-11';
+const UNKNOWN_PLACEHOLDER_PATTERN = /<unknown\b/i;
 
 type NotionObject = SearchResponse['results'][number];
+type NotionPageProperties = NonNullable<CreatePageParameters['properties']>;
+/** Native SDK page creation options, including Markdown or structured children. */
+export type NotionCreatePageOptions = CreatePageParameters;
+
+type WithoutPageId<T> = T extends { page_id: string }
+  ? Omit<T, 'page_id'>
+  : never;
+/** Preserves the SDK's discriminated union of Markdown edit operations. */
+export type NotionUpdateMarkdownOptions =
+  WithoutPageId<UpdatePageMarkdownParameters>;
+export type QueryDataSourceOptions = Omit<
+  QueryDataSourceParameters,
+  'data_source_id'
+>;
+export type QueryDataSourceChangesOptions = Omit<
+  QueryDataSourceOptions,
+  'sorts'
+> & {
+  since?: string | Date;
+};
+export type GetPageMarkdownOptions = Omit<
+  GetPageMarkdownParameters,
+  'page_id'
+> & {
+  onIncomplete?: 'return' | 'throw';
+};
+type InjectedNotionClientOptions = { client: Client; readOnly?: false };
 
 type PropertyTypes = PageObjectResponse['properties'][string]['type'];
 
@@ -38,79 +89,352 @@ type PropertyValueReturn<T extends PropertyTypes> = T extends RichTextTypes
   ? string
   : PropertyTypeToValue[T];
 
-export type NotionDatabase = {
-  id: string;
-  icon: string | null;
-  name: string | null;
-  archived: boolean;
-  inTrash: boolean;
-  pageId: string | null;
-};
-
 type QueryDatabaseFilterAnd = Extract<
   QueryDataSourceParameters['filter'],
   { and: unknown }
 >['and'];
 
+export type NotionDataSourceSummary = {
+  id: string;
+  databaseId: string | null;
+  icon: string | null;
+  inTrash: boolean;
+  archived: boolean;
+  name: string | null;
+  pageId: string | null;
+};
+
+/** @deprecated Use `NotionDataSourceSummary`; this type has always described queryable data sources. */
+export type NotionDatabase = NotionDataSourceSummary;
+
+export type NotionMarkdownResult = GetPageMarkdownResponse & {
+  complete: boolean;
+  incompleteReasons: Array<
+    'truncated' | 'unknown_block_ids' | 'unknown_placeholders'
+  >;
+  unknownBlockIds: string[];
+};
+
+export type NotionQueryChangesResult = {
+  results: QueryDataSourceResponse['results'];
+  highWaterTimestamp: string | null;
+};
+
 /**
- * Notion API Client wrapper.
- * Provides helper methods for querying databases, creating pages, and converting Notion blocks to Markdown.
- * Includes utilities for handling rich text and property extraction.
+ * SDK-first Notion service wrapper with a small copy-paste-friendly DX layer.
+ *
+ * It keeps the official SDK available as `.client`, adds guarded pagination,
+ * optional fetch-bound read-only enforcement, native Markdown helpers, and typed
+ * property utilities. By default it uses the SDK retry implementation and wraps
+ * each actual fetch attempt with serialized pacing (~350ms spacing).
+ *
+ * @example
+ * const notion = new NotionClient(process.env.NOTION_TOKEN!);
+ * const page = await notion.createPage({
+ *   parent: { data_source_id: 'source-id' },
+ *   properties: { Name: { title: [{ text: { content: 'Hello' } }] } },
+ *   markdown: '# Hello',
+ * });
  */
 export class NotionClient {
-  client: Client;
+  readonly client: Client;
 
-  constructor(apiKey: string) {
-    this.client = new Client({ auth: apiKey });
-  }
-
-  async createPage(
-    databaseId: string,
-    properties: CreatePageParameters['properties'],
-    markdown: string
+  constructor(apiKey: string, options?: NotionClientOptions);
+  constructor(options: InjectedNotionClientOptions);
+  constructor(
+    apiKeyOrOptions: string | InjectedNotionClientOptions,
+    options: NotionClientOptions = {}
   ) {
-    const content = markdownToBlocks(markdown);
-    const response = await this.client.pages.create({
-      parent: { database_id: databaseId },
-      content: content as unknown as BlockObjectRequest[],
-      properties,
+    if (typeof apiKeyOrOptions !== 'string') {
+      if (apiKeyOrOptions.readOnly) {
+        throw new NotionError(
+          'readOnly requires a managed SDK client',
+          'invalid_configuration'
+        );
+      }
+      this.client = apiKeyOrOptions.client;
+      return;
+    }
+
+    const { pacing: _pacing, readOnly: _readOnly, ...sdkOptions } = options;
+    this.client = new Client({
+      ...sdkOptions,
+      auth: apiKeyOrOptions,
+      fetch: createNotionFetch(options),
+      notionVersion: sdkOptions.notionVersion ?? DEFAULT_NOTION_VERSION,
     });
-    return response;
   }
 
+  /**
+   * Creates a page using the official SDK's native Markdown field.
+   */
+  createPage(options: NotionCreatePageOptions): Promise<CreatePageResponse>;
+  /**
+   * @deprecated Use `createPage({ parent, properties, markdown })`. The first
+   * argument is still treated as a legacy database id for compatibility.
+   */
+  createPage(
+    databaseId: string,
+    properties: NotionPageProperties,
+    markdown?: string
+  ): Promise<CreatePageResponse>;
+  createPage(
+    optionsOrDatabaseId: NotionCreatePageOptions | string,
+    properties?: NotionPageProperties,
+    markdown?: string
+  ): Promise<CreatePageResponse> {
+    if (typeof optionsOrDatabaseId === 'string') {
+      return this.client.pages.create({
+        parent: { database_id: optionsOrDatabaseId },
+        properties,
+        markdown,
+      });
+    }
+
+    return this.client.pages.create(optionsOrDatabaseId);
+  }
+
+  /**
+   * Updates a page with the SDK's native Markdown operations.
+   */
+  updatePageMarkdown(
+    pageId: string,
+    options: NotionUpdateMarkdownOptions
+  ): Promise<UpdatePageMarkdownResponse> {
+    return this.client.pages.updateMarkdown({ ...options, page_id: pageId });
+  }
+
+  /**
+   * @deprecated Prefer `iterateDataSource` or `queryDataSource` for guarded SDK pagination.
+   */
   async recursiveCall<T>(
     fn: (cursor?: string) => Promise<{ data: T; cursor?: string | null }>,
     startCursor?: string
   ): Promise<T[]> {
-    const { data, cursor: nextCursor } = await fn(startCursor);
-    if (nextCursor) {
-      return [data, ...(await this.recursiveCall(fn, nextCursor))];
+    const pages: T[] = [];
+    const seenCursors = new Set<string>();
+    let cursor: string | undefined = startCursor;
+
+    while (true) {
+      if (cursor) {
+        if (seenCursors.has(cursor))
+          throw new NotionError(
+            'Repeated cursor in recursiveCall',
+            'repeated_cursor'
+          );
+        seenCursors.add(cursor);
+      }
+      const response = await fn(cursor);
+      pages.push(response.data);
+      if (!response.cursor) {
+        return pages;
+      }
+      cursor = response.cursor;
     }
-    return [data];
   }
 
-  async getPage(pageId: string) {
-    const page = await this.client.pages.retrieve({ page_id: pageId });
-    return page;
+  /** Retrieves page metadata; use getPageMarkdown or getPageBlocks for content. */
+  getPage(pageId: string, options?: Omit<GetPageParameters, 'page_id'>) {
+    return this.client.pages.retrieve({ ...options, page_id: pageId });
   }
 
   /**
-   * Fetches the content of a page from Notion and returns it as a markdown string
-   * @param pageId - The ID of the page to fetch
-   * @returns The content of the page as a markdown string
+   * Retrieves native Notion Markdown and returns visible completeness metadata.
+   */
+  async getPageMarkdown(
+    pageId: string,
+    options: GetPageMarkdownOptions = {}
+  ): Promise<NotionMarkdownResult> {
+    const { onIncomplete = 'return', ...sdkOptions } = options;
+    const response = await this.client.pages.retrieveMarkdown({
+      ...sdkOptions,
+      page_id: pageId,
+    });
+    const result = toMarkdownResult(response);
+
+    if (!result.complete && onIncomplete === 'throw') {
+      throw new NotionError(
+        `Notion markdown for page ${pageId} is incomplete: ${result.incompleteReasons.join(', ')}`,
+        'incomplete_content'
+      );
+    }
+
+    return result;
+  }
+
+  /**
+   * @deprecated Use `getPageMarkdown` so callers can inspect completeness. This
+   * convenience is strict by default and throws on truncated or unknown content.
    */
   async getPageContent(pageId: string) {
-    const pageChunks = await this.recursiveCall(async (cursor) => {
-      const response = await this.client.blocks.children.list({
-        block_id: pageId,
-        page_size: 100,
-        start_cursor: cursor,
-      });
-      return { data: response.results, cursor: response.next_cursor };
+    const result = await this.getPageMarkdown(pageId, {
+      onIncomplete: 'throw',
     });
+    return result.markdown;
+  }
 
-    const page = pageChunks.flat();
-    return NotionClient.notionBlocksToMarkdown(page);
+  /**
+   * Lists queryable data sources with source ids and the parent database id when available.
+   */
+  async getDataSources(
+    options: Omit<SearchParameters, 'filter'> = {}
+  ): Promise<NotionDataSourceSummary[]> {
+    const dataSources: NotionDataSourceSummary[] = [];
+
+    for await (const source of this.iterateSearch({
+      ...options,
+      filter: { property: 'object', value: 'data_source' },
+    })) {
+      dataSources.push(toDataSourceSummary(source));
+    }
+
+    return dataSources;
+  }
+
+  /** @deprecated Use `getDataSources`; this method returns data sources, not databases. */
+  getDatabases(cursor?: string | null): Promise<NotionDatabase[]> {
+    if (cursor === null) {
+      return Promise.resolve([]);
+    }
+    return this.getDataSources({ start_cursor: cursor });
+  }
+
+  /** Retrieves the database container, including its available data sources. */
+  getDatabase(databaseId: string): Promise<GetDatabaseResponse> {
+    return this.client.databases.retrieve({ database_id: databaseId });
+  }
+
+  /**
+   * Resolves a database id to its single queryable data source id.
+   */
+  async resolveDataSourceId(databaseId: string): Promise<string> {
+    const database: unknown = await this.getDatabase(databaseId);
+    if (
+      !isRecord(database) ||
+      database.object !== 'database' ||
+      !isNonemptyString(database.id) ||
+      !Array.isArray(database.data_sources) ||
+      !database.data_sources.every(
+        (source) => isRecord(source) && isNonemptyString(source.id)
+      )
+    ) {
+      throw new NotionError(
+        `Database ${databaseId} returned invalid data_sources`,
+        'invalid_response'
+      );
+    }
+    if (database.data_sources.length === 0)
+      throw new NotionError(
+        `Database ${databaseId} has no data sources`,
+        'missing_data_source'
+      );
+    if (database.data_sources.length > 1)
+      throw new NotionError(
+        `Database ${databaseId} has multiple data sources; select a dataSourceId`,
+        'ambiguous_data_source'
+      );
+    return database.data_sources[0].id;
+  }
+
+  /**
+   * Queries a data source and collects all pages with guarded cursor pagination.
+   */
+  async queryDataSource(
+    dataSourceId: string,
+    options: QueryDataSourceOptions = {}
+  ): Promise<QueryDataSourceResponse['results']> {
+    const results: QueryDataSourceResponse['results'] = [];
+    for await (const page of this.iterateDataSource(dataSourceId, options)) {
+      results.push(page);
+    }
+    return results;
+  }
+
+  /**
+   * Streams data source query results page-by-page with runtime cursor validation.
+   */
+  async *iterateDataSource(
+    dataSourceId: string,
+    options: QueryDataSourceOptions = {}
+  ): AsyncGenerator<QueryDataSourceResponse['results'][number]> {
+    for await (const results of iterateNotionList(
+      (cursor) =>
+        this.client.dataSources.query({
+          ...options,
+          data_source_id: dataSourceId,
+          start_cursor: cursor,
+        }),
+      isQueryResult,
+      options.start_cursor
+    )) {
+      yield* results;
+    }
+  }
+
+  /**
+   * @deprecated Despite the name, this historically accepts a data source id.
+   * Use `queryDataSource(dataSourceId, options)` or `resolveDataSourceId(databaseId)` explicitly.
+   */
+  queryDatabase(
+    databaseId: string,
+    options?: {
+      startEditedTime?: string | Date | null;
+      lastEditedTime?: string | Date | null;
+      filter?: QueryDatabaseFilterAnd;
+      cursor?: string;
+    }
+  ): Promise<QueryDataSourceResponse['results']> {
+    const startEditedTime = options?.startEditedTime
+      ? new Date(options.startEditedTime).toISOString()
+      : undefined;
+    const endEditedTime = options?.lastEditedTime
+      ? new Date(options.lastEditedTime).toISOString()
+      : undefined;
+
+    const filters = [
+      ...createEditedTimeFilters(startEditedTime, endEditedTime),
+      ...(options?.filter ?? []),
+    ];
+    return this.queryDataSource(databaseId, {
+      filter: filters.length > 0 ? { and: filters } : undefined,
+      sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
+      start_cursor: options?.cursor,
+    });
+  }
+
+  /**
+   * Queries changes with an inclusive lower bound and ascending last edit order.
+   * Persist checkpoints only after processing results, replay/dedupe timestamp
+   * ties, and run periodic full id diffs to detect removals or permission loss.
+   */
+  async queryDataSourceChanges(
+    dataSourceId: string,
+    options: QueryDataSourceChangesOptions = {}
+  ): Promise<NotionQueryChangesResult> {
+    const since = options.since
+      ? new Date(options.since).toISOString()
+      : undefined;
+    const { since: _since, ...sdkOptions } = options;
+    const queryOptions: QueryDataSourceOptions = {
+      ...sdkOptions,
+      filter: withLastEditedLowerBound(options.filter, since),
+      sorts: [{ timestamp: 'last_edited_time', direction: 'ascending' }],
+    };
+    const results = await this.queryDataSource(dataSourceId, queryOptions);
+    const highWaterTimestamp = getHighWaterTimestamp(results);
+
+    return { results, highWaterTimestamp };
+  }
+
+  /**
+   * Fetches the full block tree below a page or block id. It follows `has_children`
+   * blocks only; it does not crawl linked pages or databases.
+   */
+  async getPageBlocks(
+    pageId: string,
+    options: GetPageBlocksOptions = {}
+  ): Promise<NotionBlockTreeNode[]> {
+    return await readNotionBlockTree(this.client, pageId, options);
   }
 
   static extractIcon(obj: NotionObject) {
@@ -130,94 +454,18 @@ export class NotionClient {
       return obj.icon.external.url;
     }
 
-    return obj.icon.custom_emoji.url;
+    if (obj.icon.type === 'custom_emoji') {
+      return obj.icon.custom_emoji.url;
+    }
+
+    return null;
   }
 
   static uuidToId(uuid: string) {
     return uuid.replace(/-/g, '');
   }
 
-  async getDatabases(cursor?: string | null): Promise<NotionDatabase[]> {
-    if (cursor === null) {
-      return [];
-    }
-
-    const searchResult = await this.client.search({
-      filter: { value: 'data_source', property: 'object' },
-      page_size: 100,
-      start_cursor: cursor,
-    });
-
-    const databases = searchResult.results.map((result) => ({
-      id: result.id,
-      icon: NotionClient.extractIcon(result),
-      name:
-        'title' in result
-          ? result.title
-              .map((title) => ('plain_text' in title ? title.plain_text : ''))
-              .join('')
-          : null,
-      archived: 'archived' in result ? result.archived : false,
-      inTrash: 'in_trash' in result ? result.in_trash : false,
-      pageId:
-        'parent' in result && result.parent.type === 'page_id'
-          ? result.parent.page_id
-          : null,
-    }));
-
-    return [
-      ...databases,
-      ...(await this.getDatabases(searchResult.next_cursor)),
-    ];
-  }
-
-  async queryDatabase(
-    databaseId: string,
-    options?: {
-      startEditedTime?: string | Date | null;
-      lastEditedTime?: string | Date | null;
-      filter?: QueryDatabaseFilterAnd;
-      cursor?: string;
-    }
-  ): Promise<QueryDataSourceResponse['results']> {
-    const startEditedTime = options?.startEditedTime
-      ? new Date(options.startEditedTime).toISOString()
-      : undefined;
-
-    const endEditedTime = options?.lastEditedTime
-      ? new Date(options.lastEditedTime).toISOString()
-      : undefined;
-
-    const items = await collectPaginatedAPI(this.client.dataSources.query, {
-      data_source_id: databaseId,
-      sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
-      filter: {
-        and: [
-          ...(startEditedTime
-            ? [
-                {
-                  timestamp: 'last_edited_time' as const,
-                  last_edited_time: { on_or_after: startEditedTime },
-                },
-              ]
-            : []),
-          ...(endEditedTime
-            ? [
-                {
-                  timestamp: 'last_edited_time' as const,
-                  last_edited_time: { on_or_before: endEditedTime },
-                },
-              ]
-            : []),
-          ...(options?.filter ?? []),
-        ],
-      },
-      start_cursor: options?.cursor,
-    });
-
-    return items;
-  }
-
+  /** Returns a named page property only when its SDK type matches. */
   static getProperty<TType extends keyof PropertyTypeToObject>(
     obj: NotionObject,
     type: TType,
@@ -231,6 +479,7 @@ export class NotionClient {
     return prop?.type === type ? (prop as PropertyTypeToObject[TType]) : null;
   }
 
+  /** Extracts a typed property value, rendering title and rich_text as Markdown. */
   static getPropertyValue<TType extends PropertyTypes>(
     obj: NotionObject,
     type: TType,
@@ -242,7 +491,7 @@ export class NotionClient {
     }
 
     const value = prop[type as keyof typeof prop];
-    const isRichText = ['title', 'rich_text'].includes(type);
+    const isRichText = type === 'title' || type === 'rich_text';
 
     if (isRichText && Array.isArray(value)) {
       return NotionClient.notionRichTextToMarkdown(
@@ -253,9 +502,9 @@ export class NotionClient {
     return value as PropertyValueReturn<TType>;
   }
 
-  async getUserSelf() {
-    const response = await this.client.users.me({});
-    return response;
+  /** Retrieves the integration bot associated with the current credentials. */
+  getUserSelf() {
+    return this.client.users.me({});
   }
 
   static applyAnnotations(
@@ -288,133 +537,187 @@ export class NotionClient {
   }
 
   static notionRichTextToMarkdown(richText: RichTextItemResponse[]) {
-    const getContent = (e: RichTextItemResponse) => {
-      switch (e.type) {
-        case 'text':
-          if (e.text.link) {
-            return `[${e.text.content}](${e.text.link.url})`;
-          }
-          return e.text.content;
-        case 'equation':
-          return `$${e.equation.expression}$`;
-        case 'mention':
-          switch (e.mention.type) {
-            case 'user':
-              return `@${'name' in e.mention.user ? e.mention.user.name : e.mention.user.id}`;
-            case 'date':
-            // const { start, end, time_zone } = e.mention.date;
-            // if (end) return `[${new Date(start).toISOString()} => ${new Date(end).toISOString()}${time_zone ? ` (${time_zone})` : ''}]`;
-            // return `[${new Date(start).toISOString()}${time_zone ? ` (${time_zone})` : ''}]`;
-            case 'database':
-            case 'link_preview':
-            case 'page':
-            case 'template_mention':
-              return e.plain_text;
-            default:
-              return '';
-          }
-        default:
-          return '';
-      }
-    };
-
     return richText
-      .map((e) => NotionClient.applyAnnotations(getContent(e), e.annotations))
+      .map((item) =>
+        NotionClient.applyAnnotations(richTextContent(item), item.annotations)
+      )
       .join('');
   }
 
-  static notionBlocksToMarkdown(
-    blocks: (BlockObjectResponse | PartialBlockObjectResponse)[]
-  ): string {
-    return (
-      blocks
-        // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: Not that complex
-        .map((block) => {
-          if (!('type' in block)) {
-            return null;
-          }
-
-          switch (block.type) {
-            case 'heading_1':
-              return `# ${NotionClient.notionRichTextToMarkdown(block.heading_1.rich_text)}`;
-            case 'heading_2':
-              return `## ${NotionClient.notionRichTextToMarkdown(block.heading_2.rich_text)}`;
-            case 'heading_3':
-              return `### ${NotionClient.notionRichTextToMarkdown(block.heading_3.rich_text)}`;
-            case 'paragraph':
-              return NotionClient.notionRichTextToMarkdown(
-                block.paragraph.rich_text
-              );
-            case 'bulleted_list_item':
-              return `- ${NotionClient.notionRichTextToMarkdown(block.bulleted_list_item.rich_text)}`;
-            case 'numbered_list_item':
-              return `1. ${NotionClient.notionRichTextToMarkdown(block.numbered_list_item.rich_text)}`;
-            case 'to_do':
-              return `- [${block.to_do.checked ? 'x' : ' '}] ${NotionClient.notionRichTextToMarkdown(block.to_do.rich_text)}`;
-            case 'quote':
-              return `> ${NotionClient.notionRichTextToMarkdown(block.quote.rich_text)}`;
-            case 'code':
-              return `\`\`\`${block.code.language}\n${NotionClient.notionRichTextToMarkdown(block.code.rich_text)}\n\`\`\``;
-            case 'image':
-              return `![${NotionClient.notionRichTextToMarkdown(block.image.caption)}](${block.image.type === 'file' ? block.image.file.url : block.image.external.url})`;
-            case 'callout':
-              return `> ${NotionClient.notionRichTextToMarkdown(block.callout.rich_text)}`;
-            case 'child_database':
-              return `[${block.child_database.title}](child_database)`;
-            case 'child_page':
-              return `[${block.child_page.title}](child_page)`;
-            case 'column':
-              return `column:${Object.keys(block.column).join(',')}`;
-            case 'column_list':
-              return `column_list:${Object.keys(block.column_list).join(',')}`;
-            case 'divider':
-              return '---';
-            case 'embed':
-              return `[${NotionClient.notionRichTextToMarkdown(block.embed.caption)}](${block.embed.url})`;
-            case 'equation':
-              return `$$${block.equation.expression}$$`;
-            case 'file':
-              return `[${NotionClient.notionRichTextToMarkdown(block.file.caption)}](${block.file.type === 'file' ? block.file.file.url : block.file.external.url})`;
-            case 'link_preview':
-              return `[${block.link_preview.url}](${block.link_preview.url})`;
-            case 'link_to_page': {
-              let id = '';
-
-              if ('page_id' in block.link_to_page) {
-                id = block.link_to_page.page_id;
-              } else if ('database_id' in block.link_to_page) {
-                id = block.link_to_page.database_id;
-              } else if ('comment_id' in block.link_to_page) {
-                id = block.link_to_page.comment_id;
-              }
-
-              return `[${id}](page)`;
-            }
-            case 'pdf':
-              return `[${NotionClient.notionRichTextToMarkdown(block.pdf.caption)}](${block.pdf.type === 'file' ? block.pdf.file.url : block.pdf.external.url})`;
-            case 'table_of_contents':
-              return 'table_of_contents';
-            // case 'table_row':
-            //   return `table_row:${Object.keys(block.table_row)}`;
-            // case 'template':
-            //   return `template:${Object.keys(block.template)}`;
-            // case 'toggle':
-            //   return `toggle:${Object.keys(block.toggle)}`;
-            // case 'unsupported':
-            //   return `unsupported:${block.unsupported.type}`;
-            // case 'video':
-            //   return `[${block.bookmark.url}](${block.bookmark.url})`;
-            case 'breadcrumb':
-              return `[${block.breadcrumb.url}](${block.breadcrumb.url})`;
-            case 'synced_block':
-              return `[${block.synced_block.synced_from?.block_id}](${block.synced_block.synced_from?.block_id})`;
-            // case "table":
-            default:
-              return '';
-          }
-        })
-        .filter(Boolean)
-        .join('\n\n')
-    );
+  private async *iterateSearch(
+    options: SearchParameters
+  ): AsyncGenerator<SearchResponse['results'][number]> {
+    for await (const results of iterateNotionList(
+      (cursor) => this.client.search({ ...options, start_cursor: cursor }),
+      isQueryResult,
+      options.start_cursor
+    )) {
+      yield* results;
+    }
   }
 }
+
+const toMarkdownResult = (
+  response: GetPageMarkdownResponse
+): NotionMarkdownResult => {
+  if (
+    !isRecord(response) ||
+    response.object !== 'page_markdown' ||
+    !isNonemptyString(response.id) ||
+    typeof response.markdown !== 'string' ||
+    typeof response.truncated !== 'boolean' ||
+    !Array.isArray(response.unknown_block_ids) ||
+    !response.unknown_block_ids.every(isNonemptyString)
+  ) {
+    throw new NotionError(
+      'Invalid Notion Markdown response',
+      'invalid_response'
+    );
+  }
+  const incompleteReasons: NotionMarkdownResult['incompleteReasons'] = [];
+  if (response.truncated) {
+    incompleteReasons.push('truncated');
+  }
+  if (response.unknown_block_ids.length > 0) {
+    incompleteReasons.push('unknown_block_ids');
+  }
+  if (UNKNOWN_PLACEHOLDER_PATTERN.test(response.markdown)) {
+    incompleteReasons.push('unknown_placeholders');
+  }
+
+  return {
+    ...response,
+    complete: incompleteReasons.length === 0,
+    incompleteReasons,
+    unknownBlockIds: response.unknown_block_ids,
+  };
+};
+
+const isQueryResult = (
+  value: unknown
+): value is QueryDataSourceResponse['results'][number] =>
+  isRecord(value) &&
+  isNonemptyString(value.id) &&
+  (value.object === 'page' || value.object === 'data_source');
+
+const toDataSourceSummary = (source: SearchResponse['results'][number]) => {
+  const databaseId =
+    'parent' in source && source.parent.type === 'database_id'
+      ? source.parent.database_id
+      : null;
+
+  return {
+    archived: 'in_trash' in source ? source.in_trash : false,
+    databaseId,
+    icon: NotionClient.extractIcon(source),
+    id: source.id,
+    inTrash: 'in_trash' in source ? source.in_trash : false,
+    name:
+      'title' in source
+        ? source.title
+            .map((title) => ('plain_text' in title ? title.plain_text : ''))
+            .join('')
+        : null,
+    pageId:
+      'database_parent' in source && source.database_parent.type === 'page_id'
+        ? source.database_parent.page_id
+        : null,
+  } satisfies NotionDataSourceSummary;
+};
+
+const createEditedTimeFilters = (start?: string, end?: string) => {
+  const filters: QueryDatabaseFilterAnd = [];
+  if (start) {
+    filters.push({
+      last_edited_time: { on_or_after: start },
+      timestamp: 'last_edited_time',
+    });
+  }
+  if (end) {
+    filters.push({
+      last_edited_time: { on_or_before: end },
+      timestamp: 'last_edited_time',
+    });
+  }
+  return filters;
+};
+
+const withLastEditedLowerBound = (
+  filter: QueryDataSourceParameters['filter'] | undefined,
+  since: string | undefined
+): QueryDataSourceParameters['filter'] | undefined => {
+  if (!since) {
+    return filter;
+  }
+
+  const editedFilter = {
+    last_edited_time: { on_or_after: since },
+    timestamp: 'last_edited_time' as const,
+  };
+
+  if (!filter) {
+    return editedFilter;
+  }
+
+  if ('and' in filter) return { and: [...filter.and, editedFilter] };
+  if ('or' in filter) {
+    // Adding an AND outside nested groups would exceed Notion's two-level limit.
+    if (filter.or.some((child) => 'and' in child || 'or' in child)) {
+      throw new NotionError(
+        'since cannot be combined with a nested OR filter; use queryDataSource with an explicit timestamp filter',
+        'unsupported_filter'
+      );
+    }
+    const terms = filter.or.filter(
+      (
+        child
+      ): child is Exclude<typeof child, { and: unknown } | { or: unknown }> =>
+        !('and' in child || 'or' in child)
+    );
+    return { and: [{ or: terms }, editedFilter] };
+  }
+  return { and: [filter, editedFilter] };
+};
+
+const getHighWaterTimestamp = (
+  results: QueryDataSourceResponse['results']
+): string | null => {
+  let latest: number | null = null;
+  for (const result of results) {
+    if (
+      !(isFullPage(result) && 'last_edited_time' in result) ||
+      typeof result.last_edited_time !== 'string'
+    ) {
+      throw new NotionError(
+        'Cannot checkpoint a query containing partial pages or data sources',
+        'invalid_response'
+      );
+    }
+    const timestamp = Date.parse(result.last_edited_time);
+    if (!Number.isFinite(timestamp))
+      throw new NotionError(
+        'Invalid last_edited_time in query result',
+        'invalid_response'
+      );
+    if (latest === null || timestamp > latest) latest = timestamp;
+  }
+  return latest === null ? null : new Date(latest).toISOString();
+};
+
+const richTextContent = (item: RichTextItemResponse): string => {
+  switch (item.type) {
+    case 'text':
+      if (item.text.link) {
+        return `[${item.text.content}](${item.text.link.url})`;
+      }
+      return item.text.content;
+    case 'equation':
+      return `$${item.equation.expression}$`;
+    case 'mention':
+      if (item.mention.type === 'user')
+        return `@${'name' in item.mention.user ? item.mention.user.name : item.mention.user.id}`;
+      return item.plain_text;
+    default:
+      return '';
+  }
+};
