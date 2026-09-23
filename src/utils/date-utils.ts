@@ -19,12 +19,12 @@ export const maxDate = (...dates: Date[]) =>
 export const formatDate = (date: Date, format: string): string => {
   const pad = (n: number) => n.toString().padStart(2, '0');
   const map: Record<string, string> = {
-    YYYY: date.getFullYear().toString(),
-    MM: pad(date.getMonth() + 1),
     DD: pad(date.getDate()),
     HH: pad(date.getHours()),
+    MM: pad(date.getMonth() + 1),
     mm: pad(date.getMinutes()),
     ss: pad(date.getSeconds()),
+    YYYY: date.getFullYear().toString(),
   };
   return format.replace(/YYYY|MM|DD|HH|mm|ss/g, (matched) => map[matched]);
 };

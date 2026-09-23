@@ -5,17 +5,13 @@ import { tpl } from './tpl';
 test('tpl function benchmarks', async ({ bench }) => {
   const benchmarks: BenchRegistration<string>[] = [];
   // Simple template benchmark
-  benchmarks.push(
-    bench('simple template', () => {
-      tpl`Hello world`;
-    })
-  );
+  benchmarks.push(bench('simple template', () => tpl`Hello world`));
 
   // Template with interpolation
   benchmarks.push(
     bench('template with interpolation', () => {
       const value = 'world';
-      tpl`Hello ${value}`;
+      return tpl`Hello ${value}`;
     })
   );
 
@@ -25,7 +21,7 @@ test('tpl function benchmarks', async ({ bench }) => {
       const date = new Date().toISOString();
       const random = Math.random();
 
-      tpl`
+      return tpl`
       # System prompt
       You are a helpful assistant.
       
@@ -61,7 +57,7 @@ test('tpl function benchmarks', async ({ bench }) => {
   // Large template benchmarks
   const largeTemplate = (() => {
     let template = '';
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 100; i += 1) {
       template += `Line #${i}: Some random text\n`;
     }
     return template;
@@ -82,7 +78,7 @@ test('tpl function benchmarks', async ({ bench }) => {
   benchmarks.push(
     bench('large template with interpolation', () => {
       const dynamic = 'dynamic value';
-      tpl`${largeTemplate}${dynamic}`;
+      return tpl`${largeTemplate}${dynamic}`;
     })
   );
   await bench.compare(...benchmarks);

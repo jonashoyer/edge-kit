@@ -49,9 +49,7 @@ const hasRoundedBorders = (frame: string): boolean => {
   return false;
 };
 
-const getFrameLineCount = (frame: string): number => {
-  return frame.split('\n').length;
-};
+const getFrameLineCount = (frame: string): number => frame.split('\n').length;
 
 const hasBlankLineBetween = (
   frame: string,
@@ -91,19 +89,19 @@ const createManifest = (): LoadedDevLauncherManifest => ({
   repoRoot: '/repo',
   serviceIdsInOrder: ['app', 'api'],
   servicesById: {
+    api: {
+      label: 'API',
+      target: {
+        kind: 'root-script',
+        script: 'dev:api',
+      },
+    },
     app: {
       label: 'App',
       openUrl: 'http://localhost:3000',
       target: {
         kind: 'root-script',
         script: 'dev:app',
-      },
-    },
-    api: {
-      label: 'API',
-      target: {
-        kind: 'root-script',
-        script: 'dev:api',
       },
     },
   },
@@ -138,9 +136,9 @@ const createSnapshot = (options?: {
   const statuses = options?.statuses ?? {};
 
   return {
-    allLogs: managedServiceIds.flatMap((serviceId) => {
-      return logsByServiceId[serviceId] ?? [];
-    }),
+    allLogs: managedServiceIds.flatMap(
+      (serviceId) => logsByServiceId[serviceId] ?? []
+    ),
     logsByServiceId,
     managedServiceIds,
     serviceStates: {
@@ -202,6 +200,7 @@ class FakeController {
 
 const flush = async (iterations = 2) => {
   for (let index = 0; index < iterations; index += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: Sequential test input and polling must observe each preceding state transition.
     await new Promise((resolve) => setTimeout(resolve, 0));
   }
 };
@@ -216,6 +215,7 @@ const waitForFrameToContain = async (
       return;
     }
 
+    // biome-ignore lint/performance/noAwaitInLoops: Sequential test input and polling must observe each preceding state transition.
     await flush();
   }
 };
@@ -229,6 +229,7 @@ const waitForMockCall = async (
       return;
     }
 
+    // biome-ignore lint/performance/noAwaitInLoops: Sequential test input and polling must observe each preceding state transition.
     await flush();
   }
 };
@@ -259,6 +260,7 @@ describe('DevLauncherDashboardApp', () => {
       <DevLauncherDashboardApp
         controller={controller}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -278,6 +280,7 @@ describe('DevLauncherDashboardApp', () => {
       <DevLauncherDashboardApp
         controller={controller}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -301,6 +304,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['api']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -349,6 +353,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app', 'api']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -399,6 +404,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -441,6 +447,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -449,6 +456,7 @@ describe('DevLauncherDashboardApp', () => {
 
     for (let index = 0; index < 10; index += 1) {
       stdin.write('k');
+      // biome-ignore lint/performance/noAwaitInLoops: Sequential test input and polling must observe each preceding state transition.
       await flush();
     }
 
@@ -485,6 +493,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -529,6 +538,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -541,6 +551,7 @@ describe('DevLauncherDashboardApp', () => {
 
     for (let index = 0; index < 10; index += 1) {
       stdin.write('\u001B[A');
+      // biome-ignore lint/performance/noAwaitInLoops: Sequential test input and polling must observe each preceding state transition.
       await flush();
     }
 
@@ -565,6 +576,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
         openExternalUrl={openExternalUrl}
       />
@@ -594,6 +606,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
         openExternalUrl={openExternalUrl}
       />
@@ -636,6 +649,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         initialServiceIds={['app']}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -683,6 +697,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         listActions={listActions}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
       />
     );
@@ -751,6 +766,7 @@ describe('DevLauncherDashboardApp', () => {
         initialServiceIds={['app']}
         listActions={listActions}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
         runDevAction={runDevAction}
       />
@@ -814,6 +830,7 @@ describe('DevLauncherDashboardApp', () => {
         controller={controller}
         listActions={listActions}
         manifest={createManifest()}
+        // biome-ignore lint/performance/noJsxPropsBind: Each test renders once with an isolated callback.
         onExitCode={() => undefined}
         runDevAction={runDevAction}
       />

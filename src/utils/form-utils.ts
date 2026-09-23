@@ -4,21 +4,26 @@ import { z } from 'zod';
  * Utilities for handling FormData and File validation with Zod.
  * Includes helpers for parsing FormData into objects and validating File constraints (size, type).
  */
-export const zfd = <T extends z.ZodObject<any>>(schema: T) => {
-  return (value: unknown) => {
+export const zfd =
+  <T extends z.ZodObject<z.ZodRawShape>>(schema: T) =>
+  (value: unknown) => {
     if (!(value instanceof FormData)) {
       throw new Error('Expected FormData');
     }
 
-    const obj = {} as any;
+    const obj: Record<string, FormDataEntryValue | FormDataEntryValue[]> = {};
 
-    for (const [key, val] of (value as any).entries()) {
+    for (const [key, val] of value.entries()) {
       if (key.endsWith('[]')) {
         const k = key.slice(0, -2);
-        if (!obj[k]) {
-          obj[k] = [];
+        const entries = obj[k];
+        if (entries === undefined || entries === '') {
+          obj[k] = [val];
+        } else if (Array.isArray(entries)) {
+          entries.push(val);
+        } else {
+          throw new Error(`Cannot mix scalar and array fields: ${k}`);
         }
-        obj[k].push(val);
       } else {
         obj[key] = val;
       }
@@ -26,7 +31,6 @@ export const zfd = <T extends z.ZodObject<any>>(schema: T) => {
 
     return schema.parse(obj) as z.infer<T>;
   };
-};
 
 export interface ZFileOptions {
   /**
@@ -45,9 +49,7 @@ export const zFile = (opts?: ZFileOptions) =>
   z
     .instanceof(File)
     .refine(
-      (file) => {
-        return !opts?.maxSize || sizeInMB(file.size) <= opts.maxSize;
-      },
+      (file) => !opts?.maxSize || sizeInMB(file.size) <= opts.maxSize,
       `The maximum size is ${opts?.maxSize ?? 'N/A'}MB`
     )
     .superRefine((file: File, ctx) => {
@@ -59,6 +61,4 @@ export const zFile = (opts?: ZFileOptions) =>
       }
     });
 
-const sizeInMB = (sizeInBytes: number) => {
-  return sizeInBytes / (1024 * 1024);
-};
+const sizeInMB = (sizeInBytes: number) => sizeInBytes / (1024 * 1024);

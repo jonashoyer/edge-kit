@@ -9,9 +9,8 @@ import {
   resolveWorkspacePackageDirectoryByPath,
 } from './repo-utils';
 
-const createTempDir = (): string => {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-dev-repo-'));
-};
+const createTempDir = (): string =>
+  fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-dev-repo-'));
 
 const writeJsonFile = (filePath: string, value: unknown): void => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

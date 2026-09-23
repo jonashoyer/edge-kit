@@ -1,5 +1,5 @@
-import { EventEmitter } from 'node:events';
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import { IncomingMessage, ServerResponse } from 'node:http';
+import { Socket } from 'node:net';
 
 import Stripe from 'stripe';
 import { describe, expect, it, vi } from 'vitest';
@@ -39,28 +39,23 @@ class RecordingMutex extends AbstractMutex<string> {
   }
 }
 
-class FakeIncomingMessage extends EventEmitter {
-  method = 'POST';
-  url = '/api/hooks/test';
-  headers: Record<string, string> = {};
-  private readonly chunks: string[];
-
+class FakeIncomingMessage extends IncomingMessage {
   constructor(body: string, headers: Record<string, string> = {}) {
-    super();
+    super(new Socket());
+    this.method = 'POST';
+    this.url = '/api/internal/service-ingress';
     this.headers = headers;
-    this.chunks = [body];
-  }
-
-  async *[Symbol.asyncIterator]() {
-    for (const chunk of this.chunks) {
-      yield chunk;
-    }
+    this.push(Buffer.from(body));
+    this.push(null);
   }
 }
 
-class FakeResponse {
-  statusCode = 200;
+class FakeResponse extends ServerResponse {
   jsonBody: Record<string, unknown> | null = null;
+
+  constructor() {
+    super(new IncomingMessage(new Socket()));
+  }
 
   status(code: number) {
     this.statusCode = code;
@@ -80,10 +75,10 @@ describe('incoming-hook toolkit', () => {
     );
 
     const valid = await verifyHmacHex({
-      value: 'payload',
-      secret: 'secret',
       algorithm: 'sha256',
       expectedHex: signature,
+      secret: 'secret',
+      value: 'payload',
     });
     expect(valid).toBe(true);
   });
@@ -91,18 +86,18 @@ describe('incoming-hook toolkit', () => {
   it('verifies Vercel webhook signatures and normalizes the payload', async () => {
     const rawBody = JSON.stringify({
       id: 'delivery_1',
-      type: 'deployment.promoted',
       payload: { target: 'production' },
+      type: 'deployment.promoted',
     });
     const signature = await hmacHex(rawBody, 'vercel-secret', 'sha1');
     const verifier = new VercelWebhookVerifier(['vercel-secret']);
 
     const verified = await verifier.verify({
-      method: 'POST',
-      pathname: '/api/hooks/vercel',
       headers: {
         'x-vercel-signature': signature,
       },
+      method: 'POST',
+      pathname: '/api/hooks/vercel',
       rawBody,
     });
 
@@ -117,13 +112,13 @@ describe('incoming-hook toolkit', () => {
     const verifier = new GitHubWebhookVerifier(['github-secret']);
 
     const verified = await verifier.verify({
+      headers: {
+        'x-github-delivery': 'delivery_2',
+        'x-github-event': 'deployment_status',
+        'x-hub-signature-256': `sha256=${signature}`,
+      },
       method: 'POST',
       pathname: '/api/hooks/github',
-      headers: {
-        'x-hub-signature-256': `sha256=${signature}`,
-        'x-github-event': 'deployment_status',
-        'x-github-delivery': 'delivery_2',
-      },
       rawBody,
     });
 
@@ -145,11 +140,11 @@ describe('incoming-hook toolkit', () => {
 
     const verifier = new StripeIncomingHookVerifier(stripe, ['whsec_123']);
     const verified = await verifier.verify({
-      method: 'POST',
-      pathname: '/api/hooks/stripe',
       headers: {
         'stripe-signature': 't=1,v1=abc',
       },
+      method: 'POST',
+      pathname: '/api/hooks/stripe',
       rawBody: '{"ok":true}',
     });
 
@@ -167,23 +162,23 @@ describe('incoming-hook toolkit', () => {
     const signature = await hmacHex(rawBody, 'vercel-secret', 'sha1');
 
     const inlineHandler = createAppRouterIncomingHookHandler({
-      verifier: new VercelWebhookVerifier(['vercel-secret']),
       async handle() {
         return {
-          kind: 'processed',
           body: { received: true },
+          kind: 'processed',
         };
       },
+      verifier: new VercelWebhookVerifier(['vercel-secret']),
     });
 
     const inlineResponse = await inlineHandler(
       new Request('https://example.com/api/hooks/vercel', {
-        method: 'POST',
-        headers: {
-          'x-vercel-signature': signature,
-          'content-type': 'application/json',
-        },
         body: rawBody,
+        headers: {
+          'content-type': 'application/json',
+          'x-vercel-signature': signature,
+        },
+        method: 'POST',
       })
     );
 
@@ -191,25 +186,25 @@ describe('incoming-hook toolkit', () => {
 
     const waitUntil = vi.fn();
     const waitUntilHandler = createAppRouterIncomingHookHandler({
-      verifier: new VercelWebhookVerifier(['vercel-secret']),
-      mode: 'waitUntil',
-      waitUntil,
       async handle(_verified, context) {
         context.waitUntil?.(Promise.resolve());
         return {
           kind: 'processed',
         };
       },
+      mode: 'waitUntil',
+      verifier: new VercelWebhookVerifier(['vercel-secret']),
+      waitUntil,
     });
 
     const waitUntilResponse = await waitUntilHandler(
       new Request('https://example.com/api/hooks/vercel', {
-        method: 'POST',
-        headers: {
-          'x-vercel-signature': signature,
-          'content-type': 'application/json',
-        },
         body: rawBody,
+        headers: {
+          'content-type': 'application/json',
+          'x-vercel-signature': signature,
+        },
+        method: 'POST',
       })
     );
 
@@ -224,25 +219,25 @@ describe('incoming-hook toolkit', () => {
     });
     const signature = await hmacHex(rawBody, 'vercel-secret', 'sha1');
     const handler = createAppRouterIncomingHookHandler({
-      verifier: new VercelWebhookVerifier(['vercel-secret']),
-      mode: 'waitUntil',
-      waitUntil: vi.fn(),
       async handle() {
         return {
-          kind: 'ignored',
           body: { ignored: true },
+          kind: 'ignored',
         };
       },
+      mode: 'waitUntil',
+      verifier: new VercelWebhookVerifier(['vercel-secret']),
+      waitUntil: vi.fn(),
     });
 
     const response = await handler(
       new Request('https://example.com/api/hooks/vercel', {
-        method: 'POST',
-        headers: {
-          'x-vercel-signature': signature,
-          'content-type': 'application/json',
-        },
         body: rawBody,
+        headers: {
+          'content-type': 'application/json',
+          'x-vercel-signature': signature,
+        },
+        method: 'POST',
       })
     );
 
@@ -251,21 +246,21 @@ describe('incoming-hook toolkit', () => {
 
   it('returns 401 for invalid auth and 405 for non-POST methods', async () => {
     const handler = createAppRouterIncomingHookHandler({
-      verifier: new VercelWebhookVerifier(['vercel-secret']),
       async handle() {
         return {
           kind: 'processed',
         };
       },
+      verifier: new VercelWebhookVerifier(['vercel-secret']),
     });
 
     const invalidAuth = await handler(
       new Request('https://example.com/api/hooks/vercel', {
-        method: 'POST',
+        body: '{}',
         headers: {
           'x-vercel-signature': 'bad-signature',
         },
-        body: '{}',
+        method: 'POST',
       })
     );
     expect(invalidAuth.status).toBe(401);
@@ -282,21 +277,21 @@ describe('incoming-hook toolkit', () => {
     const rawBody = '{"badJson":';
     const signature = await hmacHex(rawBody, 'vercel-secret', 'sha1');
     const handler = createAppRouterIncomingHookHandler({
-      verifier: new VercelWebhookVerifier(['vercel-secret']),
       async handle() {
         return {
           kind: 'processed',
         };
       },
+      verifier: new VercelWebhookVerifier(['vercel-secret']),
     });
 
     const response = await handler(
       new Request('https://example.com/api/hooks/vercel', {
-        method: 'POST',
+        body: rawBody,
         headers: {
           'x-vercel-signature': signature,
         },
-        body: rawBody,
+        method: 'POST',
       })
     );
 
@@ -317,72 +312,58 @@ describe('incoming-hook toolkit', () => {
     const signature = await hmacHex(rawBody, 'vercel-secret', 'sha1');
 
     const handler = createPagesRouterIncomingHookHandler({
-      verifier: new VercelWebhookVerifier(['vercel-secret']),
       async handle() {
         return {
-          kind: 'processed',
           body: { received: true },
+          kind: 'processed',
         };
       },
+      verifier: new VercelWebhookVerifier(['vercel-secret']),
     });
 
     const request = new FakeIncomingMessage(rawBody, {
       'x-vercel-signature': signature,
-    }) as unknown as IncomingMessage & {
-      method?: string;
-      url?: string;
-      headers: Record<string, string>;
-    };
-    const response = new FakeResponse() as unknown as ServerResponse & {
-      status(code: number): FakeResponse;
-      json(body: Record<string, unknown>): void;
-    };
+    });
+    const response = new FakeResponse();
 
     await handler(request, response);
 
-    expect((response as unknown as FakeResponse).statusCode).toBe(200);
-    expect((response as unknown as FakeResponse).jsonBody).toEqual({
+    expect(response.statusCode).toBe(200);
+    expect(response.jsonBody).toEqual({
       received: true,
     });
   });
 
   it('returns 401 from the Pages Router wrapper on invalid auth', async () => {
     const handler = createPagesRouterIncomingHookHandler({
-      verifier: new VercelWebhookVerifier(['vercel-secret']),
       async handle() {
         return {
           kind: 'processed',
         };
       },
+      verifier: new VercelWebhookVerifier(['vercel-secret']),
     });
 
     const request = new FakeIncomingMessage('{}', {
       'x-vercel-signature': 'bad-signature',
-    }) as unknown as IncomingMessage & {
-      method?: string;
-      url?: string;
-      headers: Record<string, string>;
-    };
-    const response = new FakeResponse() as unknown as ServerResponse & {
-      status(code: number): FakeResponse;
-      json(body: Record<string, unknown>): void;
-    };
+    });
+    const response = new FakeResponse();
 
     await handler(request, response);
 
-    expect((response as unknown as FakeResponse).statusCode).toBe(401);
+    expect(response.statusCode).toBe(401);
   });
 
   it('requires a real waitUntil implementation for waitUntil mode', () => {
     expect(() =>
       createAppRouterIncomingHookHandler({
-        verifier: new VercelWebhookVerifier(['vercel-secret']),
-        mode: 'waitUntil',
         async handle() {
           return {
             kind: 'processed',
           };
         },
+        mode: 'waitUntil',
+        verifier: new VercelWebhookVerifier(['vercel-secret']),
       })
     ).toThrow(
       'createAppRouterIncomingHookHandler requires waitUntil when mode is waitUntil'
@@ -390,13 +371,13 @@ describe('incoming-hook toolkit', () => {
 
     expect(() =>
       createPagesRouterIncomingHookHandler({
-        verifier: new VercelWebhookVerifier(['vercel-secret']),
-        mode: 'waitUntil',
         async handle() {
           return {
             kind: 'processed',
           };
         },
+        mode: 'waitUntil',
+        verifier: new VercelWebhookVerifier(['vercel-secret']),
       })
     ).toThrow(
       'createPagesRouterIncomingHookHandler requires waitUntil when mode is waitUntil'
@@ -412,44 +393,44 @@ describe('incoming-hook toolkit', () => {
     let runCount = 0;
 
     const verified = {
-      provider: 'vercel' as const,
-      event: 'deployment.promoted',
       deliveryId: 'delivery_1',
+      event: 'deployment.promoted',
+      headers: {},
       payload: {
         project: {
           id: 'project_1',
         },
       },
+      provider: 'vercel' as const,
       rawBody: '{}',
-      headers: {},
     };
 
     const first = await runVerifiedHookWithTaskReconciler({
-      verified,
       reconciler,
       resolveReconcile() {
         return {
-          taskName: 'documents-index',
           desiredRevision: 'deployment:project_1:delivery_1',
           async run() {
             runCount += 1;
           },
+          taskName: 'documents-index',
         };
       },
+      verified,
     });
 
     const second = await runVerifiedHookWithTaskReconciler({
-      verified,
       reconciler,
       resolveReconcile() {
         return {
-          taskName: 'documents-index',
           desiredRevision: 'deployment:project_1:delivery_1',
           async run() {
             runCount += 1;
           },
+          taskName: 'documents-index',
         };
       },
+      verified,
     });
 
     expect(first.kind).toBe('reconciled');
@@ -465,17 +446,17 @@ describe('incoming-hook toolkit', () => {
     });
 
     const result = await runVerifiedHookWithTaskReconciler({
-      verified: {
-        provider: 'github',
-        event: 'ping',
-        deliveryId: 'delivery_3',
-        payload: { zen: 'keep it logically awesome' },
-        rawBody: '{}',
-        headers: {},
-      },
       reconciler,
       resolveReconcile() {
         return null;
+      },
+      verified: {
+        deliveryId: 'delivery_3',
+        event: 'ping',
+        headers: {},
+        payload: { zen: 'keep it logically awesome' },
+        provider: 'github',
+        rawBody: '{}',
       },
     });
 

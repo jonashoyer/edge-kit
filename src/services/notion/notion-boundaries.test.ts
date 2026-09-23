@@ -7,29 +7,29 @@ import {
 } from './notion-client';
 
 const list = (results: unknown[], next: string | null = null) => ({
-  object: 'list',
-  results,
   has_more: next !== null,
   next_cursor: next,
+  object: 'list',
+  results,
 });
 const block = (id: string, hasChildren = false) => ({
-  object: 'block',
-  id,
-  type: 'paragraph',
-  paragraph: { rich_text: [] },
   has_children: hasChildren,
+  id,
+  object: 'block',
+  paragraph: { rich_text: [] },
+  type: 'paragraph',
 });
 const synced = (id: string, source: string) => ({
-  object: 'block',
-  id,
-  type: 'synced_block',
-  synced_block: { synced_from: { type: 'block_id', block_id: source } },
   has_children: true,
+  id,
+  object: 'block',
+  synced_block: { synced_from: { block_id: source, type: 'block_id' } },
+  type: 'synced_block',
 });
 const markdown = {
-  object: 'page_markdown',
   id: 'page',
   markdown: '# Hello',
+  object: 'page_markdown',
   truncated: false,
   unknown_block_ids: [],
 };
@@ -76,22 +76,25 @@ describe('Notion response and SDK boundaries', () => {
     { ...markdown, truncated: true },
     { ...markdown, unknown_block_ids: ['missing'] },
     { ...markdown, markdown: '<unknown url="url" alt="embed"/>' },
-  ])('never silently returns incomplete content from the text convenience %#', async (response) => {
-    const { client } = clientFor(() => response);
-    await expect(client.getPageMarkdown('page')).resolves.toMatchObject({
-      complete: false,
-    });
-    await expect(client.getPageContent('page')).rejects.toMatchObject({
-      code: 'incomplete_content',
-    });
-  });
+  ])(
+    'never silently returns incomplete content from the text convenience %#',
+    async (response) => {
+      const { client } = clientFor(() => response);
+      await expect(client.getPageMarkdown('page')).resolves.toMatchObject({
+        complete: false,
+      });
+      await expect(client.getPageContent('page')).rejects.toMatchObject({
+        code: 'incomplete_content',
+      });
+    }
+  );
 
   it.each([
     { ...list([]), has_more: true },
     { ...list([]), next_cursor: 'unexpected' },
     { ...list([]), has_more: 'false' },
-    list([{ object: 'page', id: '' }]),
-    list([{ object: 'block', id: 'wrong-kind' }]),
+    list([{ id: '', object: 'page' }]),
+    list([{ id: 'wrong-kind', object: 'block' }]),
   ])('rejects invalid query envelopes %#', async (response) => {
     const { client } = clientFor(() => response);
     await expect(client.queryDataSource('source')).rejects.toMatchObject({
@@ -99,45 +102,43 @@ describe('Notion response and SDK boundaries', () => {
     });
   });
 
-  it.each([
-    null,
-    {},
-    [{ id: '' }],
-    [{ name: 'No id' }],
-  ])('rejects malformed database source lists %#', async (sources) => {
-    const { client } = clientFor(() => ({
-      object: 'database',
-      id: 'db',
-      data_sources: sources,
-    }));
-    await expect(client.resolveDataSourceId('db')).rejects.toMatchObject({
-      code: 'invalid_response',
-    });
-  });
+  it.each([null, {}, [{ id: '' }], [{ name: 'No id' }]])(
+    'rejects malformed database source lists %#',
+    async (sources) => {
+      const { client } = clientFor(() => ({
+        data_sources: sources,
+        id: 'db',
+        object: 'database',
+      }));
+      await expect(client.resolveDataSourceId('db')).rejects.toMatchObject({
+        code: 'invalid_response',
+      });
+    }
+  );
 
   it('distinguishes the source parent database from its containing page', async () => {
     const { client } = clientFor(() =>
       list([
         {
-          object: 'data_source',
-          id: 'source',
-          title: [{ plain_text: 'Tasks' }],
+          database_parent: { page_id: 'parent-page', type: 'page_id' },
           icon: null,
-          parent: { type: 'database_id', database_id: 'db' },
-          database_parent: { type: 'page_id', page_id: 'parent-page' },
+          id: 'source',
           in_trash: true,
+          object: 'data_source',
+          parent: { database_id: 'db', type: 'database_id' },
+          title: [{ plain_text: 'Tasks' }],
         },
       ])
     );
     await expect(client.getDataSources()).resolves.toEqual([
       {
-        id: 'source',
-        name: 'Tasks',
-        databaseId: 'db',
-        pageId: 'parent-page',
-        icon: null,
-        inTrash: true,
         archived: true,
+        databaseId: 'db',
+        icon: null,
+        id: 'source',
+        inTrash: true,
+        name: 'Tasks',
+        pageId: 'parent-page',
       },
     ]);
   });
@@ -147,14 +148,14 @@ describe('Notion response and SDK boundaries', () => {
     const client = new NotionClient('test', {
       fetch,
       pacing: false,
-      retry: false,
       readOnly: true,
+      retry: false,
     });
     await client.client.pages.retrieveMarkdown({ page_id: 'page' });
     await client.client.dataSources.query({ data_source_id: 'source' });
     await client.client.search({});
     await expect(
-      client.client.request({ path: 'future-endpoint', method: 'get' })
+      client.client.request({ method: 'get', path: 'future-endpoint' })
     ).rejects.toMatchObject({ code: 'read_only' });
     await expect(
       client.client.blocks.delete({ block_id: 'block' })
@@ -165,8 +166,8 @@ describe('Notion response and SDK boundaries', () => {
   it('supports a custom API base URL under read-only policy', async () => {
     const fetch = vi.fn<SupportedFetch>(async () => Response.json(markdown));
     const client = new NotionClient('test', {
-      fetch,
       baseUrl: 'https://proxy.example/notion/',
+      fetch,
       pacing: false,
       readOnly: true,
     });
@@ -266,29 +267,29 @@ describe('bounded block reads', () => {
 });
 
 describe('stateless change queries', () => {
-  const checkbox = { property: 'Ready', checkbox: { equals: true } };
+  const checkbox = { checkbox: { equals: true }, property: 'Ready' };
   it('preserves nested AND filters and derives the maximum timestamp', async () => {
     let body: Record<string, unknown> = {};
     const { client } = clientFor((_url, query) => {
       body = query;
       return list([
         {
-          object: 'page',
           id: 'latest',
-          url: 'https://notion.so/latest',
           last_edited_time: '2026-09-02T00:00:00Z',
+          object: 'page',
+          url: 'https://notion.so/latest',
         },
         {
-          object: 'page',
           id: 'older',
-          url: 'https://notion.so/older',
           last_edited_time: '2026-09-01T00:00:00Z',
+          object: 'page',
+          url: 'https://notion.so/older',
         },
       ]);
     });
     const changes = await client.queryDataSourceChanges('source', {
-      since: '2026-08-01',
       filter: { and: [{ or: [checkbox] }] },
+      since: '2026-08-01',
     });
     expect(changes.highWaterTimestamp).toBe('2026-09-02T00:00:00.000Z');
     expect(body).toMatchObject({
@@ -296,12 +297,12 @@ describe('stateless change queries', () => {
         and: [
           { or: [checkbox] },
           {
-            timestamp: 'last_edited_time',
             last_edited_time: { on_or_after: '2026-08-01T00:00:00.000Z' },
+            timestamp: 'last_edited_time',
           },
         ],
       },
-      sorts: [{ timestamp: 'last_edited_time', direction: 'ascending' }],
+      sorts: [{ direction: 'ascending', timestamp: 'last_edited_time' }],
     });
     expect(body).not.toHaveProperty('since');
   });
@@ -312,18 +313,21 @@ describe('stateless change queries', () => {
       or: [{ and: [checkbox] }],
     };
     await expect(
-      client.queryDataSourceChanges('source', { since: '2026-08-01', filter })
+      client.queryDataSourceChanges('source', { filter, since: '2026-08-01' })
     ).rejects.toMatchObject({ code: 'unsupported_filter' });
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each([
-    { object: 'page', id: 'partial' },
-    { object: 'page', id: 'bad-date', last_edited_time: 'invalid' },
-  ])('does not advance checkpoints past unusable page metadata %#', async (page) => {
-    const { client } = clientFor(() => list([page]));
-    await expect(client.queryDataSourceChanges('source')).rejects.toMatchObject(
-      { code: 'invalid_response' }
-    );
-  });
+    { id: 'partial', object: 'page' },
+    { id: 'bad-date', last_edited_time: 'invalid', object: 'page' },
+  ])(
+    'does not advance checkpoints past unusable page metadata %#',
+    async (page) => {
+      const { client } = clientFor(() => list([page]));
+      await expect(
+        client.queryDataSourceChanges('source')
+      ).rejects.toMatchObject({ code: 'invalid_response' });
+    }
+  );
 });

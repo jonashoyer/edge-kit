@@ -18,18 +18,18 @@ interface PersistedSessionMetadata extends DevLauncherSessionMetadata {}
 export interface DevLauncherSessionStateRuntime
   extends DevLauncherStatePathRuntime {
   connectSocket: (socketPath: string) => Promise<boolean>;
+  existsSync: typeof fs.existsSync;
+  kill: (pid: number, signal: NodeJS.Signals | number) => boolean;
+  mkdirSync: typeof fs.mkdirSync;
   processId: number;
+  readFileSync: typeof fs.readFileSync;
   statSync: typeof fs.statSync;
   unlinkSync: typeof fs.unlinkSync;
   writeFileSync: typeof fs.writeFileSync;
-  mkdirSync: typeof fs.mkdirSync;
-  readFileSync: typeof fs.readFileSync;
-  existsSync: typeof fs.existsSync;
-  kill: (pid: number, signal: NodeJS.Signals | number) => boolean;
 }
 
-const probeSocket = async (socketPath: string): Promise<boolean> => {
-  return await new Promise((resolve) => {
+const probeSocket = async (socketPath: string): Promise<boolean> =>
+  await new Promise((resolve) => {
     const socket = net.createConnection(socketPath);
 
     const finish = (connected: boolean): void => {
@@ -45,7 +45,6 @@ const probeSocket = async (socketPath: string): Promise<boolean> => {
       finish(false);
     });
   });
-};
 
 export const defaultDevLauncherSessionStateRuntime: DevLauncherSessionStateRuntime =
   {
@@ -61,9 +60,8 @@ export const defaultDevLauncherSessionStateRuntime: DevLauncherSessionStateRunti
     writeFileSync: fs.writeFileSync,
   };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null;
-};
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 const parseSessionMetadata = (
   value: unknown

@@ -13,10 +13,16 @@ export class FetchExtTimeoutError extends CustomError<'FETCH_TIMEOUT'> {
   readonly timeoutMs: number;
   readonly attempt: number;
 
-  constructor(args: { url: string; timeoutMs: number; attempt: number }) {
+  constructor(args: {
+    url: string;
+    timeoutMs: number;
+    attempt: number;
+    cause?: unknown;
+  }) {
     super(
       `Fetch request timed out after ${args.timeoutMs}ms (attempt ${args.attempt})`,
-      'FETCH_TIMEOUT'
+      'FETCH_TIMEOUT',
+      { cause: args.cause }
     );
     this.url = args.url;
     this.timeoutMs = args.timeoutMs;
@@ -114,53 +120,15 @@ export class FetchExtSchemaValidationError extends CustomError<'FETCH_SCHEMA_VAL
 type JsonBody = Record<string, unknown> | unknown[];
 
 export interface FetchExtOptionsBase {
-  url: string;
-  init?: Omit<RequestInit, 'body'> & { body?: RequestInit['body'] | JsonBody };
-  /**
-   * Timeout (ms) for a single attempt.
-   * @default 10000
-   */
-  timeout?: number;
-  /**
-   * Number of retries (not attempts). Total attempts = retries + 1.
-   * @default 0
-   */
-  retries?: number;
-  /**
-   * Base delay (ms) before retrying.
-   * @default 500
-   */
-  retryDelay?: number;
   /**
    * Backoff strategy applied to `retryDelay`.
    * @default "exponential"
    */
   backoff?: 'exponential' | 'none';
   /**
-   * Retry on HTTP status codes (e.g. [429, 503]). Default: no HTTP-status retries.
+   * Header name for idempotency key. Default: `Idempotency-Key`.
    */
-  retryOnHttpStatuses?: number[];
-  /**
-   * Caps the wait time between retries (for both backoff and Retry-After).
-   */
-  maxRetryWaitMs?: number;
-  /**
-   * Applies jitter to retry delays to reduce thundering-herd retries.
-   * Uses "full jitter": random value in [0, delayMs).
-   * @default false
-   */
-  jitter?: boolean;
-  /**
-   * When true, uses `Retry-After` header (seconds or HTTP-date) to influence retry delays.
-   * Only applies when `retryOnHttpStatuses` triggers a retry.
-   *
-   * Default: true
-   */
-  respectRetryAfter?: boolean;
-  /**
-   * Throw when `response.ok === false`. Default: false (backwards compatible).
-   */
-  throwOnHttpError?: boolean;
+  idempotencyHeaderName?: string;
   /**
    * Adds idempotency header to the request.
    * - string: use as provided
@@ -170,10 +138,17 @@ export interface FetchExtOptionsBase {
    * Default: false
    */
   idempotencyKey?: string | boolean;
+  init?: Omit<RequestInit, 'body'> & { body?: RequestInit['body'] | JsonBody };
   /**
-   * Header name for idempotency key. Default: `Idempotency-Key`.
+   * Applies jitter to retry delays to reduce thundering-herd retries.
+   * Uses "full jitter": random value in [0, delayMs).
+   * @default false
    */
-  idempotencyHeaderName?: string;
+  jitter?: boolean;
+  /**
+   * Caps the wait time between retries (for both backoff and Retry-After).
+   */
+  maxRetryWaitMs?: number;
   /**
    * Called before waiting and retrying.
    * This callback is fire-and-forget; errors are ignored.
@@ -187,6 +162,37 @@ export interface FetchExtOptionsBase {
     status?: number;
     error?: unknown;
   }) => void | Promise<void>;
+  /**
+   * When true, uses `Retry-After` header (seconds or HTTP-date) to influence retry delays.
+   * Only applies when `retryOnHttpStatuses` triggers a retry.
+   *
+   * Default: true
+   */
+  respectRetryAfter?: boolean;
+  /**
+   * Number of retries (not attempts). Total attempts = retries + 1.
+   * @default 0
+   */
+  retries?: number;
+  /**
+   * Base delay (ms) before retrying.
+   * @default 500
+   */
+  retryDelay?: number;
+  /**
+   * Retry on HTTP status codes (e.g. [429, 503]). Default: no HTTP-status retries.
+   */
+  retryOnHttpStatuses?: number[];
+  /**
+   * Throw when `response.ok === false`. Default: false (backwards compatible).
+   */
+  throwOnHttpError?: boolean;
+  /**
+   * Timeout (ms) for a single attempt.
+   * @default 10000
+   */
+  timeout?: number;
+  url: string;
 }
 
 export interface FetchExtExpectJsonOptions<T> {
@@ -278,7 +284,7 @@ const normalizeInit = (
     if (!headers.has('content-type')) {
       headers.set('content-type', 'application/json');
     }
-    return { ...rest, headers, body: JSON.stringify(body) };
+    return { ...rest, body: JSON.stringify(body), headers };
   }
 
   const out: RequestInit = { ...rest, headers };
@@ -300,6 +306,7 @@ const parseJsonWithSchema = async <T>(
     json = text.length === 0 ? null : JSON.parse(text);
   } catch (cause) {
     const snippet = text.slice(0, 500);
+    // biome-ignore lint/style/useErrorCause: The custom error receives cause in its structured argument.
     throw new FetchExtInvalidJsonError({
       bodyTextSnippet: snippet,
       cause,
@@ -318,31 +325,24 @@ const parseJsonWithSchema = async <T>(
   return validated.data;
 };
 
-const parseText = async (response: Response): Promise<string> => {
-  return await response.text();
-};
+const parseText = async (response: Response): Promise<string> =>
+  await response.text();
 
-const parseBlob = async (response: Response): Promise<Blob> => {
-  return await response.blob();
-};
+const parseBlob = async (response: Response): Promise<Blob> =>
+  await response.blob();
 
 const getDelayMs = (
   attemptIndex: number,
   retryDelay: number,
   backoff: 'exponential' | 'none'
-): number => {
-  return backoff === 'exponential'
-    ? retryDelay * 2 ** attemptIndex
-    : retryDelay;
-};
+): number =>
+  backoff === 'exponential' ? retryDelay * 2 ** attemptIndex : retryDelay;
 
-const canRetry = (attemptIndex: number, retries: number): boolean => {
-  return attemptIndex < retries;
-};
+const canRetry = (attemptIndex: number, retries: number): boolean =>
+  attemptIndex < retries;
 
-const isAbortError = (error: unknown): boolean => {
-  return error instanceof Error && error.name === 'AbortError';
-};
+const isAbortError = (error: unknown): boolean =>
+  error instanceof Error && error.name === 'AbortError';
 
 const capDelayMs = (delayMs: number, maxRetryWaitMs?: number): number => {
   if (maxRetryWaitMs === undefined) return delayMs;
@@ -383,7 +383,8 @@ const fetchWithTimeout = async (
     return await fetch(url, { signal: controller.signal, ...init });
   } catch (error) {
     if (isAbortError(error)) {
-      throw new FetchExtTimeoutError({ url, timeoutMs, attempt });
+      // biome-ignore lint/style/useErrorCause: The custom error receives cause in its structured argument.
+      throw new FetchExtTimeoutError({ attempt, cause: error, timeoutMs, url });
     }
     throw error;
   } finally {
@@ -467,13 +468,13 @@ const retrySleep = async (args: {
   onRetry?: FetchExtOptionsBase['onRetry'];
 }): Promise<void> => {
   callOnRetry(args.onRetry, {
-    url: args.url,
     attempt: args.attempt,
-    retries: args.retries,
     delayMs: args.delayMs,
-    reason: args.reason,
-    status: args.status,
     error: args.error,
+    reason: args.reason,
+    retries: args.retries,
+    status: args.status,
+    url: args.url,
   });
   await sleep(args.delayMs);
 };
@@ -506,22 +507,22 @@ const fetchWithRetries = async (args: {
 
     const delayMs = getHttpStatusDelayMs({
       attemptIndex,
-      response,
-      retryDelay: args.retryDelay,
       backoff: args.backoff,
+      jitter: args.jitter,
       maxRetryWaitMs: args.maxRetryWaitMs,
       respectRetryAfter: args.respectRetryAfter,
-      jitter: args.jitter,
+      response,
+      retryDelay: args.retryDelay,
     });
 
     await retrySleep({
-      url: args.url,
       attempt,
-      retries: args.retries,
       delayMs,
-      reason: 'http_status',
-      status: response.status,
       onRetry: args.onRetry,
+      reason: 'http_status',
+      retries: args.retries,
+      status: response.status,
+      url: args.url,
     });
 
     return true;
@@ -542,57 +543,58 @@ const fetchWithRetries = async (args: {
 
       const delayMs = getErrorDelayMs({
         attemptIndex,
-        retryDelay: args.retryDelay,
         backoff: args.backoff,
-        maxRetryWaitMs: args.maxRetryWaitMs,
         jitter: args.jitter,
+        maxRetryWaitMs: args.maxRetryWaitMs,
+        retryDelay: args.retryDelay,
       });
 
       await retrySleep({
-        url: args.url,
         attempt,
-        retries: args.retries,
         delayMs,
-        reason: 'timeout',
         error,
         onRetry: args.onRetry,
+        reason: 'timeout',
+        retries: args.retries,
+        url: args.url,
       });
       return;
     }
 
     if (!canRetry(attemptIndex, args.retries)) {
       throw new FetchExtRetriesExhaustedError({
-        retries: args.retries,
         cause: error,
         response: lastResponse,
+        retries: args.retries,
       });
     }
 
     const delayMs = getErrorDelayMs({
       attemptIndex,
-      retryDelay: args.retryDelay,
       backoff: args.backoff,
-      maxRetryWaitMs: args.maxRetryWaitMs,
       jitter: args.jitter,
+      maxRetryWaitMs: args.maxRetryWaitMs,
+      retryDelay: args.retryDelay,
     });
 
     await retrySleep({
-      url: args.url,
       attempt,
-      retries: args.retries,
       delayMs,
-      reason: 'error',
       error,
       onRetry: args.onRetry,
+      reason: 'error',
+      retries: args.retries,
+      url: args.url,
     });
   };
 
   let lastResponse: Response | undefined;
 
-  for (let i = 0; i <= args.retries; i++) {
+  for (let i = 0; i <= args.retries; i += 1) {
     const attempt = i + 1;
 
     try {
+      // biome-ignore lint/performance/noAwaitInLoops: Retry attempts must run sequentially with backoff.
       const response = await fetchWithTimeout(
         args.url,
         args.init,
@@ -605,9 +607,9 @@ const fetchWithRetries = async (args: {
 
       if (args.throwOnHttpError && !response.ok) {
         throw new FetchExtHttpError({
-          url: args.url,
           status: response.status,
           statusText: response.statusText,
+          url: args.url,
         });
       }
 
@@ -624,9 +626,9 @@ const fetchWithRetries = async (args: {
   }
 
   throw new FetchExtRetriesExhaustedError({
+    cause: lastError,
     response: lastResponse,
     retries: args.retries,
-    cause: lastError,
   });
 };
 
@@ -657,7 +659,6 @@ const getAcceptHeader = <T>(
   if (expectation.kind === 'json') return 'application/json';
   if (expectation.kind === 'text') return 'text/plain, */*';
   if (expectation.kind === 'blob') return '*/*';
-  return;
 };
 
 export type FetchExtOptions<T> = FetchExtOptionsBase &
@@ -732,8 +733,8 @@ export async function fetchExt<TOptions extends FetchExtOptions<unknown>>(
   const idempotency =
     idempotencyKey !== false && method !== 'GET' && method !== 'HEAD'
       ? {
-          key: typeof idempotencyKey === 'string' ? idempotencyKey : genId(),
           headerName: idempotencyHeaderName,
+          key: typeof idempotencyKey === 'string' ? idempotencyKey : genId(),
         }
       : undefined;
 
@@ -745,18 +746,18 @@ export async function fetchExt<TOptions extends FetchExtOptions<unknown>>(
   });
 
   const response = await fetchWithRetries({
-    url,
+    backoff,
     init,
-    timeoutMs: timeout,
+    jitter,
+    maxRetryWaitMs,
+    onRetry,
+    respectRetryAfter,
     retries,
     retryDelay,
-    backoff,
     retryOnHttpStatuses,
-    maxRetryWaitMs,
-    jitter,
-    respectRetryAfter,
     throwOnHttpError,
-    onRetry,
+    timeoutMs: timeout,
+    url,
   });
 
   if (expectation.kind === 'json') {
@@ -765,15 +766,15 @@ export async function fetchExt<TOptions extends FetchExtOptions<unknown>>(
       expectation.schema,
       url
     );
-    return { response, data } as FetchExtResult<TOptions>;
+    return { data, response } as FetchExtResult<TOptions>;
   }
   if (expectation.kind === 'text') {
     const data = await parseText(response.clone());
-    return { response, data } as FetchExtResult<TOptions>;
+    return { data, response } as FetchExtResult<TOptions>;
   }
   if (expectation.kind === 'blob') {
     const data = await parseBlob(response.clone());
-    return { response, data } as FetchExtResult<TOptions>;
+    return { data, response } as FetchExtResult<TOptions>;
   }
 
   return response as FetchExtResult<TOptions>;

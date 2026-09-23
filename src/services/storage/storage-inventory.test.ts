@@ -15,7 +15,7 @@ import {
 
 class MemoryStorage extends AbstractStorage {
   readonly objects = new Map<string, StorageBody>();
-  override readonly explorer?: StorageExplorerCapability;
+  override readonly explorer: StorageExplorerCapability | undefined = undefined;
 
   constructor(keys: string[] = [], withExplorer = false) {
     super({});
@@ -26,9 +26,7 @@ class MemoryStorage extends AbstractStorage {
 
     if (withExplorer) {
       this.explorer = {
-        list: async (prefix?: string) => {
-          return this.filterKeys(prefix);
-        },
+        list: async (prefix?: string) => this.filterKeys(prefix),
         listPage: async (
           prefix?: string,
           options?: StorageExplorerListPageOptions
@@ -45,9 +43,9 @@ class MemoryStorage extends AbstractStorage {
           const nextIndex = startIndex + pageKeys.length;
 
           return {
-            keys: pageKeys,
             continuationToken:
               nextIndex < keysForPrefix.length ? String(nextIndex) : undefined,
+            keys: pageKeys,
           };
         },
       };
@@ -80,8 +78,8 @@ class MemoryStorage extends AbstractStorage {
     key: string
   ): Promise<{ url: string; expiresAt: number }> {
     return {
-      url: `https://example.test/read/${key}`,
       expiresAt: Date.now() + 60_000,
+      url: `https://example.test/read/${key}`,
     };
   }
 
@@ -91,9 +89,9 @@ class MemoryStorage extends AbstractStorage {
     expiresAt: number;
   }> {
     return {
-      url: 'https://example.test/write',
-      method: 'PUT',
       expiresAt: Date.now() + 60_000,
+      method: 'PUT',
+      url: 'https://example.test/write',
     };
   }
 
@@ -137,8 +135,8 @@ describe('StorageInventoryService', () => {
     });
 
     await expect(inventory.listKeys('docs/', { maxKeys: 1 })).resolves.toEqual({
-      keys: ['docs/a.txt'],
       continuationToken: '1',
+      keys: ['docs/a.txt'],
     });
   });
 
@@ -151,9 +149,9 @@ describe('StorageInventoryService', () => {
     });
 
     await expect(inventory.listDirectory()).resolves.toEqual({
-      prefix: '',
       directories: ['docs', 'images'],
       objects: [{ key: 'root.txt', name: 'root.txt' }],
+      prefix: '',
     });
   });
 
@@ -171,9 +169,9 @@ describe('StorageInventoryService', () => {
     });
 
     await expect(inventory.listDirectory('users/123')).resolves.toEqual({
-      prefix: 'users/123/',
       directories: ['docs'],
       objects: [{ key: 'users/123/avatar.png', name: 'avatar.png' }],
+      prefix: 'users/123/',
     });
   });
 
@@ -183,9 +181,9 @@ describe('StorageInventoryService', () => {
     });
 
     await expect(inventory.listDirectory('missing/')).resolves.toEqual({
-      prefix: 'missing/',
       directories: [],
       objects: [],
+      prefix: 'missing/',
     });
   });
 });

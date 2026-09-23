@@ -23,8 +23,8 @@ describe('dev-launcher shipped actions', () => {
       version: 1,
     });
 
-    expect(config.actionsById['git-pull']).toBe(gitPullAction);
-    expect(config.actionsById['install-deps']).toBe(installDepsAction);
+    expect(config.actionsById?.['git-pull']).toBe(gitPullAction);
+    expect(config.actionsById?.['install-deps']).toBe(installDepsAction);
     expect(gitPullAction.label).toBe('Pull latest commits');
     expect(installDepsAction.label).toBe('Install dependencies');
   });

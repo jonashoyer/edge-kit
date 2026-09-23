@@ -4,7 +4,7 @@
  * This file demonstrates various patterns for using the cache service.
  */
 
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   type CacheableResult,
   PromiseCacheProvider,
@@ -57,13 +57,13 @@ function UserProfile({ userId }: { userId: string }) {
 function DataLoader() {
   const { cachedPromise } = useCacheContext();
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     await cachedPromise<{ items: string[] }>(
       'api-data',
       () => fetch('/api/data').then((r) => r.json()),
       { ttl: 60_000 }
     );
-  };
+  }, [cachedPromise]);
 
   return (
     <button onClick={loadData} type='button'>
@@ -79,18 +79,18 @@ function DataLoader() {
 function CacheControls() {
   const cache = useCacheContext();
 
-  const clearUserCache = () => {
+  const clearUserCache = useCallback(() => {
     cache.delete('user-123');
-  };
+  }, [cache]);
 
-  const clearAllCache = () => {
+  const clearAllCache = useCallback(() => {
     cache.clear();
-  };
+  }, [cache]);
 
-  const checkCache = () => {
+  const checkCache = useCallback(() => {
     cache.has('user-123');
     cache.get<User>('user-123');
-  };
+  }, [cache]);
 
   return (
     <div>
@@ -119,8 +119,8 @@ function DashboardData() {
       return response.json();
     },
     {
-      ttl: 5 * 60 * 1000,
       staleWhileRevalidate: true, // Show old data while fetching new
+      ttl: 5 * 60 * 1000,
     }
   );
 
@@ -183,7 +183,7 @@ function SessionManager() {
 function TokenRefresher() {
   const { cachedPromise } = useCacheContext();
 
-  const refreshToken = async () => {
+  const refreshToken = useCallback(async () => {
     await cachedPromise<{ token: string }>('auth-token', async () => {
       const response = await fetch('/api/token/refresh');
       const data = await response.json();
@@ -194,7 +194,7 @@ function TokenRefresher() {
         expiresAt: data.expiresAt, // Auto-detects seconds vs milliseconds
       };
     });
-  };
+  }, [cachedPromise]);
 
   return (
     <button onClick={refreshToken} type='button'>

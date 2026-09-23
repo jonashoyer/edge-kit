@@ -239,24 +239,21 @@ const createStateRuntime = (
     connectSocketClient: (socketPath: string) =>
       transportRegistry.connect(socketPath),
     createController: vi.fn(),
-    createServer: (listener: (socket: FakeSocket) => void) => {
-      return {
-        close: (callback?: (error?: Error | undefined) => void) => {
-          if (serverState.socketPath) {
-            transportRegistry.remove(serverState.socketPath);
-          }
-          callback?.();
-        },
-        listen: (socketPath: string, listeningListener?: () => void) => {
-          serverState.socketPath = socketPath;
-          transportRegistry.listen(socketPath, listener);
-          listeningListener?.();
-        },
-        on: () => {
-          return undefined;
-        },
-      };
-    },
+    createServer: (listener: (socket: FakeSocket) => void) => ({
+      close: (callback?: (error?: Error | undefined) => void) => {
+        // biome-ignore lint/suspicious/noUnnecessaryConditions: Test fixtures model missing config entries and mutable socket state.
+        if (serverState.socketPath) {
+          transportRegistry.remove(serverState.socketPath);
+        }
+        callback?.();
+      },
+      listen: (socketPath: string, listeningListener?: () => void) => {
+        serverState.socketPath = socketPath;
+        transportRegistry.listen(socketPath, listener);
+        listeningListener?.();
+      },
+      on: () => undefined,
+    }),
     env: {
       EDGE_KIT_DEV_LAUNCHER_STATE_DIR: stateRoot,
     },

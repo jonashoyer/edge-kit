@@ -115,8 +115,8 @@ const clampLimit = (limit: number | undefined): number => {
 
 const sortVariants = (
   variants: StorageAssetRecord<ImageGenerationVariantAssetMeta>[]
-): StorageAssetRecord<ImageGenerationVariantAssetMeta>[] => {
-  return [...variants].sort((left, right) => {
+): StorageAssetRecord<ImageGenerationVariantAssetMeta>[] =>
+  [...variants].sort((left, right) => {
     if (left.meta.position !== right.meta.position) {
       return left.meta.position - right.meta.position;
     }
@@ -127,13 +127,11 @@ const sortVariants = (
 
     return left.id.localeCompare(right.id);
   });
-};
 
 const defaultPreferredVariantSelector = (
   variants: StorageAssetRecord<ImageGenerationVariantAssetMeta>[]
-): StorageAssetRecord<ImageGenerationVariantAssetMeta> | null => {
-  return variants.at(0) ?? null;
-};
+): StorageAssetRecord<ImageGenerationVariantAssetMeta> | null =>
+  variants.at(0) ?? null;
 
 const asOriginalAsset = (
   asset: StorageAssetRecord<object> | null,
@@ -159,26 +157,26 @@ const asVariantAsset = (
 
 export interface ImageGenerationVariantOutput {
   image: GeneratedImageAsset;
-  tags?: string[];
   meta?: Record<string, unknown>;
+  tags?: string[];
 }
 
 export interface ImageGenerationVariantContext<
   TRequest extends ImageGenerationRequest = ImageGenerationRequest,
 > {
   generationId: string;
-  request: TRequest;
-  output: ImageGenerationOutput;
   originalAsset: StorageAssetRecord<ImageGenerationOriginalAssetMeta>;
+  output: ImageGenerationOutput;
+  request: TRequest;
 }
 
 export interface ImageGenerationVariantProducer<
   TRequest extends ImageGenerationRequest = ImageGenerationRequest,
 > {
   name: string;
-  produce(
+  produce: (
     context: ImageGenerationVariantContext<TRequest>
-  ): Promise<ImageGenerationVariantOutput | null>;
+  ) => Promise<ImageGenerationVariantOutput | null>;
 }
 
 export interface GenerateImageAssetsOptions {
@@ -188,26 +186,23 @@ export interface GenerateImageAssetsOptions {
 }
 
 export interface GeneratedImageVariantResult {
+  image: GeneratedImageAsset;
+  meta?: Record<string, unknown>;
   name: string;
   position: number;
-  image: GeneratedImageAsset;
   tags?: string[];
-  meta?: Record<string, unknown>;
 }
 
 export interface ImageGenerationServiceOptions<
   TRequest extends ImageGenerationRequest = ImageGenerationRequest,
 > {
-  generator: AbstractImageGenerator<TRequest>;
-  assetInventory?: StorageAssetInventoryService<object>;
-  storage?: AbstractStorage;
   assetCatalog?: AbstractStorageAssetService<object>;
-  variantProducers?: ImageGenerationVariantProducer<TRequest>[];
-  previewMetadataBuilder?: StorageAssetPreviewMetadataBuilder<object>;
-  source?: string;
-  kind?: string;
-  objectKeyPrefix?: string;
-  createGenerationId?: (request: TRequest) => string;
+  assetInventory?: StorageAssetInventoryService<object>;
+  buildOriginalExtraMeta?: (context: {
+    generationId: string;
+    request: TRequest;
+    output: ImageGenerationOutput;
+  }) => Record<string, unknown> | undefined;
   buildOriginalObjectKey?: (context: {
     generationId: string;
     request: TRequest;
@@ -221,14 +216,17 @@ export interface ImageGenerationServiceOptions<
     position: number;
     variant: ImageGenerationVariantOutput;
   }) => string;
-  buildOriginalExtraMeta?: (context: {
-    generationId: string;
-    request: TRequest;
-    output: ImageGenerationOutput;
-  }) => Record<string, unknown> | undefined;
+  createGenerationId?: (request: TRequest) => string;
+  generator: AbstractImageGenerator<TRequest>;
+  kind?: string;
+  objectKeyPrefix?: string;
+  previewMetadataBuilder?: StorageAssetPreviewMetadataBuilder<object>;
   selectPreferredVariant?: (
     variants: StorageAssetRecord<ImageGenerationVariantAssetMeta>[]
   ) => StorageAssetRecord<ImageGenerationVariantAssetMeta> | null;
+  source?: string;
+  storage?: AbstractStorage;
+  variantProducers?: ImageGenerationVariantProducer<TRequest>[];
 }
 
 export interface ImageGenerationResult {
@@ -239,13 +237,13 @@ export interface ImageGenerationResult {
     mimeType: string;
     asset?: StorageAssetRecord<ImageGenerationOriginalAssetMeta>;
   };
+  output: ImageGenerationOutput;
   variants: Array<{
     id: string;
     objectKey: string;
     mimeType: string;
     asset?: StorageAssetRecord<ImageGenerationVariantAssetMeta>;
   }>;
-  output: ImageGenerationOutput;
 }
 
 export interface ImageGenerationPreparedResult {
@@ -336,8 +334,8 @@ export class ImageGenerationService<
     const output = await this.generate(request);
     const variants = await this.produceVariants({
       generationId,
-      request,
       output,
+      request,
     });
 
     return {
@@ -360,8 +358,8 @@ export class ImageGenerationService<
     const originalObjectKey =
       this.buildOriginalObjectKey?.({
         generationId,
-        request,
         output: prepared.output,
+        request,
       }) ??
       buildDefaultObjectKey(
         this.objectKeyPrefix,
@@ -371,27 +369,28 @@ export class ImageGenerationService<
       );
 
     const original = await this.storeOriginal({
-      storage,
       generationId,
-      source,
-      request,
-      output: prepared.output,
       objectKey: originalObjectKey,
+      output: prepared.output,
+      request,
+      source,
+      storage,
       tags: normalizeTags(options.tags),
     });
     const variants: ImageGenerationResult['variants'] = [];
 
     for (const variant of prepared.variants) {
       variants.push(
+        // biome-ignore lint/performance/noAwaitInLoops: Process variants in stable order with bounded storage and generator requests.
         await this.storeVariant({
-          storage,
           generationId,
-          source,
-          request,
           output: prepared.output,
-          variant,
           parentId: original.id,
+          request,
           rootTags: normalizeTags(options.tags),
+          source,
+          storage,
+          variant,
         })
       );
     }
@@ -399,8 +398,8 @@ export class ImageGenerationService<
     return {
       generationId,
       original,
-      variants,
       output: prepared.output,
+      variants,
     };
   }
 
@@ -475,12 +474,13 @@ export class ImageGenerationService<
       [];
 
     while (originals.length < options.limit) {
+      // biome-ignore lint/performance/noAwaitInLoops: Process variants in stable order with bounded storage and generator requests.
       const page = await this.requireAssetInventory().listPage({
-        source: options.source,
-        parentAssetId: null,
+        cursor: assetCursor,
         limit: scanLimit,
         order: 'desc',
-        cursor: assetCursor,
+        parentAssetId: null,
+        source: options.source,
       });
 
       if (page.items.length === 0) {
@@ -497,8 +497,8 @@ export class ImageGenerationService<
 
       if (consumed.nextCursor) {
         return {
-          originals,
           nextCursor: consumed.nextCursor,
+          originals,
         };
       }
 
@@ -509,7 +509,7 @@ export class ImageGenerationService<
       }
 
       assetCursor = page.nextCursor;
-      nextCursor = page.nextCursor;
+      ({ nextCursor } = page);
     }
 
     return {
@@ -580,13 +580,11 @@ export class ImageGenerationService<
 
     if (options.storage && options.assetCatalog) {
       return new StorageAssetInventoryService({
-        storage: options.storage,
         assetCatalog: options.assetCatalog,
         previewMetadataBuilder: options.previewMetadataBuilder,
+        storage: options.storage,
       });
     }
-
-    return;
   }
 
   private requireStorage(): AbstractStorage {
@@ -613,25 +611,26 @@ export class ImageGenerationService<
     const variants: GeneratedImageVariantResult[] = [];
     const originalAsset: StorageAssetRecord<ImageGenerationOriginalAssetMeta> =
       {
-        id: context.generationId,
-        objectKey: '',
-        mimeType: context.output.image.mimeType,
-        source: this.source,
-        parentAssetId: null,
-        orphanedAt: null,
-        tags: [],
-        meta: this.createOriginalMeta(context),
         createdAt: new Date(),
+        id: context.generationId,
+        meta: this.createOriginalMeta(context),
+        mimeType: context.output.image.mimeType,
+        objectKey: '',
+        orphanedAt: null,
+        parentAssetId: null,
+        source: this.source,
+        tags: [],
         updatedAt: new Date(),
       };
     let position = 0;
 
     for (const producer of this.variantProducers) {
+      // biome-ignore lint/performance/noAwaitInLoops: Process variants in stable order with bounded storage and generator requests.
       const variant = await producer.produce({
         generationId: context.generationId,
-        request: context.request,
-        output: context.output,
         originalAsset,
+        output: context.output,
+        request: context.request,
       });
 
       if (!variant) {
@@ -639,11 +638,11 @@ export class ImageGenerationService<
       }
 
       variants.push({
+        image: variant.image,
+        meta: variant.meta,
         name: producer.name,
         position,
-        image: variant.image,
         tags: variant.tags,
-        meta: variant.meta,
       });
       position += 1;
     }
@@ -662,21 +661,21 @@ export class ImageGenerationService<
   }): Promise<ImageGenerationResult['original']> {
     if (this.assetInventory) {
       const asset = (await this.assetInventory.writeAsset({
-        id: context.generationId,
-        objectKey: context.objectKey,
-        mimeType: context.output.image.mimeType,
-        source: context.source,
-        parentAssetId: null,
-        tags: context.tags,
         data: context.output.image.data,
+        id: context.generationId,
         meta: this.createOriginalMeta(context),
+        mimeType: context.output.image.mimeType,
+        objectKey: context.objectKey,
+        parentAssetId: null,
+        source: context.source,
+        tags: context.tags,
       })) as StorageAssetRecord<ImageGenerationOriginalAssetMeta>;
 
       return {
-        id: asset.id,
-        objectKey: asset.objectKey,
-        mimeType: asset.mimeType,
         asset,
+        id: asset.id,
+        mimeType: asset.mimeType,
+        objectKey: asset.objectKey,
       };
     }
 
@@ -686,8 +685,8 @@ export class ImageGenerationService<
 
     return {
       id: context.generationId,
-      objectKey: context.objectKey,
       mimeType: context.output.image.mimeType,
+      objectKey: context.objectKey,
     };
   }
 
@@ -707,15 +706,15 @@ export class ImageGenerationService<
     const objectKey =
       this.buildVariantObjectKey?.({
         generationId: context.generationId,
-        request: context.request,
         output: context.output,
-        variantName: context.variant.name,
         position: context.variant.position,
+        request: context.request,
         variant: {
           image: context.variant.image,
-          tags: context.variant.tags,
           meta: context.variant.meta,
+          tags: context.variant.tags,
         },
+        variantName: context.variant.name,
       }) ??
       buildDefaultObjectKey(
         this.objectKeyPrefix,
@@ -728,34 +727,34 @@ export class ImageGenerationService<
 
     if (this.assetInventory) {
       const asset = (await this.assetInventory.writeAsset({
+        data: context.variant.image.data,
         id: variantId,
-        objectKey,
+        meta: this.createVariantMeta({
+          output: context.output,
+          position: context.variant.position,
+          request: context.request,
+          variant: {
+            image: context.variant.image,
+            meta: context.variant.meta,
+            tags: context.variant.tags,
+          },
+          variantName: context.variant.name,
+        }),
         mimeType: context.variant.image.mimeType,
-        source: context.source,
+        objectKey,
         parentAssetId: context.parentId,
+        source: context.source,
         tags: normalizeTags([
           ...context.rootTags,
           ...(context.variant.tags ?? []),
         ]),
-        data: context.variant.image.data,
-        meta: this.createVariantMeta({
-          request: context.request,
-          output: context.output,
-          variant: {
-            image: context.variant.image,
-            tags: context.variant.tags,
-            meta: context.variant.meta,
-          },
-          variantName: context.variant.name,
-          position: context.variant.position,
-        }),
       })) as StorageAssetRecord<ImageGenerationVariantAssetMeta>;
 
       return {
-        id: asset.id,
-        objectKey: asset.objectKey,
-        mimeType: asset.mimeType,
         asset,
+        id: asset.id,
+        mimeType: asset.mimeType,
+        objectKey: asset.objectKey,
       };
     }
 
@@ -765,8 +764,8 @@ export class ImageGenerationService<
 
     return {
       id: variantId,
-      objectKey,
       mimeType: context.variant.image.mimeType,
+      objectKey,
     };
   }
 
@@ -777,9 +776,9 @@ export class ImageGenerationService<
   }): ImageGenerationOriginalAssetMeta {
     return {
       kind: this.kind,
-      role: 'original',
-      provider: this.generator.provider,
       prompt: context.request.prompt,
+      provider: this.generator.provider,
+      role: 'original',
       ...(context.output.model || context.request.model
         ? { model: context.output.model ?? context.request.model }
         : {}),
@@ -817,11 +816,11 @@ export class ImageGenerationService<
 
     return {
       kind: this.kind,
+      position: context.position,
+      prompt: context.request.prompt,
+      provider: this.generator.provider,
       role: 'variant',
       variant: context.variantName,
-      position: context.position,
-      provider: this.generator.provider,
-      prompt: context.request.prompt,
       ...(context.output.model || context.request.model
         ? { model: context.output.model ?? context.request.model }
         : {}),

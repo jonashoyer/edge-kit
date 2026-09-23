@@ -17,14 +17,12 @@ export class InvalidEncryptedDataError extends Error {
 }
 
 export class DecryptionFailedError extends Error {
-  readonly cause?: unknown;
-
   constructor(cause?: unknown) {
     super(
-      'Failed to decrypt data. It may have been tampered with or the encryption key is incorrect.'
+      'Failed to decrypt data. It may have been tampered with or the encryption key is incorrect.',
+      { cause }
     );
     this.name = 'DecryptionFailedError';
-    this.cause = cause;
   }
 }
 
@@ -32,17 +30,17 @@ export class DecryptionFailedError extends Error {
  * Structure of encrypted data
  */
 export interface EncryptedData {
+  /** Encryption algorithm details */
+  algorithm: {
+    name: string;
+    pbkdf2Iterations: number;
+  };
   /** The encrypted data as a Base64 URL-safe string */
   data: ArrayBuffer;
   /** Nonce (Number used Once) used for encryption as a Base64 URL-safe string */
   nonce: ArrayBuffer;
   /** Salt used for key derivation as a Base64 URL-safe string */
   salt: ArrayBuffer;
-  /** Encryption algorithm details */
-  algorithm: {
-    name: string;
-    pbkdf2Iterations: number;
-  };
 }
 
 /**
@@ -102,13 +100,13 @@ export class EncryptionService {
     const masterCryptoKey = await this.getMasterKeyForPbkdf2();
     return crypto.subtle.deriveKey(
       {
+        hash: 'SHA-256',
+        iterations: pbkdf2Iterations ?? this.pbkdf2Iterations,
         name: 'PBKDF2',
         salt,
-        iterations: pbkdf2Iterations ?? this.pbkdf2Iterations,
-        hash: 'SHA-256',
       },
       masterCryptoKey,
-      { name: 'AES-GCM', length: 256 },
+      { length: 256, name: 'AES-GCM' },
       false, // Non-extractable for better security
       ['encrypt', 'decrypt']
     );
@@ -143,8 +141,8 @@ export class EncryptionService {
     // Encrypt the data
     const data = await crypto.subtle.encrypt(
       {
-        name: 'AES-GCM',
         iv: nonce, // The 'iv' parameter is actually the nonce in AES-GCM
+        name: 'AES-GCM',
         tagLength: 128, // Authentication tag length (128 bits)
       },
       derivedKey,
@@ -153,6 +151,10 @@ export class EncryptionService {
 
     // Return encrypted data with all metadata needed for decryption
     return {
+      algorithm: {
+        name: 'AES-GCM',
+        pbkdf2Iterations: this.pbkdf2Iterations,
+      },
       data,
       nonce: nonce.buffer.slice(
         nonce.byteOffset,
@@ -162,10 +164,6 @@ export class EncryptionService {
         salt.byteOffset,
         salt.byteOffset + salt.byteLength
       ),
-      algorithm: {
-        name: 'AES-GCM',
-        pbkdf2Iterations: this.pbkdf2Iterations,
-      },
     };
   }
 
@@ -184,8 +182,9 @@ export class EncryptionService {
       // Decrypt the data
       const decryptedBuffer = await crypto.subtle.decrypt(
         {
-          name: algorithm.name ?? 'AES-GCM',
           iv: nonce,
+          // biome-ignore lint/suspicious/noUnnecessaryConditions: Stored payloads from older callers may omit the algorithm name.
+          name: algorithm.name ?? 'AES-GCM',
           tagLength: 128,
         },
         derivedKey,
@@ -196,6 +195,7 @@ export class EncryptionService {
     } catch (error) {
       // If decryption fails, it could indicate tampering (authentication tag mismatch)
       // or data corruption, or the wrong key was used
+      // biome-ignore lint/style/useErrorCause: DecryptionFailedError forwards its argument to ErrorOptions.cause.
       throw new DecryptionFailedError(error);
     }
   }
@@ -207,6 +207,7 @@ export class EncryptionService {
 
   async decryptStringified(value: string): Promise<string> {
     const match = ENCRYPTED_STRING_REGEX.exec(value);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec returns null for malformed external ciphertext.
     if (!match) {
       throw new InvalidEncryptedDataError();
     }
@@ -215,13 +216,13 @@ export class EncryptionService {
       1
     ) as [string, string, string, string, string];
     const encryptedData = await this.decrypt({
-      data: base64UrlToArrayBuffer(data),
-      nonce: base64UrlToArrayBuffer(nonce),
-      salt: base64UrlToArrayBuffer(salt),
       algorithm: {
         name: algorithmName,
         pbkdf2Iterations: Number.parseInt(pbkdf2Iterations, 10),
       },
+      data: base64UrlToArrayBuffer(data),
+      nonce: base64UrlToArrayBuffer(nonce),
+      salt: base64UrlToArrayBuffer(salt),
     });
     return encryptedData;
   }

@@ -8,12 +8,12 @@ import {
 const DEFAULT_MAXIMUM_DIMENSION = 100;
 
 export interface ThumbHashPreview {
+  aspectRatio: number;
+  dataUrl: string;
+  height: number;
   kind: 'thumbhash';
   value: string;
-  dataUrl: string;
   width: number;
-  height: number;
-  aspectRatio: number;
 }
 
 export interface StorageAssetPreviewMeta {
@@ -23,14 +23,14 @@ export interface StorageAssetPreviewMeta {
 export interface StorageAssetPreviewMetadataBuilderContext<
   TMeta extends object = Record<string, unknown>,
 > {
-  id: string;
-  objectKey: string;
-  mimeType: string;
-  source: string;
-  parentAssetId: string | null;
-  tags: string[];
-  meta?: TMeta;
   data: Uint8Array;
+  id: string;
+  meta?: TMeta;
+  mimeType: string;
+  objectKey: string;
+  parentAssetId: string | null;
+  source: string;
+  tags: string[];
 }
 
 /**
@@ -78,9 +78,9 @@ const createThumbHashPreview = async (
   const resized = await sharp(buffer)
     .rotate()
     .resize({
-      width: maximumDimension,
-      height: maximumDimension,
       fit: 'inside',
+      height: maximumDimension,
+      width: maximumDimension,
       withoutEnlargement: true,
     })
     .ensureAlpha()
@@ -96,12 +96,12 @@ const createThumbHashPreview = async (
   );
 
   return {
+    aspectRatio: thumbHashToApproximateAspectRatio(hash),
+    dataUrl: thumbHashToDataURL(hash),
+    height: resized.info.height,
     kind: 'thumbhash',
     value: Buffer.from(hash).toString('base64url'),
-    dataUrl: thumbHashToDataURL(hash),
     width: resized.info.width,
-    height: resized.info.height,
-    aspectRatio: thumbHashToApproximateAspectRatio(hash),
   };
 };
 

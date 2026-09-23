@@ -45,9 +45,8 @@ export type DevLauncherRpcMethodResult = {
 
 export const isDevLauncherRpcResponseFailure = <Result>(
   response: DevLauncherRpcResponse<Result>
-): response is Extract<DevLauncherRpcResponse<Result>, { error: unknown }> => {
-  return 'error' in response;
-};
+): response is Extract<DevLauncherRpcResponse<Result>, { error: unknown }> =>
+  'error' in response;
 
 export const createDevLauncherRpcRequest = <
   Method extends DevLauncherRpcMethod,

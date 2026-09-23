@@ -1,24 +1,26 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { AbstractStorage } from '../storage/abstract-storage';
+import { AbstractStorage } from '../storage/abstract-storage';
 import { FileLogger } from './file-logger';
 
 const createStorageMock = () => {
-  const storage: AbstractStorage = {
-    write: vi.fn(async () => undefined),
-    read: vi.fn(async () => Buffer.from('')),
-    delete: vi.fn(async () => undefined),
-    list: vi.fn(async () => []),
-    createReadPresignedUrl: vi.fn(async () => ({
+  const storage: AbstractStorage = new (class extends AbstractStorage {
+    createReadPresignedUrl = vi.fn(async () => ({
+      expiresAt: 1_700_000_000_000,
       url: 'https://example.com/log.jsonl',
+    }));
+    createWritePresignedUrl = vi.fn(async () => ({
       expiresAt: 1_700_000_000_000,
-    })),
-    createWritePresignedUrl: vi.fn(async () => ({
+      method: 'PUT' as const,
       url: 'https://example.com/upload',
-      method: 'PUT',
-      expiresAt: 1_700_000_000_000,
-    })),
-    objectMetadata: vi.fn(async () => ({ contentLength: 0, meta: undefined })),
-  };
+    }));
+    delete = vi.fn(async () => undefined);
+    objectMetadata = vi.fn(async () => {
+      throw new Error('Unexpected metadata request');
+    });
+    read = vi.fn(async () => Buffer.from(''));
+    write = vi.fn(async () => undefined);
+    exists = vi.fn(async () => false);
+  })({});
 
   return storage;
 };
@@ -30,7 +32,7 @@ const createDeferred = <T>() => {
     resolve = res;
     reject = rej;
   });
-  return { promise, resolve, reject };
+  return { promise, reject, resolve };
 };
 
 describe('FileLogger', () => {
@@ -38,16 +40,16 @@ describe('FileLogger', () => {
     const storage = createStorageMock();
     const logger = new FileLogger({
       key: 'logs/file-logger/test-1.jsonl',
-      storage,
       metadata: { source: 'test' },
+      storage,
     });
 
     const cyclic: Record<string, unknown> = {};
     cyclic.self = cyclic;
     logger.info('entry.created', {
       cyclic,
-      payload: { id: '123' },
       error: new Error('boom'),
+      payload: { id: '123' },
     });
 
     expect(logger.entryCount).toBe(1);
@@ -56,7 +58,9 @@ describe('FileLogger', () => {
 
     const content = vi.mocked(storage.write).mock.calls[0]?.[1];
     expect(Buffer.isBuffer(content)).toBe(true);
-    const lines = content?.toString('utf8').split('\n') ?? [];
+    const lines =
+      (Buffer.isBuffer(content) ? content.toString('utf8') : '').split('\n') ??
+      [];
     expect(lines).toHaveLength(2);
 
     const metadata = JSON.parse(lines[0] ?? '{}');
@@ -73,14 +77,14 @@ describe('FileLogger', () => {
     const storage = createStorageMock();
     const passthrough = {
       debug: vi.fn(),
+      error: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
-      error: vi.fn(),
     };
     const logger = new FileLogger({
       key: 'logs/file-logger/test-2.jsonl',
-      storage,
       passthrough,
+      storage,
     });
 
     logger.debug('debug.message', { a: 1 });
@@ -98,8 +102,8 @@ describe('FileLogger', () => {
     const storage = createStorageMock();
     const logger = new FileLogger({
       key: 'logs/file-logger/test-3.jsonl',
-      storage,
       maxEntries: 2,
+      storage,
     });
 
     logger.info('entry-1');
@@ -110,9 +114,8 @@ describe('FileLogger', () => {
 
     await logger.close();
 
-    const content = vi
-      .mocked(storage.write)
-      .mock.calls[0]?.[1].toString('utf8');
+    const written = vi.mocked(storage.write).mock.calls[0]?.[1];
+    const content = Buffer.isBuffer(written) ? written.toString('utf8') : '';
     const lines = content?.split('\n') ?? [];
     const metadata = JSON.parse(lines[0] ?? '{}');
     const first = JSON.parse(lines[1] ?? '{}');

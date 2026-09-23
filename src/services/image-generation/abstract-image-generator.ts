@@ -1,28 +1,28 @@
 import type { StorageBody } from '../storage/abstract-storage';
 
 export interface GeneratedImageAsset {
+  altText?: string;
   data: StorageBody;
+  height?: number;
   mimeType: string;
   width?: number;
-  height?: number;
-  altText?: string;
 }
 
 export interface ImageGenerationRequest {
-  prompt: string;
   model?: string;
-  size?: string;
-  seed?: number | string;
   negativePrompt?: string;
-  user?: string;
   options?: Record<string, unknown>;
+  prompt: string;
+  seed?: number | string;
+  size?: string;
+  user?: string;
 }
 
 export interface ImageGenerationOutput {
   image: GeneratedImageAsset;
   model?: string;
-  revisedPrompt?: string;
   providerMeta?: Record<string, unknown>;
+  revisedPrompt?: string;
 }
 
 export abstract class AbstractImageGenerator<

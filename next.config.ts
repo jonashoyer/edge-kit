@@ -1,8 +1,8 @@
 import type { NextConfig } from 'next';
 
 const config = {
-  reactStrictMode: true,
   eslint: { ignoreDuringBuilds: true },
+  reactStrictMode: true,
   typescript: { ignoreBuildErrors: true },
 } satisfies NextConfig;
 

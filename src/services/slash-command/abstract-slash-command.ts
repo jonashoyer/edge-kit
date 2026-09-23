@@ -97,14 +97,14 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
 
     const now = Date.now();
     const state: CommandState = {
-      id: commandId,
-      commandName: envelope.commandName,
-      userId: envelope.userId,
       channelId: envelope.channelId,
-      status: 'received',
-      payload: envelope.payload,
+      commandName: envelope.commandName,
       createdAt: now,
+      id: commandId,
+      payload: envelope.payload,
+      status: 'received',
       updatedAt: now,
+      userId: envelope.userId,
     };
 
     await this.setStateInternal(commandId, state, ttlSeconds);
@@ -137,8 +137,8 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     if (state === null) {
       // State probably expired; treat as no-op to avoid retry storms.
       this.logger?.warn('Interaction for missing command state', {
-        commandId: interaction.commandId,
         actionId: interaction.actionId,
+        commandId: interaction.commandId,
       });
       return;
     }
@@ -146,10 +146,10 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     if (interaction.userId !== state.userId) {
       // Conservative default: only the initiating user can advance the workflow.
       this.logger?.warn('Interaction user mismatch', {
-        commandId: state.id,
         actionId: interaction.actionId,
-        expectedUserId: state.userId,
         actualUserId: interaction.userId,
+        commandId: state.id,
+        expectedUserId: state.userId,
       });
       return;
     }
@@ -158,9 +158,14 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     const handler = definition?.interactions?.[interaction.actionId];
 
     const ctx: InteractionContext = {
-      state,
-      update: async (blocks) => {
-        await this.updateMessage(state, blocks);
+      setRenderState: async (renderState) => {
+        const updated = await this.patchState(
+          state.id,
+          { renderState },
+          definition?.ttlSeconds ?? this.getDefaultTtlSeconds()
+        );
+        ctx.state = updated;
+        await this.renderAndSync(updated, definition);
       },
       setState: async (patch) => {
         const updated = await this.patchState(
@@ -170,14 +175,9 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
         );
         ctx.state = updated;
       },
-      setRenderState: async (renderState) => {
-        const updated = await this.patchState(
-          state.id,
-          { renderState },
-          definition?.ttlSeconds ?? this.getDefaultTtlSeconds()
-        );
-        ctx.state = updated;
-        await this.renderAndSync(updated, definition);
+      state,
+      update: async (blocks) => {
+        await this.updateMessage(state, blocks);
       },
     };
 
@@ -191,8 +191,8 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     }
 
     this.logger?.warn('No interaction handler registered', {
-      commandId: state.id,
       actionId: interaction.actionId,
+      commandId: state.id,
       commandName: state.commandName,
     });
   }
@@ -247,8 +247,8 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     const posted = await this.postMessage(state, blocks);
     const nextMessage = {
       channelId: posted.channelId ?? state.channelId,
-      ts: posted.ts,
       threadTs: posted.threadTs,
+      ts: posted.ts,
     };
     const updated = await this.patchState(
       state.id,
@@ -298,11 +298,19 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
     ttlSeconds: number
   ): CommandContext<unknown, Record<string, unknown>> {
     const ctx: CommandContext<unknown, Record<string, unknown>> = {
-      state: initialState,
-      updateProgress: async (progress: Progress) => {
+      complete: async (result: unknown) => {
         const updated = await this.patchState(
           initialState.id,
-          { progress },
+          { result, status: 'completed' },
+          ttlSeconds
+        );
+        ctx.state = updated;
+        await this.renderAndSync(updated, definition);
+      },
+      fail: async (error: string) => {
+        const updated = await this.patchState(
+          initialState.id,
+          { error, status: 'failed' },
           ttlSeconds
         );
         ctx.state = updated;
@@ -317,19 +325,11 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
         ctx.state = updated;
         await this.renderAndSync(updated, definition);
       },
-      complete: async (result: unknown) => {
+      state: initialState,
+      updateProgress: async (progress: Progress) => {
         const updated = await this.patchState(
           initialState.id,
-          { status: 'completed', result },
-          ttlSeconds
-        );
-        ctx.state = updated;
-        await this.renderAndSync(updated, definition);
-      },
-      fail: async (error: string) => {
-        const updated = await this.patchState(
-          initialState.id,
-          { status: 'failed', error },
+          { progress },
           ttlSeconds
         );
         ctx.state = updated;
@@ -371,7 +371,7 @@ export abstract class AbstractSlashCommandService<TContext = unknown> {
       return this.fallbackRender(state);
     }
     return [
-      { type: 'section', text: { type: 'mrkdwn', text: '*Processing…*' } },
+      { text: { text: '*Processing…*', type: 'mrkdwn' }, type: 'section' },
     ];
   }
 

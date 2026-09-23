@@ -7,7 +7,7 @@ import {
 
 async function main() {
   const args = process.argv.slice(2);
-  const command = args[0];
+  const [command] = args;
 
   if (!command) {
     console.error('Usage:');
@@ -28,7 +28,7 @@ async function main() {
   }
 
   if (command === 'get') {
-    const featureId = args[1];
+    const [, featureId] = args;
     if (!featureId) {
       console.error('Error: Missing feature ID');
       process.exit(1);
@@ -38,7 +38,9 @@ async function main() {
     if (!feature) {
       console.error(`Error: Feature "${featureId}" not found.`);
       console.error('Available features:');
-      registry.list().forEach((f) => console.error(`- ${f.id}`));
+      for (const feature of registry.list()) {
+        console.error(`- ${feature.id}`);
+      }
       process.exit(1);
     }
 

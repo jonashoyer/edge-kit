@@ -11,10 +11,10 @@ import type {
 import { StripeWebhookService } from './webhook-service';
 
 export interface StripeB2BServiceOptions {
-  logger?: AbstractLogger;
   baseUrl: string;
-  successPath?: string;
   cancelPath?: string;
+  logger?: AbstractLogger;
+  successPath?: string;
   webhookSecret: string;
 }
 
@@ -94,29 +94,29 @@ export class StripeB2BService {
       : undefined;
 
     const session = await this.stripe.checkout.sessions.create({
-      mode: 'subscription' as const,
+      cancel_url: `${this.options.baseUrl}${this.options.cancelPath ?? '/billing'}`,
       customer: customerId,
       line_items: [
         {
-          quantity: 1,
           price_data: {
             currency: offer.currency,
             product_data: { name: offer.description ?? 'Subscription' },
-            unit_amount: offer.unitAmount,
             recurring: { interval: offer.interval },
+            unit_amount: offer.unitAmount,
           },
+          quantity: 1,
         },
       ],
+      metadata: { adminUserId, orgId },
+      mode: 'subscription' as const,
       subscription_data: {
-        trial_period_days: trialDays && trialDays > 0 ? trialDays : undefined,
         description: offer.description ?? undefined,
+        trial_period_days: trialDays && trialDays > 0 ? trialDays : undefined,
         ...(offer.promotionCode && {
           discounts: [{ promotion_code: offer.promotionCode.id }],
         }),
       },
       success_url: `${this.options.baseUrl}${this.options.successPath ?? '/billing/success'}`,
-      cancel_url: `${this.options.baseUrl}${this.options.cancelPath ?? '/billing'}`,
-      metadata: { orgId, adminUserId },
     });
 
     return session;
@@ -134,27 +134,27 @@ export class StripeB2BService {
 
   async validatePromotionCode(code: string): Promise<PromotionCodeData | null> {
     const list = await this.stripe.promotionCodes.list({
-      code,
       active: true,
-      limit: 1,
+      code,
       expand: ['data.coupon'],
+      limit: 1,
     });
-    const pc = list.data[0];
+    const [pc] = list.data;
     if (!pc) return null;
     return {
-      id: pc.id,
-      code: pc.code,
       active: pc.active,
-      expiresAt: pc.expires_at ?? null,
+      code: pc.code,
       coupon: {
-        id: pc.coupon.id,
-        name: pc.coupon.name ?? null,
-        percentOff: pc.coupon.percent_off ?? null,
         amountOff: pc.coupon.amount_off ?? null,
         currency: pc.coupon.currency ?? null,
         duration: pc.coupon.duration ?? null,
+        id: pc.coupon.id,
+        name: pc.coupon.name ?? null,
+        percentOff: pc.coupon.percent_off ?? null,
         redeemBy: pc.coupon.redeem_by ?? null,
       },
+      expiresAt: pc.expires_at ?? null,
+      id: pc.id,
     };
   }
 
@@ -184,18 +184,18 @@ export class StripeB2BService {
     // Update in place
     await this.stripe.subscriptions.update(current.subscriptionId, {
       cancel_at_period_end: false,
-      proration_behavior: 'create_prorations',
       items: [
         {
           id: current.subscriptionId, // Note: item id would be ideal; using subscription update requires item id; caller should store it
           price_data: {
             currency: newOffer.currency,
             product: newOffer.productId,
-            unit_amount: newOffer.unitAmount,
             recurring: { interval: newOffer.interval },
+            unit_amount: newOffer.unitAmount,
           },
         },
       ],
+      proration_behavior: 'create_prorations',
       ...(newOffer.trialEndUnix && { trial_end: newOffer.trialEndUnix }),
       ...(newOffer.promotionCode && {
         discounts: [{ promotion_code: newOffer.promotionCode.id }],

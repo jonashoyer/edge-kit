@@ -21,7 +21,9 @@ export type VerifiedIncomingHook<TPayload> = {
 export type IncomingHookHandlerMode = 'inline' | 'waitUntil';
 
 export interface IncomingHookVerifier<TPayload> {
-  verify(request: IncomingHookRequest): Promise<VerifiedIncomingHook<TPayload>>;
+  verify: (
+    request: IncomingHookRequest
+  ) => Promise<VerifiedIncomingHook<TPayload>>;
 }
 
 export type IncomingHookHandleResult =
@@ -31,7 +33,7 @@ export type IncomingHookHandleResult =
 export type RunVerifiedHookWithTaskReconcilerOptions<TPayload> = {
   verified: VerifiedIncomingHook<TPayload>;
   reconciler: {
-    reconcile(options: ReconcileOptions): Promise<unknown>;
+    reconcile: (options: ReconcileOptions) => Promise<unknown>;
   };
   resolveReconcile: (
     verified: VerifiedIncomingHook<TPayload>

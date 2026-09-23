@@ -74,14 +74,13 @@ const defaultRuntime: DevActionRunnerRuntime = {
   stdout: process.stdout,
 };
 
-const getPnpmCommand = (platform: NodeJS.Platform): string => {
-  return platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
-};
+const getPnpmCommand = (platform: NodeJS.Platform): string =>
+  platform === 'win32' ? 'pnpm.cmd' : 'pnpm';
 
 const formatCommand = (command: string, args: string[]): string => {
-  const renderedArgs = args.map((argument) => {
-    return argument.includes(' ') ? JSON.stringify(argument) : argument;
-  });
+  const renderedArgs = args.map((argument) =>
+    argument.includes(' ') ? JSON.stringify(argument) : argument
+  );
 
   return [command, ...renderedArgs].join(' ');
 };
@@ -89,30 +88,26 @@ const formatCommand = (command: string, args: string[]): string => {
 const buildLogger = (
   stdout: Pick<NodeJS.WriteStream, 'write'>,
   stderr: Pick<NodeJS.WriteStream, 'write'>
-) => {
-  return {
-    error: (message: string) => {
-      stderr.write(`error: ${message}\n`);
-    },
-    info: (message: string) => {
-      stdout.write(`info: ${message}\n`);
-    },
-    warn: (message: string) => {
-      stderr.write(`warn: ${message}\n`);
-    },
-  };
-};
+) => ({
+  error: (message: string) => {
+    stderr.write(`error: ${message}\n`);
+  },
+  info: (message: string) => {
+    stdout.write(`info: ${message}\n`);
+  },
+  warn: (message: string) => {
+    stderr.write(`warn: ${message}\n`);
+  },
+});
 
-const buildOutput = (stdout: Pick<NodeJS.WriteStream, 'write'>) => {
-  return {
-    write: (value: string) => {
-      stdout.write(value);
-    },
-    writeLine: (value: string) => {
-      stdout.write(`${value}\n`);
-    },
-  };
-};
+const buildOutput = (stdout: Pick<NodeJS.WriteStream, 'write'>) => ({
+  write: (value: string) => {
+    stdout.write(value);
+  },
+  writeLine: (value: string) => {
+    stdout.write(`${value}\n`);
+  },
+});
 
 const silentWriter = {
   write: (_value: string) => true,
@@ -120,7 +115,7 @@ const silentWriter = {
 
 const normalizeAvailabilityResult = (
   actionId: string,
-  value: boolean | DevActionAvailabilityResult
+  value: unknown
 ): DevActionAvailabilityResult => {
   if (typeof value === 'boolean') {
     return { available: value };
@@ -129,6 +124,7 @@ const normalizeAvailabilityResult = (
   if (
     typeof value !== 'object' ||
     value === null ||
+    !('available' in value) ||
     typeof value.available !== 'boolean'
   ) {
     throw new Error(
@@ -136,7 +132,11 @@ const normalizeAvailabilityResult = (
     );
   }
 
-  if (value.reason !== undefined && typeof value.reason !== 'string') {
+  if (
+    'reason' in value &&
+    value.reason !== undefined &&
+    typeof value.reason !== 'string'
+  ) {
     throw new Error(
       `Action "${actionId}" returned an invalid availability reason.`
     );
@@ -144,7 +144,10 @@ const normalizeAvailabilityResult = (
 
   return {
     available: value.available,
-    reason: value.reason,
+    reason:
+      'reason' in value && typeof value.reason === 'string'
+        ? value.reason
+        : undefined,
   };
 };
 
@@ -177,11 +180,12 @@ const resolveExecCwd = (repoRoot: string, cwd: string | undefined): string => {
   return path.isAbsolute(cwd) ? cwd : path.resolve(repoRoot, cwd);
 };
 
-const createExecHelper = (
-  repoRoot: string,
-  runtime: DevActionRunnerRuntime
-): DevActionContext['exec'] => {
-  return async (
+const createExecHelper =
+  (
+    repoRoot: string,
+    runtime: DevActionRunnerRuntime
+  ): DevActionContext['exec'] =>
+  async (
     command: string,
     args: string[] = [],
     options: DevActionExecOptions = {}
@@ -262,7 +266,6 @@ const createExecHelper = (
       });
     });
   };
-};
 
 const createActionContext = (
   manifest: LoadedDevLauncherManifest,
@@ -283,9 +286,8 @@ const createActionContext = (
     logger: buildLogger(outputWriters.stdout, outputWriters.stderr),
     manifest,
     output: buildOutput(outputWriters.stdout),
-    pnpm: async (args = [], options = {}) => {
-      return await exec(getPnpmCommand(runtime.platform), args, options);
-    },
+    pnpm: async (args = [], options = {}) =>
+      await exec(getPnpmCommand(runtime.platform), args, options),
     repoRoot: manifest.repoRoot,
   };
 };
@@ -334,7 +336,8 @@ const evaluateAvailabilityForAction = async (
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     throw new Error(
-      `Failed to evaluate availability for action "${actionId}": ${message}`
+      `Failed to evaluate availability for action "${actionId}": ${message}`,
+      { cause: error }
     );
   }
 };
@@ -368,6 +371,7 @@ export const listDevActions = async (
     }
 
     results.push(
+      // biome-ignore lint/performance/noAwaitInLoops: Action checks may run commands and retain their configured execution order.
       await evaluateAvailabilityForAction(
         actionId,
         action,
@@ -443,7 +447,9 @@ export const runDevAction = async (
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Action "${actionId}" failed: ${message}`);
+    throw new Error(`Action "${actionId}" failed: ${message}`, {
+      cause: error,
+    });
   }
 };
 
@@ -459,11 +465,12 @@ export const getDevPreflightActionSuggestions = async (
 
   for (const actionId of actionsConfig.actionIdsInOrder) {
     const action = actionsConfig.actionsById[actionId];
-    if (!(action && action.suggestInDev)) {
+    if (!action?.suggestInDev) {
       continue;
     }
 
     try {
+      // biome-ignore lint/performance/noAwaitInLoops: Action checks may run commands and retain their configured execution order.
       const resolvedAction = await evaluateAvailabilityForAction(
         actionId,
         action,

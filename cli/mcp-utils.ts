@@ -7,21 +7,31 @@ import { getNormalizedRelativePath } from '../src/utils/path-utils.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+const JSDOC_START = /^\s*\/\*\*/;
+const JSDOC_END = /\*\/$/;
+const JSDOC_LINE = /^\s*\*\s?/;
+
+const isModuleFile = (entry: fs.Dirent) =>
+  entry.isFile() &&
+  entry.name.endsWith('.ts') &&
+  !entry.name.endsWith('.test.ts') &&
+  !entry.name.endsWith('.d.ts');
+
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 
 export interface Feature {
+  category: string;
+  description: string;
+  entryPoint: string;
   id: string;
   name: string;
-  description: string;
-  category: string;
-  entryPoint: string;
 }
 
 export interface FeatureBundle {
+  documentation?: string;
   feature: Feature;
   files: { path: string; content: string }[];
   npmDependencies: Record<string, string>;
-  documentation?: string;
 }
 
 export function featureListToXml(features: Feature[]): string {
@@ -30,23 +40,24 @@ export function featureListToXml(features: Feature[]): string {
 
 export function featureBundleToXml(bundle: FeatureBundle): string {
   return jsonToXml(bundle, 'bundle', {
-    disableIndentation: true,
     disableEscape: true,
+    disableIndentation: true,
   });
 }
 
 export class FeatureRegistry {
-  private features: Feature[] = [];
+  private readonly features: Feature[] = [];
   private initialized = false;
 
   async init() {
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Initialization state changes after the first call.
     if (this.initialized) return;
 
     const searchPaths = [
-      { dir: 'src/services', category: 'service' },
-      { dir: 'src/composers', category: 'composer' },
-      { dir: 'src/db', category: 'database' },
-      { dir: 'src/utils', category: 'utility' },
+      { category: 'service', dir: 'src/services' },
+      { category: 'composer', dir: 'src/composers' },
+      { category: 'database', dir: 'src/db' },
+      { category: 'utility', dir: 'src/utils' },
     ];
 
     for (const { dir, category } of searchPaths) {
@@ -59,35 +70,32 @@ export class FeatureRegistry {
         const entryPath = path.join(fullDir, entry.name);
 
         if (entry.isDirectory()) {
-          // Scan concrete child modules (for example services/storage/s3-storage.ts)
-          const children = fs.readdirSync(entryPath, { withFileTypes: true });
-          for (const child of children) {
-            if (
-              child.isFile() &&
-              child.name.endsWith('.ts') &&
-              !child.name.endsWith('.test.ts') &&
-              !child.name.endsWith('.d.ts')
-            ) {
-              this.addFeature(
-                `${entry.name}/${path.parse(child.name).name}`,
-                path.join(entryPath, child.name),
-                category
-              );
-            }
-          }
+          this.addDirectoryFeatures(entryPath, entry.name, category);
         }
         // 2. Standalone file
-        else if (
-          entry.isFile() &&
-          entry.name.endsWith('.ts') &&
-          !entry.name.endsWith('.test.ts') &&
-          !entry.name.endsWith('.d.ts')
-        ) {
+        else if (isModuleFile(entry)) {
           this.addFeature(path.parse(entry.name).name, entryPath, category);
         }
       }
     }
     this.initialized = true;
+  }
+
+  private addDirectoryFeatures(
+    entryPath: string,
+    name: string,
+    category: string
+  ) {
+    const children = fs.readdirSync(entryPath, { withFileTypes: true });
+    for (const child of children) {
+      if (isModuleFile(child)) {
+        this.addFeature(
+          `${name}/${path.parse(child.name).name}`,
+          path.join(entryPath, child.name),
+          category
+        );
+      }
+    }
   }
 
   private addFeature(
@@ -106,11 +114,11 @@ export class FeatureRegistry {
     const cleanId = category === 'service' ? id : `${category}/${id}`;
 
     this.features.push({
+      category,
+      description: description || `No description available for ${id}`,
+      entryPoint,
       id: cleanId,
       name: id.split('/').pop() || id,
-      description: description || `No description available for ${id}`,
-      category,
-      entryPoint,
     });
   }
 
@@ -128,15 +136,15 @@ export class FeatureRegistry {
 
       const comments = ts.getLeadingCommentRanges(content, node.pos);
       if (comments && comments.length > 0) {
-        const comment = comments[0];
-        const text = content.substring(comment.pos, comment.end);
+        const [comment] = comments;
+        const text = content.slice(comment.pos, comment.end);
         // Parse JSDoc comment
         if (text.startsWith('/**')) {
           const clean = text
-            .replace(/^\s*\/\*\*/, '') // Remove starting /**
-            .replace(/\*\/$/, '') // Remove ending */
+            .replace(JSDOC_START, '') // Remove starting /**
+            .replace(JSDOC_END, '') // Remove ending */
             .split('\n') // Split into lines
-            .map((line) => line.replace(/^\s*\*\s?/, '').trim()) // Remove leading * and whitespace
+            .map((line) => line.replace(JSDOC_LINE, '').trim()) // Remove leading * and whitespace
             .filter((line) => line.length > 0) // Remove empty lines
             .join(' '); // Join with spaces
 
@@ -158,10 +166,13 @@ export class FeatureRegistry {
 }
 
 export class DependencyResolver {
-  private visited = new Set<string>();
+  private readonly visited = new Set<string>();
   private files: { path: string; content: string }[] = [];
-  private npmDeps = new Set<string>();
-  private packageJson: any;
+  private readonly npmDeps = new Set<string>();
+  private readonly packageJson: {
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
+  };
 
   constructor() {
     const pkgPath = path.join(PROJECT_ROOT, 'package.json');
@@ -198,33 +209,34 @@ export class DependencyResolver {
     }
 
     return {
+      documentation: docContent,
       feature: {
+        category: '',
+        description: '',
+        entryPoint,
         id: 'resolved',
         name: 'resolved',
-        description: '',
-        category: '',
-        entryPoint,
       }, // Placeholder
       files: this.files,
       npmDependencies,
-      documentation: docContent,
     };
   }
 
-  private processFile(filePath: string) {
+  private processFile(requestedPath: string) {
+    let filePath = requestedPath;
     if (this.visited.has(filePath)) return;
     this.visited.add(filePath);
 
     if (!fs.existsSync(filePath)) {
       // Try adding .ts or .tsx
-      if (fs.existsSync(filePath + '.ts')) filePath += '.ts';
-      else if (fs.existsSync(filePath + '.tsx')) filePath += '.tsx';
+      if (fs.existsSync(`${filePath}.ts`)) filePath += '.ts';
+      else if (fs.existsSync(`${filePath}.tsx`)) filePath += '.tsx';
       else return; // Can't find it
     }
 
     const content = fs.readFileSync(filePath, 'utf-8');
     const relPath = getNormalizedRelativePath(PROJECT_ROOT, filePath);
-    this.files.push({ path: relPath, content });
+    this.files.push({ content, path: relPath });
 
     const sourceFile = ts.createSourceFile(
       filePath,

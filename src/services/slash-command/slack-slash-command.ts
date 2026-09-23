@@ -51,10 +51,10 @@ export class SlackSlashCommandService extends AbstractSlashCommandService<SlackC
     blocks: unknown[]
   ): Promise<{ ts: string; channelId?: string; threadTs?: string }> {
     const res = await this.slack.send({
-      channel: state.channelId,
       blocks,
+      channel: state.channelId,
     });
-    return { ts: res.ts, channelId: res.channel };
+    return { channelId: res.channel, ts: res.ts };
   }
 
   protected async updateMessage(

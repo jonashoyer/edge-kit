@@ -31,9 +31,7 @@ export class LocalStorage extends AbstractStorage {
     super(options);
     this.basePath = options.basePath;
     this.explorer = {
-      list: async (prefix?: string) => {
-        return await this.listAllKeys(prefix);
-      },
+      list: async (prefix?: string) => await this.listAllKeys(prefix),
       listPage: async (
         prefix?: string,
         options?: StorageExplorerListPageOptions
@@ -47,9 +45,9 @@ export class LocalStorage extends AbstractStorage {
         const nextIndex = startIndex + pageKeys.length;
 
         return {
-          keys: pageKeys,
           continuationToken:
             nextIndex < keys.length ? String(nextIndex) : undefined,
+          keys: pageKeys,
         };
       },
     };
@@ -179,16 +177,16 @@ export class LocalStorage extends AbstractStorage {
     // In local storage, we don't need presigned URLs, so we just return the local file path
     // You could implement a simple HTTP server to serve these files if needed
     return Promise.resolve({
-      url: `file://${this.getFilePath(key)}`,
       expiresAt: Number.POSITIVE_INFINITY,
+      url: `file://${this.getFilePath(key)}`,
     });
   }
 
   createWritePresignedUrl(key: string, _opts: StorageWritePresignedUrlOptions) {
     return Promise.resolve({
-      url: `file://${this.getFilePath(key)}`,
-      method: 'PUT' as const,
       expiresAt: Number.POSITIVE_INFINITY,
+      method: 'PUT' as const,
+      url: `file://${this.getFilePath(key)}`,
     });
   }
 
@@ -228,6 +226,7 @@ export class LocalStorage extends AbstractStorage {
       const fullPath = path.join(dir, entry.name);
 
       if (entry.isDirectory()) {
+        // biome-ignore lint/performance/noAwaitInLoops: Walk directory entries with bounded filesystem operations.
         await this.listFilesRecursively(fullPath, result, basePath);
       } else {
         result.push(getNormalizedRelativePath(basePath, fullPath));

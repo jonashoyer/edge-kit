@@ -55,13 +55,13 @@ export class KvMutex<
 
   private getEffectiveOptions(options?: MutexOptions) {
     return {
-      prefix: options?.prefix ?? this.prefix,
-      ttlSeconds: options?.ttlSeconds ?? this.ttlSeconds,
-      retries: options?.retries ?? this.retries,
-      retryDelayMs: options?.retryDelayMs ?? this.retryDelayMs,
       backoff: options?.backoff ?? this.backoff,
       jitterMs: options?.jitterMs ?? this.jitterMs,
       logger: options?.logger ?? this.logger,
+      prefix: options?.prefix ?? this.prefix,
+      retries: options?.retries ?? this.retries,
+      retryDelayMs: options?.retryDelayMs ?? this.retryDelayMs,
+      ttlSeconds: options?.ttlSeconds ?? this.ttlSeconds,
     };
   }
 
@@ -76,13 +76,18 @@ export class KvMutex<
 
     let delayMs = opts.retryDelayMs;
 
-    for (let attemptIndex = 0; attemptIndex <= opts.retries; attemptIndex++) {
+    for (
+      let attemptIndex = 0;
+      attemptIndex <= opts.retries;
+      attemptIndex += 1
+    ) {
+      // biome-ignore lint/performance/noAwaitInLoops: Each lock attempt must observe the previous attempt and retry delay.
       const count = await this.kv.increment(countKey, 1);
 
       if (count === 1) {
         await this.kv.set(ownerKey, token, opts.ttlSeconds);
         await this.kv.expire(countKey, opts.ttlSeconds);
-        opts.logger?.info('mutex acquired', { name, attemptIndex });
+        opts.logger?.info('mutex acquired', { attemptIndex, name });
         return { token };
       }
 

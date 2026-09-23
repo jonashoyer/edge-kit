@@ -14,7 +14,7 @@ export const tryParse = <T>(
 };
 
 export const getStackTrace = () => {
-  const err = new Error();
+  const err = new Error('Stack trace');
   return err.stack;
 };
 
@@ -25,15 +25,16 @@ export const clone = <T>(value: T) => JSON.parse(JSON.stringify(value)) as T;
  * @param fn The function to memoize.
  * @returns The memoized function.
  */
-export const memoize = <T extends (...args: any[]) => any>(fn: T): T => {
-  const cache = new Map();
-  return ((...args: any[]) => {
+export const memoize = <Args extends unknown[], Result>(
+  fn: (...args: Args) => Result
+): ((...args: Args) => Result) => {
+  const cache = new Map<string, { value: Result }>();
+  return (...args: Args) => {
     const key = JSON.stringify(args);
-    if (cache.has(key)) {
-      return cache.get(key);
-    }
+    const cached = cache.get(key);
+    if (cached) return cached.value;
     const result = fn(...args);
-    cache.set(key, result);
+    cache.set(key, { value: result });
     return result;
-  }) as T;
+  };
 };

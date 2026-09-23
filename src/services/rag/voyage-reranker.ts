@@ -3,8 +3,8 @@ import { AbstractReranker, type RerankItem } from './abstract-reranker';
 
 export interface VoyageRerankerOptions {
   apiKey: string;
-  model: 'rerank-2.5' | 'rerank-2.5-lite' | (string & {}); // e.g. 'rerank-1', 'rerank-2'
   baseUrl?: string; // default: https://api.voyageai.com/v1
+  model: 'rerank-2.5' | 'rerank-2.5-lite' | (string & {}); // e.g. 'rerank-1', 'rerank-2'
 }
 
 type VoyageRerankResponse = {
@@ -18,7 +18,7 @@ const TRAILING_SLASH_REGEX = /\/$/;
  * Uses Voyage's rerank API to re-order search results for better relevance.
  * Supports various Voyage reranking models.
  */
-export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
+export class VoyageReranker<TMeta = unknown> extends AbstractReranker<TMeta> {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly model: string;
@@ -41,21 +41,21 @@ export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
     if (items.length === 0) return [];
 
     const res = await fetchExt({
-      url: `${this.baseUrl}/rerank`,
       init: {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
         body: JSON.stringify({
+          documents: items.map((i) => i.text),
           model: this.model,
           query,
-          documents: items.map((i) => i.text),
         }),
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
       },
       retries: 2,
       timeout: 15_000,
+      url: `${this.baseUrl}/rerank`,
     });
 
     if (!res.ok) {
@@ -67,9 +67,9 @@ export class VoyageReranker<TMeta = any> extends AbstractReranker<TMeta> {
 
     const json = (await res.json()) as VoyageRerankResponse;
     const scored = json.data.map((d, idx) => ({
+      idx,
       item: items[d.index],
       score: d.relevance_score,
-      idx,
     }));
     const ranked = scored
       .sort((a, b) => b.score - a.score)

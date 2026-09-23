@@ -27,7 +27,7 @@ export const recursivelySortObject = <T>(obj: T): RecursivelySorted<T> => {
   return sortedObject as RecursivelySorted<T>;
 };
 
-export const stableStringify = (obj: any) =>
+export const stableStringify = (obj: unknown) =>
   JSON.stringify(recursivelySortObject(obj));
 
 // Why preserve key order?
@@ -42,10 +42,9 @@ export const stableStringify = (obj: any) =>
  * @param obj - The object whose key order should be preserved.
  * @returns The same object instance augmented with a `__keys` metadata property.
  */
-export const serializeObjectKeys = (obj: any) => {
-  obj.__keys = Object.keys(obj);
-  return obj;
-};
+export const serializeObjectKeys = <T extends Record<string, unknown>>(
+  obj: T
+): T & { __keys: string[] } => Object.assign(obj, { __keys: Object.keys(obj) });
 
 /**
  * Restores the original property order of an object that has previously been processed by
@@ -53,25 +52,22 @@ export const serializeObjectKeys = (obj: any) => {
  *
  * If no `__keys` array is present the object is returned unchanged.
  *
- * Note: This function mutates and returns the same object reference.
+ * When metadata is present, this returns a new object without modifying the input.
  *
  * @template T extends Record<string, unknown>
  * @param obj - The object potentially containing a `__keys` metadata property.
  * @returns The object with properties reordered and `__keys` removed.
  */
 export const deserializeObjectKeys = (
-  obj: any & { __keys?: string[] },
+  obj: Record<string, unknown> & { __keys?: string[] },
   _keys?: string[]
 ) => {
   const keys = _keys ?? obj.__keys;
   if (!keys) return obj;
 
-  obj = Object.fromEntries(
-    Object.entries(obj).sort(
-      ([keyA], [keyB]) => keys.indexOf(keyA) - keys.indexOf(keyB)
-    )
+  return Object.fromEntries(
+    Object.entries(obj)
+      .filter(([key]) => key !== '__keys')
+      .sort(([keyA], [keyB]) => keys.indexOf(keyA) - keys.indexOf(keyB))
   );
-  delete obj.__keys;
-
-  return obj;
 };

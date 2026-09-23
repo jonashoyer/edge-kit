@@ -20,18 +20,17 @@ type SelectionHistoryRuntime = DevLauncherStatePathRuntime;
 
 const defaultRuntime = defaultDevLauncherStatePathRuntime;
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null;
-};
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 const normalizeSelection = (
   manifest: LoadedDevLauncherManifest,
   serviceIds: Iterable<string>
 ): string[] => {
   const requestedServiceIds = new Set(serviceIds);
-  return manifest.serviceIdsInOrder.filter((serviceId) => {
-    return requestedServiceIds.has(serviceId);
-  });
+  return manifest.serviceIdsInOrder.filter((serviceId) =>
+    requestedServiceIds.has(serviceId)
+  );
 };
 
 const dedupeSelections = (selections: string[][]): string[][] => {

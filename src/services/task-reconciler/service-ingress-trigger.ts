@@ -22,16 +22,15 @@ export type TaskReconcilerServiceIngressResult =
     };
 
 type TaskReconcilerServiceIngressTarget = {
-  checkAll(options?: { force?: boolean }): Promise<CheckAllResult>;
-  reconcileAll(options?: { force?: boolean }): Promise<ReconcileAllResult>;
+  checkAll: (options?: { force?: boolean }) => Promise<CheckAllResult>;
+  reconcileAll: (options?: { force?: boolean }) => Promise<ReconcileAllResult>;
 };
 
 export const defineTaskReconcilerServiceIngress = (options: {
   reconciler: TaskReconcilerServiceIngressTarget;
   name?: string;
-}) => {
-  return defineServiceIngress<TaskReconcilerServiceIngressParams>({
-    name: options.name ?? 'task-reconciler',
+}) =>
+  defineServiceIngress<TaskReconcilerServiceIngressParams>({
     async execute(params) {
       if (params.mode === 'check') {
         return {
@@ -49,5 +48,5 @@ export const defineTaskReconcilerServiceIngress = (options: {
         }),
       } satisfies TaskReconcilerServiceIngressResult;
     },
+    name: options.name ?? 'task-reconciler',
   });
-};

@@ -31,9 +31,7 @@ type RegisteredServiceIngress = {
 
 export const defineServiceIngress = <TParams>(
   ingress: ServiceIngress<TParams>
-) => {
-  return ingress as ServiceIngress<TParams> & RegisteredServiceIngress;
-};
+) => ingress as ServiceIngress<TParams> & RegisteredServiceIngress;
 
 type SendServiceIngressOptions<TParams> = {
   url: string;
@@ -65,9 +63,9 @@ export const sendServiceIngress = async <TParams>(
 
   const fetchImplementation = options.fetch ?? globalThis.fetch;
   return await fetchImplementation(options.url, {
-    method: 'POST',
-    headers: requestHeaders,
     body: rawBody,
+    headers: requestHeaders,
+    method: 'POST',
   });
 };
 
@@ -98,10 +96,10 @@ const dispatchServiceIngressWithRegistry = async (options: {
 
   const body = await ingress.execute?.(options.verified.payload);
   return {
-    kind: 'processed' as const,
     body: body ?? {
       received: true,
     },
+    kind: 'processed' as const,
   };
 };
 
@@ -111,8 +109,8 @@ export const dispatchServiceIngress = async (options: {
 }) => {
   const registry = createIngressRegistry(options.ingresses);
   return await dispatchServiceIngressWithRegistry({
-    verified: options.verified,
     registry,
+    verified: options.verified,
   });
 };
 
@@ -128,16 +126,16 @@ export const createServiceIngressHandler = (
   const registry = createIngressRegistry(options.ingresses);
 
   return createAppRouterIncomingHookHandler({
+    async handle(verified) {
+      return await dispatchServiceIngressWithRegistry({
+        registry,
+        verified,
+      });
+    },
+    logger: options.logger,
     verifier: new SignedServiceRequestVerifier({
       secrets: options.secrets,
     }),
-    logger: options.logger,
-    async handle(verified) {
-      return await dispatchServiceIngressWithRegistry({
-        verified,
-        registry,
-      });
-    },
   });
 };
 
@@ -149,15 +147,15 @@ export const createPagesRouterServiceIngressHandler = (
   const registry = createIngressRegistry(options.ingresses);
 
   return createPagesRouterIncomingHookHandler({
+    async handle(verified) {
+      return await dispatchServiceIngressWithRegistry({
+        registry,
+        verified,
+      });
+    },
+    logger: options.logger,
     verifier: new SignedServiceRequestVerifier({
       secrets: options.secrets,
     }),
-    logger: options.logger,
-    async handle(verified) {
-      return await dispatchServiceIngressWithRegistry({
-        verified,
-        registry,
-      });
-    },
   });
 };

@@ -27,9 +27,8 @@ type GitPullState =
 
 const COMPARE_COUNT_REGEXP = /\s+/;
 
-const formatCommitCount = (count: number): string => {
-  return `${count} commit${count === 1 ? '' : 's'}`;
-};
+const formatCommitCount = (count: number): string =>
+  `${count} commit${count === 1 ? '' : 's'}`;
 
 const getCurrentBranchName = async (
   context: DevActionContext
@@ -199,8 +198,7 @@ export const gitPullAction: DevActionDefinition = {
           summary: `Pulled ${formatCommitCount(state.behindCount)} from ${state.upstream}.`,
         };
       default:
-        state satisfies never;
-        throw new Error('Unhandled git pull state.');
+        throw new Error(`Unhandled git pull state: ${state satisfies never}`);
     }
   },
 };

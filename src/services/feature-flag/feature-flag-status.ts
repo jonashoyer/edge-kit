@@ -78,19 +78,15 @@ function computeSingleFlagStatus<T extends string>(
   if (flag.disabled) {
     if ('enabled' in flag) {
       return {
-        name,
-        kind: 'enabled',
+        details: { value: flag.enabled },
         disabled: true,
         effective: false,
-        details: { value: flag.enabled },
+        kind: 'enabled',
+        name,
       };
     }
     if ('rolloutPercentage' in flag) {
       return {
-        name,
-        kind: 'percentage',
-        disabled: true,
-        effective: false,
         details: {
           rolloutPercentage: normalizePercentage(
             flag.rolloutPercentage,
@@ -98,26 +94,30 @@ function computeSingleFlagStatus<T extends string>(
             name
           ),
         },
+        disabled: true,
+        effective: false,
+        kind: 'percentage',
+        name,
       };
     }
     if ('rolloutInterval' in flag) {
       const phased = computePhasedRolloutStats(flag, now, logger, name);
       return {
-        name,
-        kind: 'phased',
+        details: phased,
         disabled: true,
         effective: false,
-        details: phased,
+        kind: 'phased',
+        name,
       };
     }
   }
 
   if ('enabled' in flag) {
     return {
-      name,
-      kind: 'enabled',
-      effective: flag.enabled === true,
       details: { value: flag.enabled === true },
+      effective: flag.enabled === true,
+      kind: 'enabled',
+      name,
     };
   }
 
@@ -128,25 +128,25 @@ function computeSingleFlagStatus<T extends string>(
       name
     );
     return {
-      name,
-      kind: 'percentage',
-      effective: rolloutPercentage >= 1,
       details: { rolloutPercentage },
+      effective: rolloutPercentage >= 1,
+      kind: 'percentage',
+      name,
     };
   }
 
   if ('rolloutInterval' in flag) {
     const phased = computePhasedRolloutStats(flag, now, logger, name);
     return {
-      name,
-      kind: 'phased',
-      effective: phased.currentPercentage >= 1,
       details: phased,
+      effective: phased.currentPercentage >= 1,
+      kind: 'phased',
+      name,
     };
   }
 
   logger?.warn('Unknown feature flag shape', { name });
-  return { name, kind: 'enabled', effective: false, details: { value: false } };
+  return { details: { value: false }, effective: false, kind: 'enabled', name };
 }
 
 function normalizePercentage(
@@ -179,12 +179,12 @@ export function computePhasedRolloutStats(
   );
   if (invalid) {
     logger?.warn('Invalid phased rollout values', {
-      name,
-      origin,
-      interval,
       increment,
       initial,
+      interval,
       max,
+      name,
+      origin,
     });
   }
 
@@ -218,15 +218,15 @@ export function computePhasedRolloutStats(
 
   return {
     currentPercentage,
-    step,
-    nextStepAt,
-    stepsToMax,
     etaToMax,
-    maxRolloutPercentage: safeMax,
-    originTimestamp: origin,
-    rolloutInterval: safeInterval,
     incrementalRolloutPercentage: safeIncrement,
     initialRolloutPercentage: safeInitial,
+    maxRolloutPercentage: safeMax,
+    nextStepAt,
+    originTimestamp: origin,
+    rolloutInterval: safeInterval,
+    step,
+    stepsToMax,
   };
 }
 

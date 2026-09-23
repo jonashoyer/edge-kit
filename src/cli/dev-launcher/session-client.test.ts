@@ -69,9 +69,12 @@ const createRuntime = (): DevLauncherSessionClientRuntime => ({
   homedir: () => '/tmp',
   kill: () => true,
   mkdirSync: () => undefined,
+  platform: process.platform,
   processId: 1,
   randomUUID: () => 'request-1',
-  readFileSync: () => '',
+  readFileSync: () => {
+    throw new Error('Unexpected file read');
+  },
   setInterval,
   setTimeout,
   statSync: (() => {

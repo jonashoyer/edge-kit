@@ -1,15 +1,15 @@
-export interface RerankItem<TMeta = any> {
+export interface RerankItem<TMeta = unknown> {
   id: string;
-  text: string;
   metadata?: TMeta;
   score?: number;
+  text: string;
 }
 
 /**
  * Abstract base class for reranking search results.
  * Re-scores a list of items based on their semantic relevance to a query.
  */
-export abstract class AbstractReranker<TMeta = any> {
+export abstract class AbstractReranker<TMeta = unknown> {
   /**
    * Rerank items based on relevance to the query.
    * @param query - The search query to rank against

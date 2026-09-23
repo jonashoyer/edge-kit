@@ -8,29 +8,29 @@ import type {
  * Normalized transcription segment with second-based timing.
  */
 export interface LocalTranscriptionSegment {
-  text: string;
-  startSecond: number;
   endSecond: number;
+  startSecond: number;
+  text: string;
 }
 
 /**
  * Runtime-level transcription result returned by local transcription workers.
  */
 export interface LocalTranscriptionResult {
-  text: string;
-  segments: LocalTranscriptionSegment[];
-  language?: string;
   durationInSeconds?: number;
+  language?: string;
   providerMetadata?: Record<string, JSONObject>;
+  segments: LocalTranscriptionSegment[];
+  text: string;
 }
 
 /**
  * Request passed from an AI SDK transcription model to a local runtime.
  */
 export interface LocalTranscriptionRequest {
+  abortSignal?: AbortSignal;
   audioPath: string;
   modelId: string;
-  abortSignal?: AbortSignal;
 }
 
 /**

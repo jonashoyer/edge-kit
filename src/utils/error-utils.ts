@@ -26,11 +26,11 @@ export function serializeError(err: unknown): SerializeError {
     }
 
     return {
-      name: err.name,
-      message: err.message,
-      stack: err.stack ?? undefined,
-      code,
       cause,
+      code,
+      message: err.message,
+      name: err.name,
+      stack: err.stack ?? undefined,
     };
   }
 
@@ -38,7 +38,7 @@ export function serializeError(err: unknown): SerializeError {
     typeof err === 'string' ||
     typeof err === 'number' ||
     typeof err === 'boolean' ||
-    err == null
+    err === null
   ) {
     return { message: String(err) };
   }

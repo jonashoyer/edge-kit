@@ -44,9 +44,9 @@ export async function readNotionBlockTree(
   const maxConcurrency = options.maxConcurrency ?? 3;
   const pageSize = options.page_size ?? 100;
   for (const [name, value] of Object.entries({
-    maxDepth,
     maxBlocks,
     maxConcurrency,
+    maxDepth,
     pageSize,
   })) {
     if (
@@ -64,10 +64,10 @@ export async function readNotionBlockTree(
   const queue: ChildRead[] = [
     {
       blockId: pageId,
-      depth: 1,
-      path: new Set([canonicalId(pageId)]),
-      output: roots,
       cursor: null,
+      depth: 1,
+      output: roots,
+      path: new Set([canonicalId(pageId)]),
       seenCursors: new Set(),
     },
   ];
@@ -83,8 +83,8 @@ export async function readNotionBlockTree(
       );
     const response = await client.blocks.children.list({
       block_id: task.blockId,
-      start_cursor: task.cursor,
       page_size: Math.min(pageSize, maxBlocks - count),
+      start_cursor: task.cursor,
     });
     if (failed) return;
     const page = validateNotionList(response, isFullBlock);
@@ -111,6 +111,7 @@ export async function readNotionBlockTree(
   };
   while (queue.length > 0) {
     const batch = queue.splice(0, maxConcurrency);
+    // biome-ignore lint/performance/noAwaitInLoops: Each batch respects the configured concurrency limit and adds discovered children to the queue.
     const results = await Promise.allSettled(
       batch.map(async (task) => {
         try {
@@ -174,10 +175,10 @@ function appendBlock(
   const syncedFrom = syncedSource(block);
   if (syncedFrom) addToPath(path, syncedFrom);
   const node: NotionBlockTreeNode = {
-    id: block.id,
-    type: block.type,
     block,
     children: [],
+    id: block.id,
+    type: block.type,
   };
   task.output.push(node);
   const hasChildren = block.has_children || syncedFrom !== null;
@@ -193,10 +194,10 @@ function appendBlock(
       );
     queue.push({
       blockId: syncedFrom ?? block.id,
-      depth: task.depth + 1,
-      path,
-      output: node.children,
       cursor: null,
+      depth: task.depth + 1,
+      output: node.children,
+      path,
       seenCursors: new Set(),
     });
   }

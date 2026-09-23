@@ -7,22 +7,18 @@ import {
   loadDevActionsConfigSubset,
   loadDevLauncherConfig,
   loadDevLauncherManifest,
-  resolveDevLauncherConfigPath,
 } from './config';
+import { resolveDevLauncherConfigPath } from './repo-utils';
 
-const createTempDir = (): string => {
-  return fs.mkdtempSync(
-    path.join(os.tmpdir(), 'edge-kit-dev-launcher-config-')
-  );
-};
+const createTempDir = (): string =>
+  fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-dev-launcher-config-'));
 
 const writeFile = (filePath: string, content: string): void => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
   fs.writeFileSync(filePath, content);
 };
 
-const createBaseConfig = (): string => {
-  return `
+const createBaseConfig = (): string => `
 export default {
   packageManager: 'pnpm',
   servicesById: {
@@ -37,10 +33,8 @@ export default {
   version: 1,
 };
 `;
-};
 
-const createActionsConfig = (): string => {
-  return `
+const createActionsConfig = (): string => `
 export default {
   actionsById: {
     'install-deps': {
@@ -64,7 +58,6 @@ export default {
   version: 1,
 };
 `;
-};
 
 describe('dev-launcher config loading boundary', () => {
   it('resolves config paths by searching upward or honoring explicit overrides', () => {
@@ -101,6 +94,7 @@ describe('dev-launcher config loading boundary', () => {
       );
       writeFile(path.join(tempDir, fileName), createActionsConfig());
 
+      // biome-ignore lint/performance/noAwaitInLoops: Sequential test input and polling must observe each preceding state transition.
       const config = await loadDevLauncherConfig({ cwd: tempDir });
 
       expect(config.actionIdsInOrder).toEqual(['install-deps']);
@@ -381,8 +375,10 @@ export default {
     const manifest = await loadDevLauncherManifest({ cwd: tempDir });
 
     expect(manifest.actionIdsInOrder).toEqual(['install-deps']);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Test fixtures model missing config entries and mutable socket state.
     expect(manifest.actionsById['install-deps']?.hotkey).toBe('i');
     expect(manifest.serviceIdsInOrder).toEqual(['app', 'api', 'docs', 'proxy']);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Test fixtures model missing config entries and mutable socket state.
     expect(manifest.servicesById.app?.openUrl).toBe('http://localhost:3000');
   });
 

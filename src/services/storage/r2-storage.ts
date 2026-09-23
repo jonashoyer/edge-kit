@@ -2,10 +2,10 @@ import type { StorageOptions } from './abstract-storage';
 import { S3Storage } from './s3-storage';
 
 interface R2StorageOptions extends StorageOptions {
-  accountId: string;
   accessKeyId: string;
-  secretAccessKey: string;
+  accountId: string;
   bucket: string;
+  secretAccessKey: string;
 }
 
 /**

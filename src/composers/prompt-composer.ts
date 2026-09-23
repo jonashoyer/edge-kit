@@ -196,12 +196,12 @@ function escapeXml(str: string): string {
 }
 
 export const PromptComposer = {
+  arrayToList,
   build,
   composer,
   format,
-  arrayToList,
-  objectToKeyValue,
   jsonToXml,
+  objectToKeyValue,
 } as const;
 
 // const finalPrompt = PromptComposer.composer(

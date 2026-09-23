@@ -39,8 +39,8 @@ export class AzureDocumentIntelligenceOcrService extends AbstractOcrService {
     }
 
     return {
-      provider: this.provider,
       markdown: result.content,
+      provider: this.provider,
       title: result.paragraphs?.find((paragraph) => paragraph.role === 'title')
         ?.content,
     };
@@ -56,21 +56,21 @@ export class AzureDocumentIntelligenceOcrService extends AbstractOcrService {
     analyzeUrl.searchParams.append('features', 'styleFont');
 
     const initialResponse = await fetchExt({
-      url: analyzeUrl.toString(),
       init: {
-        method: 'POST',
-        headers: {
-          'Ocp-Apim-Subscription-Key': this.key,
-        },
         body: {
           urlSource: url,
         },
+        headers: {
+          'Ocp-Apim-Subscription-Key': this.key,
+        },
+        method: 'POST',
       },
       retries: 3,
       retryDelay: 1000,
       retryOnHttpStatuses: [408, 409, 425, 429, 500, 502, 503, 504],
       throwOnHttpError: true,
       timeout: 60_000,
+      url: analyzeUrl.toString(),
     });
 
     const operationLocation = initialResponse.headers.get('operation-location');
@@ -95,19 +95,19 @@ export class AzureDocumentIntelligenceOcrService extends AbstractOcrService {
     }
 
     const pollResponse = await fetchExt({
-      url: operationLocation,
       init: {
-        method: 'GET',
         headers: {
           'Ocp-Apim-Subscription-Key': this.key,
         },
+        method: 'GET',
       },
+      respectRetryAfter: true,
       retries: 3,
       retryDelay: 1000,
       retryOnHttpStatuses: [408, 409, 425, 429, 500, 502, 503, 504],
-      respectRetryAfter: true,
       throwOnHttpError: true,
       timeout: 60_000,
+      url: operationLocation,
     });
 
     const body = (await pollResponse.json()) as AnalyzeOperationOutput;

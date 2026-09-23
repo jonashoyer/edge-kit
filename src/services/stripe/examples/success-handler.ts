@@ -48,17 +48,17 @@ function getStripeService() {
     apiVersion: '2025-02-24.acacia',
     appInfo: {
       name: 'Stripe Example App',
-      version: '1.0.0',
       url: 'https://example.com',
+      version: '1.0.0',
     },
   });
 
   return new StripeService(store, stripe, {
     baseUrl: process.env.APP_URL || 'http://localhost:3000',
-    successPath: '/billing/success',
     cancelPath: '/billing',
-    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
     secretKey: process.env.STRIPE_SECRET_KEY,
+    successPath: '/billing/success',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
   });
 }
 

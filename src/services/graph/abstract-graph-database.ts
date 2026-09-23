@@ -95,6 +95,7 @@ export abstract class AbstractGraphDatabase {
   async getNodes(nodeIds: string[]): Promise<NodeById> {
     const result: NodeById = {};
     for (const nodeId of nodeIds) {
+      // biome-ignore lint/performance/noAwaitInLoops: Default batch helpers serialize provider calls to keep resource usage bounded.
       const node = await this.getNode(nodeId);
       if (node !== null) {
         result[nodeId] = node;
@@ -107,6 +108,7 @@ export abstract class AbstractGraphDatabase {
     const result: NodeDegreesById = {};
     for (const nodeId of nodeIds) {
       // eslint-disable-next-line no-await-in-loop
+      // biome-ignore lint/performance/noAwaitInLoops: Default batch helpers serialize provider calls to keep resource usage bounded.
       const degree = await this.nodeDegree(nodeId);
       result[nodeId] = degree;
     }
@@ -116,6 +118,7 @@ export abstract class AbstractGraphDatabase {
   async edgeDegrees(edgePairs: GraphEdgeTuple[]): Promise<EdgeMap<number>> {
     const result: EdgeMap<number> = new Map();
     for (const [srcId, tgtId] of edgePairs) {
+      // biome-ignore lint/performance/noAwaitInLoops: Default batch helpers serialize provider calls to keep resource usage bounded.
       const degree = await this.edgeDegree(srcId, tgtId);
       const [u, v] = normalizeEdge(srcId, tgtId);
       let inner = result.get(u);
@@ -131,6 +134,7 @@ export abstract class AbstractGraphDatabase {
   async getEdges(pairs: GraphEdgePair[]): Promise<EdgeMap<GraphProperties>> {
     const result: EdgeMap<GraphProperties> = new Map();
     for (const { src, tgt } of pairs) {
+      // biome-ignore lint/performance/noAwaitInLoops: Default batch helpers serialize provider calls to keep resource usage bounded.
       const edge = await this.getEdge(src, tgt);
       if (edge !== null) {
         const [u, v] = normalizeEdge(src, tgt);
@@ -148,6 +152,7 @@ export abstract class AbstractGraphDatabase {
   async getNodesEdges(nodeIds: string[]): Promise<NodeEdgesById> {
     const result: NodeEdgesById = {};
     for (const nodeId of nodeIds) {
+      // biome-ignore lint/performance/noAwaitInLoops: Default batch helpers serialize provider calls to keep resource usage bounded.
       const edges = await this.getNodeEdges(nodeId);
       result[nodeId] = edges ?? [];
     }
@@ -242,28 +247,28 @@ type OpHandler = (
 ) => boolean;
 
 const OP_HANDLERS: Record<GraphComparisonOperator, OpHandler> = {
-  exists: (value) => value !== null,
-  notExists: (value) => value === null,
+  contains: (value, expected) =>
+    isStr(value) && isStr(expected) ? value.includes(expected) : false,
+  endsWith: (value, expected) =>
+    isStr(value) && isStr(expected) ? value.endsWith(expected) : false,
   eq: (value, expected) => value === (expected as GraphPrimitive),
-  ne: (value, expected) => value !== (expected as GraphPrimitive),
+  exists: (value) => value !== null,
   gt: (value, expected) =>
     isNum(value) && isNum(expected) ? value > expected : false,
   gte: (value, expected) =>
     isNum(value) && isNum(expected) ? value >= expected : false,
+  in: (value, expected) =>
+    Array.isArray(expected) ? expected.some((v) => v === value) : false,
   lt: (value, expected) =>
     isNum(value) && isNum(expected) ? value < expected : false,
   lte: (value, expected) =>
     isNum(value) && isNum(expected) ? value <= expected : false,
-  contains: (value, expected) =>
-    isStr(value) && isStr(expected) ? value.includes(expected) : false,
-  startsWith: (value, expected) =>
-    isStr(value) && isStr(expected) ? value.startsWith(expected) : false,
-  endsWith: (value, expected) =>
-    isStr(value) && isStr(expected) ? value.endsWith(expected) : false,
-  in: (value, expected) =>
-    Array.isArray(expected) ? expected.some((v) => v === value) : false,
+  ne: (value, expected) => value !== (expected as GraphPrimitive),
+  notExists: (value) => value === null,
   notIn: (value, expected) =>
     Array.isArray(expected) ? expected.every((v) => v !== value) : true,
+  startsWith: (value, expected) =>
+    isStr(value) && isStr(expected) ? value.startsWith(expected) : false,
 };
 
 export const matchesCondition = (

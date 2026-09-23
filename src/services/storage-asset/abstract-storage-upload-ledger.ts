@@ -5,54 +5,54 @@ export type StorageUploadStatus = 'ISSUED' | 'UPLOADED' | 'CONSUMED' | 'PURGED';
 export interface StorageUploadLedgerRecord<
   TMeta extends object = Record<string, unknown>,
 > {
-  id: string;
-  tenantId: string | null;
-  objectKey: string;
-  mimeType: string;
-  status: StorageUploadStatus;
-  sizeBytes: number | null;
+  consumedAt: Date | null;
   etag: string | null;
   expiresAt: Date;
+  id: string;
   issuedAt: Date;
-  uploadedAt: Date | null;
-  consumedAt: Date | null;
-  purgedAt: Date | null;
   meta: TMeta;
+  mimeType: string;
+  objectKey: string;
+  purgedAt: Date | null;
+  sizeBytes: number | null;
+  status: StorageUploadStatus;
+  tenantId: string | null;
+  uploadedAt: Date | null;
 }
 
 export interface UpsertStorageUploadLedgerInput<
   TMeta extends object = Record<string, unknown>,
 > {
-  id: string;
-  tenantId?: string | null;
-  objectKey: string;
-  mimeType: string;
-  status: StorageUploadStatus;
-  sizeBytes?: number | null;
+  consumedAt?: Date | null;
   etag?: string | null;
   expiresAt: Date;
+  id: string;
   issuedAt?: Date;
-  uploadedAt?: Date | null;
-  consumedAt?: Date | null;
-  purgedAt?: Date | null;
   meta?: TMeta;
+  mimeType: string;
+  objectKey: string;
+  purgedAt?: Date | null;
+  sizeBytes?: number | null;
+  status: StorageUploadStatus;
+  tenantId?: string | null;
+  uploadedAt?: Date | null;
 }
 
 export interface UpdateStorageUploadLedgerInput<
   TMeta extends object = Record<string, unknown>,
 > {
-  tenantId?: string | null;
-  objectKey?: string;
-  mimeType?: string;
-  status?: StorageUploadStatus;
-  sizeBytes?: number | null;
+  consumedAt?: Date | null;
   etag?: string | null;
   expiresAt?: Date;
   issuedAt?: Date;
-  uploadedAt?: Date | null;
-  consumedAt?: Date | null;
-  purgedAt?: Date | null;
   meta?: TMeta;
+  mimeType?: string;
+  objectKey?: string;
+  purgedAt?: Date | null;
+  sizeBytes?: number | null;
+  status?: StorageUploadStatus;
+  tenantId?: string | null;
+  uploadedAt?: Date | null;
 }
 
 export interface ListExpiredStorageUploadsOptions {
@@ -128,23 +128,23 @@ export abstract class AbstractStorageUploadLedgerService<
     }
 
     return await this.upsert({
-      id,
-      tenantId: patch.tenantId ?? existing.tenantId,
-      objectKey: patch.objectKey ?? existing.objectKey,
-      mimeType: patch.mimeType ?? existing.mimeType,
-      status: patch.status ?? existing.status,
-      sizeBytes:
-        patch.sizeBytes === undefined ? existing.sizeBytes : patch.sizeBytes,
-      etag: patch.etag === undefined ? existing.etag : patch.etag,
-      expiresAt: patch.expiresAt ?? existing.expiresAt,
-      issuedAt: patch.issuedAt ?? existing.issuedAt,
-      uploadedAt:
-        patch.uploadedAt === undefined ? existing.uploadedAt : patch.uploadedAt,
       consumedAt:
         patch.consumedAt === undefined ? existing.consumedAt : patch.consumedAt,
+      etag: patch.etag === undefined ? existing.etag : patch.etag,
+      expiresAt: patch.expiresAt ?? existing.expiresAt,
+      id,
+      issuedAt: patch.issuedAt ?? existing.issuedAt,
+      meta: patch.meta ?? existing.meta,
+      mimeType: patch.mimeType ?? existing.mimeType,
+      objectKey: patch.objectKey ?? existing.objectKey,
       purgedAt:
         patch.purgedAt === undefined ? existing.purgedAt : patch.purgedAt,
-      meta: patch.meta ?? existing.meta,
+      sizeBytes:
+        patch.sizeBytes === undefined ? existing.sizeBytes : patch.sizeBytes,
+      status: patch.status ?? existing.status,
+      tenantId: patch.tenantId ?? existing.tenantId,
+      uploadedAt:
+        patch.uploadedAt === undefined ? existing.uploadedAt : patch.uploadedAt,
     });
   }
 

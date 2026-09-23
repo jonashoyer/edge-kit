@@ -92,7 +92,7 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
     }>;
   }> {
     const neighbors = await this.kv.zrange(this.KEY_ADJ(currentId), 0, -1);
-    if (neighbors.length === 0) return { neighbors: [], edges: [] };
+    if (neighbors.length === 0) return { edges: [], neighbors: [] };
     const pairs = neighbors.map((n) => normalizeEdge(currentId, n));
     const edgeKeys = pairs.map(([u, v]) => this.KEY_EDGE(u, v));
     const props = await this.kv.mget<GraphProperties>(edgeKeys);
@@ -103,9 +103,9 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
     }> = [];
     for (let i = 0; i < pairs.length; i += 1) {
       const [u, v] = pairs[i] as [string, string];
-      edges.push({ source: u, target: v, properties: props[i] ?? {} });
+      edges.push({ properties: props[i] ?? {}, source: u, target: v });
     }
-    return { neighbors, edges };
+    return { edges, neighbors };
   }
 
   private initTraversal(seeds: string[]): {
@@ -117,9 +117,9 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
     for (const s of seeds) {
       if (visited.has(s)) continue;
       visited.add(s);
-      queue.push({ id: s, depth: 0 });
+      queue.push({ depth: 0, id: s });
     }
-    return { visited, queue };
+    return { queue, visited };
   }
 
   private async enqueueNeighborsFrom(
@@ -144,7 +144,7 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
       if (ctx.visited.size >= ctx.maxNodes) return true;
       if (ctx.visited.has(neighbor)) continue;
       ctx.visited.add(neighbor);
-      ctx.queue.push({ id: neighbor, depth: ctx.currentDepth + 1 });
+      ctx.queue.push({ depth: ctx.currentDepth + 1, id: neighbor });
     }
     return false;
   }
@@ -248,6 +248,7 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
 
   async removeNodes(nodes: string[]): Promise<void> {
     for (const n of nodes) {
+      // biome-ignore lint/performance/noAwaitInLoops: Graph mutations share adjacency and index state, so preserve their order.
       await this.deleteNode(n);
     }
   }
@@ -255,6 +256,7 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
   async removeEdges(edges: GraphEdgeTuple[]): Promise<void> {
     for (const [a, b] of edges) {
       const [u, v] = normalizeEdge(a, b);
+      // biome-ignore lint/performance/noAwaitInLoops: Graph mutations share adjacency and index state, so preserve their order.
       await Promise.all([
         this.kv.delete(this.KEY_EDGE(u, v)),
         this.kv.zrem(this.KEY_ADJ(u), v),
@@ -272,7 +274,7 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
   ): Promise<KnowledgeGraph> {
     const allNodeIds = await this.kv.zrange(this.KEY_INDEX_NODES(), 0, -1);
     if (allNodeIds.length === 0)
-      return { nodes: [], edges: [], isTruncated: false };
+      return { edges: [], isTruncated: false, nodes: [] };
     const rawNodes = await this.loadNodeProps(allNodeIds);
     const parsedNodes: Array<{ id: string; props: GraphProperties } | null> =
       new Array(allNodeIds.length).fill(null);
@@ -294,21 +296,22 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
 
     while (queue.length > 0) {
       const current = queue.shift()!;
+      // biome-ignore lint/performance/noAwaitInLoops: Traversal reads and expands the queue in breadth-first order with a shared node limit.
       const props = await this.getNode(current.id);
       if (props !== null) nodes.push({ id: current.id, properties: props });
 
       const truncated = await this.enqueueNeighborsFrom(current.id, {
         currentDepth: current.depth,
-        maxDepth,
-        visited,
-        queue,
         edgesOut: edges,
+        maxDepth,
         maxNodes,
+        queue,
+        visited,
       });
-      if (truncated) return { nodes, edges, isTruncated: true };
+      if (truncated) return { edges, isTruncated: true, nodes };
     }
 
-    return { nodes, edges, isTruncated: false };
+    return { edges, isTruncated: false, nodes };
   }
 
   async getAllNodes(): Promise<GraphProperties[]> {
@@ -372,7 +375,7 @@ export class KeyValueGraphDatabase extends AbstractGraphDatabase {
       if (!props) continue;
       if (!matchesFilter(props, options?.filter)) continue;
       const [u, v] = EDGE_INDEX_SPLIT(members[i] as string);
-      edges.push({ source: u, target: v, properties: props });
+      edges.push({ properties: props, source: u, target: v });
     }
     const sorted = sortBySpecs(edges, options?.sort);
     return applyPagination(sorted, options?.offset, options?.limit);

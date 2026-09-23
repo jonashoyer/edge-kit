@@ -132,18 +132,18 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<AssetMeta> {
     const existing = this.assets.get(input.id);
     const createdAt = input.createdAt ?? existing?.createdAt ?? new Date();
     const record: StorageAssetRecord<AssetMeta> = {
+      createdAt,
       id: input.id,
-      objectKey: input.objectKey,
+      meta: input.meta ?? existing?.meta ?? {},
       mimeType: input.mimeType,
-      source: input.source,
-      parentAssetId: input.parentAssetId ?? null,
+      objectKey: input.objectKey,
       orphanedAt:
         input.orphanedAt === undefined
           ? (existing?.orphanedAt ?? null)
           : input.orphanedAt,
+      parentAssetId: input.parentAssetId ?? null,
+      source: input.source,
       tags: [...new Set(input.tags ?? existing?.tags ?? [])],
-      meta: input.meta ?? existing?.meta ?? {},
-      createdAt,
       updatedAt: input.updatedAt ?? new Date(),
     };
 
@@ -204,15 +204,15 @@ describe('storage-asset helpers', () => {
   it('encodes and decodes composite cursors', () => {
     const cursor = encodeStorageAssetCursor(
       {
-        id: 'asset-1',
         createdAt: new Date('2026-03-19T08:00:00.000Z'),
+        id: 'asset-1',
       },
       'asc'
     );
 
     expect(decodeStorageAssetCursor(cursor)).toEqual({
-      id: 'asset-1',
       createdAt: new Date('2026-03-19T08:00:00.000Z').getTime(),
+      id: 'asset-1',
       order: 'asc',
     });
   });
@@ -223,32 +223,32 @@ describe('AbstractStorageAssetService contract', () => {
     const service = new MemoryStorageAssetService();
     const createdAt = new Date('2026-03-19T08:00:00.000Z');
     const root = await service.create({
+      createdAt,
       id: 'generation-1',
-      objectKey: 'generated/generation-1/original.png',
-      mimeType: 'image/png',
-      source: 'generated',
-      tags: ['hero', 'hero', 'public'],
       meta: {
         kind: 'image-generation',
         role: 'original',
       },
-      createdAt,
+      mimeType: 'image/png',
+      objectKey: 'generated/generation-1/original.png',
+      source: 'generated',
+      tags: ['hero', 'hero', 'public'],
       updatedAt: createdAt,
     });
 
     const child = await service.create({
+      createdAt,
       id: 'generation-1:thumb',
-      objectKey: 'generated/generation-1/variants/thumb.webp',
-      mimeType: 'image/webp',
-      source: 'generated',
-      parentAssetId: root.id,
-      tags: ['thumb'],
       meta: {
         kind: 'image-generation',
-        role: 'variant',
         position: 0,
+        role: 'variant',
       },
-      createdAt,
+      mimeType: 'image/webp',
+      objectKey: 'generated/generation-1/variants/thumb.webp',
+      parentAssetId: root.id,
+      source: 'generated',
+      tags: ['thumb'],
       updatedAt: createdAt,
     });
 
@@ -264,28 +264,28 @@ describe('AbstractStorageAssetService contract', () => {
     const createdAt = new Date('2026-03-19T08:00:00.000Z');
 
     await service.upsert({
+      createdAt,
       id: 'asset-1',
-      objectKey: 'assets/original.png',
-      mimeType: 'image/png',
-      source: 'generated',
-      tags: ['one'],
       meta: {
         kind: 'image-generation',
       },
-      createdAt,
+      mimeType: 'image/png',
+      objectKey: 'assets/original.png',
+      source: 'generated',
+      tags: ['one'],
       updatedAt: createdAt,
     });
 
     const updated = await service.upsert({
       id: 'asset-1',
-      objectKey: 'assets/original-v2.png',
-      mimeType: 'image/png',
-      source: 'generated',
-      tags: ['two'],
       meta: {
         kind: 'image-generation',
         role: 'original',
       },
+      mimeType: 'image/png',
+      objectKey: 'assets/original-v2.png',
+      source: 'generated',
+      tags: ['two'],
     });
 
     expect(updated.createdAt).toEqual(createdAt);
@@ -294,8 +294,8 @@ describe('AbstractStorageAssetService contract', () => {
 
     const patchedAt = new Date('2026-03-19T09:00:00.000Z');
     const patched = await service.update('asset-1', {
-      parentAssetId: null,
       orphanedAt: patchedAt,
+      parentAssetId: null,
       updatedAt: patchedAt,
     });
 
@@ -310,59 +310,59 @@ describe('AbstractStorageAssetService contract', () => {
     const earlierCreatedAt = new Date('2026-03-19T07:00:00.000Z');
 
     await service.create({
+      createdAt: sharedCreatedAt,
       id: 'b',
+      meta: {},
+      mimeType: 'image/png',
       objectKey: 'generated/b/original.png',
-      mimeType: 'image/png',
       source: 'generated',
-      meta: {},
-      createdAt: sharedCreatedAt,
       updatedAt: sharedCreatedAt,
     });
     await service.create({
+      createdAt: sharedCreatedAt,
       id: 'a',
+      meta: {},
+      mimeType: 'image/png',
       objectKey: 'generated/a/original.png',
-      mimeType: 'image/png',
       source: 'generated',
-      meta: {},
-      createdAt: sharedCreatedAt,
       updatedAt: sharedCreatedAt,
     });
     await service.create({
+      createdAt: sharedCreatedAt,
       id: 'child',
-      objectKey: 'generated/a/variants/thumb.webp',
-      mimeType: 'image/webp',
-      source: 'generated',
-      parentAssetId: 'a',
       meta: {},
-      createdAt: sharedCreatedAt,
+      mimeType: 'image/webp',
+      objectKey: 'generated/a/variants/thumb.webp',
+      parentAssetId: 'a',
+      source: 'generated',
       updatedAt: sharedCreatedAt,
     });
     await service.create({
-      id: 'c',
-      objectKey: 'uploads/c/original.png',
-      mimeType: 'image/png',
-      source: 'uploaded',
-      meta: {},
       createdAt: earlierCreatedAt,
+      id: 'c',
+      meta: {},
+      mimeType: 'image/png',
+      objectKey: 'uploads/c/original.png',
+      source: 'uploaded',
       updatedAt: earlierCreatedAt,
     });
 
     const firstPage = await service.listPage({
-      source: 'generated',
-      parentAssetId: null,
       limit: 1,
       order: 'desc',
+      parentAssetId: null,
+      source: 'generated',
     });
 
     expect(firstPage.items.map((item) => item.id)).toEqual(['b']);
     expect(firstPage.nextCursor).toBeDefined();
 
     const secondPage = await service.listPage({
-      source: 'generated',
-      parentAssetId: null,
+      cursor: firstPage.nextCursor,
       limit: 5,
       order: 'desc',
-      cursor: firstPage.nextCursor,
+      parentAssetId: null,
+      source: 'generated',
     });
 
     expect(secondPage.items.map((item) => item.id)).toEqual(['a']);
@@ -374,13 +374,14 @@ describe('AbstractStorageAssetService contract', () => {
     const createdAt = new Date('2026-03-19T08:00:00.000Z');
 
     for (const id of ['a', 'b', 'c']) {
+      // biome-ignore lint/performance/noAwaitInLoops: Test operations deliberately exercise state transitions in order.
       await service.create({
-        id,
-        objectKey: `generated/${id}/original.png`,
-        mimeType: 'image/png',
-        source: 'generated',
-        meta: {},
         createdAt,
+        id,
+        meta: {},
+        mimeType: 'image/png',
+        objectKey: `generated/${id}/original.png`,
+        source: 'generated',
         updatedAt: createdAt,
       });
     }
@@ -395,22 +396,22 @@ describe('AbstractStorageAssetService contract', () => {
     const createdAt = new Date('2026-03-19T08:00:00.000Z');
 
     await service.create({
-      id: 'root',
-      objectKey: 'generated/root/original.png',
-      mimeType: 'image/png',
-      source: 'generated',
-      meta: {},
       createdAt,
+      id: 'root',
+      meta: {},
+      mimeType: 'image/png',
+      objectKey: 'generated/root/original.png',
+      source: 'generated',
       updatedAt: createdAt,
     });
     await service.create({
-      id: 'child',
-      objectKey: 'generated/root/variants/thumb.webp',
-      mimeType: 'image/webp',
-      source: 'generated',
-      parentAssetId: 'root',
-      meta: {},
       createdAt,
+      id: 'child',
+      meta: {},
+      mimeType: 'image/webp',
+      objectKey: 'generated/root/variants/thumb.webp',
+      parentAssetId: 'root',
+      source: 'generated',
       updatedAt: createdAt,
     });
 
@@ -428,22 +429,22 @@ describe('AbstractStorageAssetService contract', () => {
     const createdAt = new Date('2026-03-19T08:00:00.000Z');
 
     await service.create({
-      id: 'asset-1',
-      objectKey: 'generated/asset-1/original.png',
-      mimeType: 'image/png',
-      source: 'generated',
-      meta: {},
       createdAt,
+      id: 'asset-1',
+      meta: {},
+      mimeType: 'image/png',
+      objectKey: 'generated/asset-1/original.png',
+      source: 'generated',
       updatedAt: createdAt,
     });
 
     await expect(
       service.create({
         id: 'asset-1',
-        objectKey: 'generated/asset-1/original.png',
-        mimeType: 'image/png',
-        source: 'generated',
         meta: {},
+        mimeType: 'image/png',
+        objectKey: 'generated/asset-1/original.png',
+        source: 'generated',
       })
     ).rejects.toBeInstanceOf(StorageAssetAlreadyExistsError);
 

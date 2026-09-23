@@ -24,12 +24,11 @@ const getCommandGlobalOptions = (
 ): {
   config?: string;
   noTui?: boolean;
-} => {
-  return command.optsWithGlobals<{
+} =>
+  command.optsWithGlobals<{
     config?: string;
     noTui?: boolean;
   }>();
-};
 
 const handleCommand = async (
   callback: () => Promise<number>

@@ -27,6 +27,7 @@ export function createNotionFetch(
 ): SupportedFetch {
   const readOnly = options.readOnly ?? false;
   const fetch = options.fetch ?? globalThis.fetch;
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: Copied clients may run where globalThis.fetch is absent despite DOM type declarations.
   if (!fetch)
     throw new NotionError(
       'NotionClient requires a fetch implementation',

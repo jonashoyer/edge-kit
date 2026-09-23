@@ -186,9 +186,9 @@ export function FeatureFlagOverridesProvider<T extends string>(
         return {
           enabled: true,
           meta: {
-            source: 'override',
             overridden: true,
             reason: 'identifier override enabled',
+            source: 'override',
           } as ResolveMeta,
         };
       }
@@ -196,9 +196,9 @@ export function FeatureFlagOverridesProvider<T extends string>(
         return {
           enabled: true,
           meta: {
-            source: 'override',
             overridden: true,
             reason: 'global override enabled',
+            source: 'override',
           } as ResolveMeta,
         };
       }
@@ -207,7 +207,7 @@ export function FeatureFlagOverridesProvider<T extends string>(
       const enabled = service.isEnabled(name, identifier);
       return {
         enabled,
-        meta: { source: 'service', overridden: false } as ResolveMeta,
+        meta: { overridden: false, source: 'service' } as ResolveMeta,
       };
     },
     [overrides, service]
@@ -216,11 +216,11 @@ export function FeatureFlagOverridesProvider<T extends string>(
   const value = useMemo(
     () =>
       ({
-        service,
-        overrides,
-        setOverride,
         clearOverride,
+        overrides,
         resolve,
+        service,
+        setOverride,
       }) as unknown as FeatureFlagOverridesContextValue<string>,
     [service, overrides, setOverride, clearOverride, resolve]
   );

@@ -1,6 +1,12 @@
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
+import {
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+} from 'drizzle-orm/sqlite-core';
+import { getLoadablePath } from 'sqlite-vec';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { float32Blob } from '../../db/types/float32-blob';
 import type { VectorEntry } from './abstract-vector-database';
@@ -8,20 +14,24 @@ import { DrizzleSqliteVectorDatabase } from './drizzle-sqlite-vector-database';
 
 // Test schema
 const EMBED_DIM = 1536;
-const embeddings = sqliteTable('embeddings', {
-  id: text('id').primaryKey(),
-  namespace: text('namespace').notNull(),
-  embedding: float32Blob(EMBED_DIM)('embedding'),
-  metadata: text('metadata'),
-  createdAt: integer('created_at')
-    .notNull()
-    .default(Math.floor(Date.now() / 1000)),
-});
+const embeddings = sqliteTable(
+  'embeddings',
+  {
+    createdAt: integer('created_at')
+      .notNull()
+      .default(Math.floor(Date.now() / 1000)),
+    embedding: float32Blob(EMBED_DIM)('embedding'),
+    id: text('id').notNull(),
+    metadata: text('metadata'),
+    namespace: text('namespace').notNull(),
+  },
+  (table) => ({ pk: primaryKey({ columns: [table.namespace, table.id] }) })
+);
 
 describe('DrizzleSqliteVectorDatabase Integration', () => {
   let sqlite: Database.Database;
   let db: ReturnType<typeof drizzle>;
-  let vectorDb: DrizzleSqliteVectorDatabase<{ title: string; chunk: number }>;
+  let vectorDb: DrizzleSqliteVectorDatabase<Record<string, string | number>>;
   const contentStore = new Map<string, string>();
 
   beforeEach(() => {
@@ -33,46 +43,30 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
     // Create the embeddings table
     sqlite.exec(`
       CREATE TABLE embeddings (
-        id TEXT PRIMARY KEY,
+        id TEXT NOT NULL,
         namespace TEXT NOT NULL,
         embedding BLOB,
         metadata TEXT,
-        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now'))
+        created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        PRIMARY KEY (namespace, id)
       )
     `);
 
-    // Create table with proper structure for DrizzleSqliteVectorDatabase
-    const embeddingsTable = {
-      ...embeddings,
-      _: {
-        name: 'embeddings',
-      },
-    };
-
-    // Create a mock drizzle database with the expected structure
-    const mockDrizzleDb = {
-      ...db,
-      driver: {
-        database: sqlite,
-      },
-    };
-
     vectorDb = new DrizzleSqliteVectorDatabase({
-      db: mockDrizzleDb as any,
-      table: embeddingsTable as any,
       columns: {
-        id: embeddings.id,
-        namespace: embeddings.namespace,
         embedding: embeddings.embedding,
+        id: embeddings.id,
         metadata: embeddings.metadata,
+        namespace: embeddings.namespace,
       },
+      db,
       dim: EMBED_DIM,
-      extensionPath:
-        './node_modules/.pnpm/sqlite-vec-darwin-arm64@0.1.7-alpha.2/node_modules/sqlite-vec-darwin-arm64/vec0.dylib',
+      extensionPath: getLoadablePath(),
       getContent: (namespace, ids) =>
         Promise.resolve(
           ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
         ),
+      table: embeddings,
     });
 
     // Ensure indexes exist
@@ -94,23 +88,23 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
     >[] = [
       {
         id: 'doc:1#0',
-        vector: new Array(EMBED_DIM).fill(0.1),
-        metadata: { title: 'Test Document 1', chunk: 0 },
+        metadata: { chunk: 0, title: 'Test Document 1' },
+        vector: Array.from({ length: EMBED_DIM }, () => 0.1),
       },
       {
         id: 'doc:1#1',
-        vector: new Array(EMBED_DIM).fill(0.2),
-        metadata: { title: 'Test Document 1', chunk: 1 },
+        metadata: { chunk: 1, title: 'Test Document 1' },
+        vector: Array.from({ length: EMBED_DIM }, () => 0.2),
       },
       {
         id: 'doc:2#0',
-        vector: new Array(EMBED_DIM).fill(0.3),
-        metadata: { title: 'Test Document 2', chunk: 0 },
+        metadata: { chunk: 0, title: 'Test Document 2' },
+        vector: Array.from({ length: EMBED_DIM }, () => 0.3),
       },
       {
         id: 'doc:3#0',
-        vector: new Array(EMBED_DIM).fill(0.4),
-        metadata: { title: 'Test Document 3', chunk: 0 },
+        metadata: { chunk: 0, title: 'Test Document 3' },
+        vector: Array.from({ length: EMBED_DIM }, () => 0.4),
       },
     ];
 
@@ -122,21 +116,24 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Verify entries were stored in base table
       const baseTableRows = sqlite
-        .prepare(`
+        .prepare<
+          [string],
+          { id: string; namespace: string; metadata: string }
+        >(`
         SELECT id, namespace, metadata FROM embeddings WHERE namespace = ?
       `)
         .all(namespace);
 
       expect(baseTableRows).toHaveLength(4);
-      expect(baseTableRows.map((row: any) => row.id)).toEqual(
+      expect(baseTableRows.map((row) => row.id)).toEqual(
         expect.arrayContaining(['doc:1#0', 'doc:1#1', 'doc:2#0', 'doc:3#0'])
       );
 
       // 2. Query for similar vectors
-      const queryVector = new Array(EMBED_DIM).fill(0.15); // Similar to doc:1 entries
+      const queryVector = Array.from({ length: EMBED_DIM }, () => 0.15); // Similar to doc:1 entries
       const queryResults = await vectorDb.query(namespace, queryVector, 3, {
-        includeVectors: false,
         includeMetadata: true,
+        includeVectors: false,
       });
 
       expect(queryResults).toHaveLength(3);
@@ -149,8 +146,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
         namespace,
         ['doc:1#0', 'doc:1#1'],
         {
-          includeVectors: true,
           includeMetadata: true,
+          includeVectors: true,
         }
       );
 
@@ -188,8 +185,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       >[] = [
         {
           id: 'doc:1#0',
-          vector: new Array(EMBED_DIM).fill(0.1),
-          metadata: { title: 'Namespace 1 Doc', chunk: 0 },
+          metadata: { chunk: 0, title: 'Namespace 1 Doc' },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.1),
         },
       ];
 
@@ -201,8 +198,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       >[] = [
         {
           id: 'doc:1#0', // Same ID but different namespace
-          vector: new Array(EMBED_DIM).fill(0.2),
-          metadata: { title: 'Namespace 2 Doc', chunk: 0 },
+          metadata: { chunk: 0, title: 'Namespace 2 Doc' },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.2),
         },
       ];
 
@@ -213,7 +210,7 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       // Query each namespace separately
       const results1 = await vectorDb.query(
         namespace1,
-        new Array(EMBED_DIM).fill(0.1),
+        Array.from({ length: EMBED_DIM }, () => 0.1),
         1,
         {
           includeMetadata: true,
@@ -222,7 +219,7 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       const results2 = await vectorDb.query(
         namespace2,
-        new Array(EMBED_DIM).fill(0.2),
+        Array.from({ length: EMBED_DIM }, () => 0.2),
         1,
         {
           includeMetadata: true,
@@ -236,13 +233,19 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Verify namespace isolation in base table
       const baseRows1 = sqlite
-        .prepare(`
+        .prepare<
+          [string],
+          { id: string; namespace: string; metadata: string }
+        >(`
         SELECT id, namespace, metadata FROM embeddings WHERE namespace = ?
       `)
         .all(namespace1);
 
       const baseRows2 = sqlite
-        .prepare(`
+        .prepare<
+          [string],
+          { id: string; namespace: string; metadata: string }
+        >(`
         SELECT id, namespace, metadata FROM embeddings WHERE namespace = ?
       `)
         .all(namespace2);
@@ -251,6 +254,19 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       expect(baseRows2).toHaveLength(1);
       expect(baseRows1[0].namespace).toBe(namespace1);
       expect(baseRows2[0].namespace).toBe(namespace2);
+      await vectorDb.delete(namespace1, ['doc:1#0']);
+      expect(await vectorDb.list(namespace1, ['doc:1#0'])).toEqual([null]);
+      const survivingEntries = await vectorDb.list(namespace2, ['doc:1#0'], {
+        includeMetadata: true,
+      });
+      expect(survivingEntries[0]?.metadata.title).toBe('Namespace 2 Doc');
+      expect(
+        await vectorDb.query(
+          namespace1,
+          Array.from({ length: EMBED_DIM }, () => 0.1),
+          1
+        )
+      ).toEqual([]);
     });
 
     it('should handle vector dimension validation', async () => {
@@ -259,8 +275,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       // Test invalid dimension
       const invalidEntry = {
         id: 'invalid',
-        vector: new Array(100), // Wrong dimension
-        metadata: { title: 'Invalid', chunk: 0 },
+        metadata: { chunk: 0, title: 'Invalid' },
+        vector: Array.from({ length: 100 }, () => 0), // Wrong dimension
       };
 
       await expect(vectorDb.upsert(namespace, [invalidEntry])).rejects.toThrow(
@@ -268,7 +284,7 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       );
 
       // Test invalid query vector
-      const invalidQueryVector = new Array(100);
+      const invalidQueryVector = Array.from({ length: 100 }, () => 0);
       await expect(
         vectorDb.query(namespace, invalidQueryVector, 1)
       ).rejects.toThrow('dimension mismatch');
@@ -279,7 +295,7 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       await vectorDb.upsert(namespace, testEntries);
 
       // Test query with different selection options
-      const queryVector = new Array(EMBED_DIM).fill(0.1);
+      const queryVector = Array.from({ length: EMBED_DIM }, () => 0.1);
 
       // Only vectors
       const vectorOnlyResults = await vectorDb.query(
@@ -287,8 +303,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
         queryVector,
         2,
         {
-          includeVectors: true,
           includeMetadata: false,
+          includeVectors: true,
         }
       );
 
@@ -302,8 +318,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
         queryVector,
         2,
         {
-          includeVectors: false,
           includeMetadata: true,
+          includeVectors: false,
         }
       );
 
@@ -313,8 +329,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Both
       const bothResults = await vectorDb.query(namespace, queryVector, 2, {
-        includeVectors: true,
         includeMetadata: true,
+        includeVectors: true,
       });
 
       expect(bothResults).toHaveLength(2);
@@ -323,8 +339,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Neither
       const neitherResults = await vectorDb.query(namespace, queryVector, 2, {
-        includeVectors: false,
         includeMetadata: false,
+        includeVectors: false,
       });
 
       expect(neitherResults).toHaveLength(2);
@@ -344,8 +360,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       >[] = [
         {
           id: 'doc:1#0',
-          vector: new Array(EMBED_DIM).fill(0.1),
-          metadata: { title: 'Original Title', chunk: 0 },
+          metadata: { chunk: 0, title: 'Original Title' },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.1),
         },
       ];
 
@@ -367,8 +383,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       >[] = [
         {
           id: 'doc:1#0',
-          vector: new Array(EMBED_DIM).fill(0.2), // Different vector
-          metadata: { title: 'Updated Title', chunk: 0 }, // Different metadata
+          metadata: { chunk: 0, title: 'Updated Title' }, // Different metadata
+          vector: Array.from({ length: EMBED_DIM }, () => 0.2), // Different vector
         },
       ];
 
@@ -380,6 +396,20 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       });
 
       expect(updatedResults[0]?.metadata?.title).toBe('Updated Title');
+      const updatedMatches = await vectorDb.query(
+        namespace,
+        Array.from({ length: EMBED_DIM }, () => 0.2),
+        1,
+        { includeMetadata: true, includeVectors: true }
+      );
+      expect(updatedMatches[0]?.metadata?.title).toBe('Updated Title');
+      expect(updatedMatches[0]?.vector[0]).toBeCloseTo(0.2);
+      const storedVector = sqlite
+        .prepare<[string], { embedding: string }>(
+          'SELECT vec_to_json(embedding) AS embedding FROM embeddings_vec WHERE id = ?'
+        )
+        .get(`${namespace}:doc:1#0`);
+      expect(JSON.parse(storedVector?.embedding ?? '[]')[0]).toBeCloseTo(0.2);
 
       // Verify only one entry exists (not duplicated)
       const allResults = await vectorDb.list(namespace, ['doc:1#0'], {
@@ -398,7 +428,7 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       // Empty query
       const queryResults = await vectorDb.query(
         namespace,
-        new Array(EMBED_DIM).fill(0.1),
+        Array.from({ length: EMBED_DIM }, () => 0.1),
         5
       );
       expect(queryResults).toHaveLength(0);
@@ -421,11 +451,11 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
         true,
         true
       >[] = [];
-      for (let i = 0; i < 100; i++) {
+      for (let i = 0; i < 100; i += 1) {
         largeBatch.push({
           id: `doc:${i}#0`,
-          vector: new Array(EMBED_DIM).fill(i * 0.01),
-          metadata: { title: `Document ${i}`, chunk: 0 },
+          metadata: { chunk: 0, title: `Document ${i}` },
+          vector: Array.from({ length: EMBED_DIM }, () => i * 0.01),
         });
       }
 
@@ -434,15 +464,15 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Verify all entries were stored
       const baseTableRows = sqlite
-        .prepare(`
+        .prepare<[string], { count: number }>(`
         SELECT COUNT(*) as count FROM embeddings WHERE namespace = ?
       `)
         .get(namespace);
 
-      expect((baseTableRows as any).count).toBe(100);
+      expect(baseTableRows?.count).toBe(100);
 
       // Query with large batch
-      const queryVector = new Array(EMBED_DIM).fill(0.5);
+      const queryVector = Array.from({ length: EMBED_DIM }, () => 0.5);
       const queryResults = await vectorDb.query(namespace, queryVector, 10, {
         includeMetadata: true,
       });
@@ -464,12 +494,12 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Verify deletion
       const remainingRows = sqlite
-        .prepare(`
+        .prepare<[string], { count: number }>(`
         SELECT COUNT(*) as count FROM embeddings WHERE namespace = ?
       `)
         .get(namespace);
 
-      expect((remainingRows as any).count).toBe(50);
+      expect(remainingRows?.count).toBe(50);
     });
   });
 
@@ -486,30 +516,30 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       >[] = [
         {
           id: 'doc:1#0',
-          vector: new Array(EMBED_DIM).fill(0.1),
           metadata: {
+            chunk: 0,
             docId: 'doc-1',
             text: 'This is the first chunk of document 1',
-            chunk: 0,
           },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.1),
         },
         {
           id: 'doc:1#1',
-          vector: new Array(EMBED_DIM).fill(0.2),
           metadata: {
+            chunk: 1,
             docId: 'doc-1',
             text: 'This is the second chunk of document 1',
-            chunk: 1,
           },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.2),
         },
         {
           id: 'doc:2#0',
-          vector: new Array(EMBED_DIM).fill(0.3),
           metadata: {
+            chunk: 0,
             docId: 'doc-2',
             text: 'This is the first chunk of document 2',
-            chunk: 0,
           },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.3),
         },
       ];
 
@@ -517,10 +547,10 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       await vectorDb.upsert(namespace, ragEntries);
 
       // Search documents (simulate RagService.search)
-      const queryVector = new Array(EMBED_DIM).fill(0.15);
+      const queryVector = Array.from({ length: EMBED_DIM }, () => 0.15);
       const searchResults = await vectorDb.query(namespace, queryVector, 3, {
-        includeVectors: false,
         includeMetadata: true,
+        includeVectors: false,
       });
 
       expect(searchResults).toHaveLength(3);
@@ -549,28 +579,28 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       >[] = [
         {
           id: 'vec:1',
-          vector: new Array(EMBED_DIM).fill(0.1), // All 0.1
           metadata: { description: 'Vector with all 0.1 values' },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.1), // All 0.1
         },
         {
           id: 'vec:2',
-          vector: new Array(EMBED_DIM).fill(0.2), // All 0.2
           metadata: { description: 'Vector with all 0.2 values' },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.2), // All 0.2
         },
         {
           id: 'vec:3',
-          vector: new Array(EMBED_DIM).fill(0.3), // All 0.3
           metadata: { description: 'Vector with all 0.3 values' },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.3), // All 0.3
         },
       ];
 
       await vectorDb.upsert(namespace, entries);
 
       // Query with vector similar to vec:1
-      const queryVector = new Array(EMBED_DIM).fill(0.12); // Close to 0.1
+      const queryVector = Array.from({ length: EMBED_DIM }, () => 0.12); // Close to 0.1
       const results = await vectorDb.query(namespace, queryVector, 3, {
-        includeVectors: false,
         includeMetadata: true,
+        includeVectors: false,
       });
 
       expect(results).toHaveLength(3);
@@ -587,22 +617,21 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Test with Float32Array input
       const float32Vector = new Float32Array(EMBED_DIM).fill(0.5);
-      const entries: VectorEntry<Float32Array, { type: string }, true, true>[] =
-        [
-          {
-            id: 'float32:1',
-            vector: float32Vector,
-            metadata: { type: 'Float32Array' },
-          },
-        ];
+      const entries: VectorEntry<number[], { type: string }, true, true>[] = [
+        {
+          id: 'float32:1',
+          metadata: { type: 'Float32Array' },
+          vector: Array.from(float32Vector),
+        },
+      ];
 
       await vectorDb.upsert(namespace, entries);
 
       // Query with number array
-      const queryVector = new Array(EMBED_DIM).fill(0.5);
+      const queryVector = Array.from({ length: EMBED_DIM }, () => 0.5);
       const results = await vectorDb.query(namespace, queryVector, 1, {
-        includeVectors: true,
         includeMetadata: true,
+        includeVectors: true,
       });
 
       expect(results).toHaveLength(1);
@@ -618,11 +647,11 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
         [];
 
       // Create 50 entries
-      for (let i = 0; i < 50; i++) {
+      for (let i = 0; i < 50; i += 1) {
         entries.push({
           id: `concurrent:${i}`,
-          vector: new Array(EMBED_DIM).fill(i * 0.01),
           metadata: { index: i },
+          vector: Array.from({ length: EMBED_DIM }, () => i * 0.01),
         });
       }
 
@@ -631,19 +660,24 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
 
       // Perform concurrent queries
       const queryPromises = Array.from({ length: 10 }, (_, i) =>
-        vectorDb.query(namespace, new Array(EMBED_DIM).fill(i * 0.05), 5, {
-          includeMetadata: true,
-        })
+        vectorDb.query(
+          namespace,
+          Array.from({ length: EMBED_DIM }, () => i * 0.05),
+          5,
+          {
+            includeMetadata: true,
+          }
+        )
       );
 
       const results = await Promise.all(queryPromises);
 
       expect(results).toHaveLength(10);
-      results.forEach((result) => {
+      for (const result of results) {
         expect(result).toHaveLength(5);
         expect(result[0]).toHaveProperty('id');
         expect(result[0]).toHaveProperty('metadata');
-      });
+      }
     });
 
     it('should maintain data integrity under stress', async () => {
@@ -652,11 +686,11 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       // Create many entries
       const entries: VectorEntry<number[], { value: number }, true, true>[] =
         [];
-      for (let i = 0; i < 200; i++) {
+      for (let i = 0; i < 200; i += 1) {
         entries.push({
           id: `stress:${i}`,
-          vector: new Array(EMBED_DIM).fill(i * 0.001),
           metadata: { value: i },
+          vector: Array.from({ length: EMBED_DIM }, () => i * 0.001),
         });
       }
 
@@ -675,8 +709,8 @@ describe('DrizzleSqliteVectorDatabase Integration', () => {
       await vectorDb.upsert(namespace, [
         {
           id: 'stress:new',
-          vector: new Array(EMBED_DIM).fill(0.999),
           metadata: { value: 999 },
+          vector: Array.from({ length: EMBED_DIM }, () => 0.999),
         },
       ]);
 

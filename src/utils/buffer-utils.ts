@@ -1,9 +1,8 @@
-export const arrayBufferToBase64Url = (buffer: ArrayBuffer): string => {
-  return btoa(String.fromCharCode(...new Uint8Array(buffer)))
+export const arrayBufferToBase64Url = (buffer: ArrayBuffer): string =>
+  btoa(String.fromCharCode(...new Uint8Array(buffer)))
     .replace(/\+/g, '-')
     .replace(/\//g, '_')
-    .replace(/=/g, '');
-};
+    .replace(/[=]/g, '');
 
 /**
  * Converts a Base64 URL-safe string to an ArrayBuffer.
@@ -17,7 +16,7 @@ export function base64UrlToArrayBuffer(base64Url: string): ArrayBuffer {
   const byteString = atob(base64);
   const buffer = new ArrayBuffer(byteString.length);
   const byteArray = new Uint8Array(buffer);
-  for (let i = 0; i < byteString.length; i++) {
+  for (let i = 0; i < byteString.length; i += 1) {
     byteArray[i] = byteString.charCodeAt(i);
   }
   return buffer;

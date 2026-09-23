@@ -1,8 +1,8 @@
 import { CustomError } from '../../utils/custom-error';
 
 export interface StorageOptions {
-  region?: string;
   endpoint?: string;
+  region?: string;
 }
 
 export type StorageBody = string | Uint8Array | ArrayBuffer | Blob;
@@ -15,28 +15,28 @@ export interface StorageWriteOptions {
 export type StorageVersioningMode = 'enabled' | 'disabled';
 
 export interface StorageExplorerListPageOptions {
-  maxKeys?: number;
   continuationToken?: string;
+  maxKeys?: number;
 }
 
 export interface StorageExplorerListPageResult {
-  keys: string[];
   continuationToken?: string;
+  keys: string[];
 }
 
 export interface StorageExplorerCapability {
-  listPage(
+  list: (prefix?: string) => Promise<string[]>;
+  listPage: (
     prefix?: string,
     options?: StorageExplorerListPageOptions
-  ): Promise<StorageExplorerListPageResult>;
-  list(prefix?: string): Promise<string[]>;
+  ) => Promise<StorageExplorerListPageResult>;
 }
 
 export interface StorageWritePresignedUrlOptions {
+  bytesLimit?: number;
   contentType: string;
   maxBytes?: number;
   minBytes?: number;
-  bytesLimit?: number;
 }
 
 export interface StorageObjectChecksum {
@@ -45,10 +45,10 @@ export interface StorageObjectChecksum {
 }
 
 export interface StorageObjectReference {
-  key: string;
-  etag?: string;
-  versionId?: string | null;
   checksum?: StorageObjectChecksum;
+  etag?: string;
+  key: string;
+  versionId?: string | null;
 }
 
 export interface StorageObjectMetadata<TMeta = never> {
@@ -77,20 +77,20 @@ export interface StorageCreateObjectOptions extends StorageWriteOptions {
 }
 
 export interface StorageCreateObjectResult<TMeta = never> {
-  status: 'created' | 'already-exists';
   object: StorageObjectDescriptor<TMeta>;
+  status: 'created' | 'already-exists';
 }
 
 export interface StorageDeleteObjectVersionError {
-  key: string;
-  versionId?: string;
   code?: string;
+  key: string;
   message: string;
+  versionId?: string;
 }
 
 export interface StorageDeleteObjectOptions {
-  versionId?: string | null;
   mode?: 'current' | 'all-versions';
+  versionId?: string | null;
 }
 
 export interface StorageMultipartUploadSession {
@@ -101,29 +101,29 @@ export interface StorageMultipartUploadSession {
 export interface StorageMultipartUploadDescriptor
   extends StorageMultipartUploadSession {
   expectedBytes: number;
-  partSizeBytes: number;
   partCount: number;
+  partSizeBytes: number;
 }
 
 export interface StorageMultipartUploadOptions extends StorageWriteOptions {}
 
 export interface StorageMultipartPart {
-  partNumber: number;
   etag: string;
+  partNumber: number;
   sizeBytes: number;
 }
 
 export interface StorageMultipartPartInstruction {
-  key: string;
-  uploadId: string;
-  partNumber: number;
-  method: 'PUT';
-  url: string;
-  headers: Record<string, string>;
   expiresAt: number;
-  offsetBytes: number;
+  headers: Record<string, string>;
+  key: string;
   lengthBytes: number;
   maxBytes: number;
+  method: 'PUT';
+  offsetBytes: number;
+  partNumber: number;
+  uploadId: string;
+  url: string;
 }
 
 export interface StorageMultipartPartUrlOptions {
@@ -143,26 +143,26 @@ export type StorageMultipartUploadErrorReason =
  * explicit cleanup semantics.
  */
 export interface StorageImmutableCapability {
-  readonly versioning: StorageVersioningMode;
-
-  head<TMeta = never>(
-    key: string,
-    options?: StorageReadObjectOptions
-  ): Promise<StorageObjectDescriptor<TMeta> | null>;
-  read(
-    ref: StorageObjectReference,
-    options?: StorageReadObjectOptions
-  ): Promise<Buffer>;
-  createObject<TMeta = never>(
+  createObject: <TMeta = never>(
     key: string,
     data: StorageBody,
     options?: StorageCreateObjectOptions
-  ): Promise<StorageCreateObjectResult<TMeta>>;
-  createReadPresignedUrl(
+  ) => Promise<StorageCreateObjectResult<TMeta>>;
+  createReadPresignedUrl: (
     ref: StorageObjectReference,
     options?: StorageReadPresignedUrlOptions
-  ): Promise<{ url: string; expiresAt: number }>;
-  delete(key: string, options?: StorageDeleteObjectOptions): Promise<void>;
+  ) => Promise<{ url: string; expiresAt: number }>;
+  delete: (key: string, options?: StorageDeleteObjectOptions) => Promise<void>;
+
+  head: <TMeta = never>(
+    key: string,
+    options?: StorageReadObjectOptions
+  ) => Promise<StorageObjectDescriptor<TMeta> | null>;
+  read: (
+    ref: StorageObjectReference,
+    options?: StorageReadObjectOptions
+  ) => Promise<Buffer>;
+  readonly versioning: StorageVersioningMode;
 }
 
 /**
@@ -171,24 +171,24 @@ export interface StorageImmutableCapability {
  * server side.
  */
 export interface StorageMultipartCapability {
-  create(
+  abort: (upload: StorageMultipartUploadSession) => Promise<void>;
+  complete: <TMeta = never>(
+    upload: StorageMultipartUploadDescriptor,
+    options?: StorageMultipartCompleteOptions
+  ) => Promise<StorageObjectDescriptor<TMeta>>;
+  create: (
     key: string,
     options?: StorageMultipartUploadOptions
-  ): Promise<StorageMultipartUploadSession>;
-  find(key: string): Promise<StorageMultipartUploadSession[]>;
-  listParts(
-    upload: StorageMultipartUploadSession
-  ): Promise<StorageMultipartPart[]>;
-  createPartPresignedUrl(
+  ) => Promise<StorageMultipartUploadSession>;
+  createPartPresignedUrl: (
     upload: StorageMultipartUploadDescriptor,
     partNumber: number,
     options?: StorageMultipartPartUrlOptions
-  ): Promise<StorageMultipartPartInstruction>;
-  complete<TMeta = never>(
-    upload: StorageMultipartUploadDescriptor,
-    options?: StorageMultipartCompleteOptions
-  ): Promise<StorageObjectDescriptor<TMeta>>;
-  abort(upload: StorageMultipartUploadSession): Promise<void>;
+  ) => Promise<StorageMultipartPartInstruction>;
+  find: (key: string) => Promise<StorageMultipartUploadSession[]>;
+  listParts: (
+    upload: StorageMultipartUploadSession
+  ) => Promise<StorageMultipartPart[]>;
 }
 
 const isBlobLike = (value: unknown): value is Blob =>
@@ -256,6 +256,7 @@ export abstract class AbstractStorage {
   abstract exists(key: string): Promise<boolean>;
   async deleteMany(keys: string[]): Promise<void> {
     for (const key of keys) {
+      // biome-ignore lint/performance/noAwaitInLoops: Delete sequentially to preserve fail-fast behavior across storage providers.
       await this.delete(key);
     }
   }

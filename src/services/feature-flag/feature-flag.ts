@@ -18,6 +18,10 @@ export interface RolloutPercentageFeatureFlag extends BaseFeatureFlag {
  */
 export interface PhasedRolloutFeatureFla extends BaseFeatureFlag {
   /**
+   * The incremental percentage of users to rollout to at each interval
+   */
+  incrementalRolloutPercentage: number;
+  /**
    * The initial percentage of users to rollout to
    */
   initialRolloutPercentage: number;
@@ -26,19 +30,14 @@ export interface PhasedRolloutFeatureFla extends BaseFeatureFlag {
    * The maximum percentage of users to rollout to
    */
   maxRolloutPercentage?: number;
-
-  /**
-   * The incremental percentage of users to rollout to at each interval
-   */
-  incrementalRolloutPercentage: number;
-  /**
-   * The interval between each incremental rollout percentage increase
-   */
-  rolloutInterval: number;
   /**
    * The origin timestamp for the phased rollout
    */
   originTimestamp: number;
+  /**
+   * The interval between each incremental rollout percentage increase
+   */
+  rolloutInterval: number;
 }
 
 export type FeatureFlag =

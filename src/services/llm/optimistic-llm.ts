@@ -10,10 +10,7 @@ const OBJECT_WARMUP_PROMPT =
 const TEXT_WARMUP_PROMPT = 'Reply with a single token.';
 
 export interface OptimisticLlmServiceOptions {
-  /**
-   * TTL for a warmed prompt-prefix entry (in seconds). Default: 300s (5 minutes)
-   */
-  ttlSeconds?: number;
+  getTokenCount?: (text: string) => number;
   /**
    * Key namespace for cache entries. Default: 'llm:warm'
    */
@@ -24,8 +21,10 @@ export interface OptimisticLlmServiceOptions {
    * Default: 1024 tokens.
    */
   minCachedTokens?: number;
-
-  getTokenCount?: (text: string) => number;
+  /**
+   * TTL for a warmed prompt-prefix entry (in seconds). Default: 300s (5 minutes)
+   */
+  ttlSeconds?: number;
 }
 
 /**
@@ -88,22 +87,22 @@ export class OptimisticLlmService {
       if (schema) {
         await this.warmByFirstChunk((signal) =>
           streamObject({
+            abortSignal: signal,
+            maxOutputTokens: 1,
             model,
+            prompt: OBJECT_WARMUP_PROMPT,
             schema,
             system: prefix,
-            prompt: OBJECT_WARMUP_PROMPT,
-            maxOutputTokens: 1,
-            abortSignal: signal,
           })
         );
       } else {
         await this.warmByFirstChunk((signal) =>
           streamText({
-            model,
-            system: prefix,
-            prompt: TEXT_WARMUP_PROMPT,
-            maxOutputTokens: 1,
             abortSignal: signal,
+            maxOutputTokens: 1,
+            model,
+            prompt: TEXT_WARMUP_PROMPT,
+            system: prefix,
           })
         );
       }

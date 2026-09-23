@@ -27,12 +27,11 @@ function createReviver(reviver?: StringifyReviver) {
  * Utility for stringifying and parsing JSON with support for BigInt.
  */
 export const Stringify = {
+  parse: (str: string, reviver?: StringifyReviver) =>
+    JSON.parse(str, createReviver(reviver)),
   stringify: (
     obj: unknown,
     replacer?: StringifyReplacer,
     space?: string | number
   ) => JSON.stringify(obj, createReplacer(replacer), space),
-
-  parse: (str: string, reviver?: StringifyReviver) =>
-    JSON.parse(str, createReviver(reviver)),
 };

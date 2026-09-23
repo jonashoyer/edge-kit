@@ -41,6 +41,7 @@ export class OcrServiceCollection {
 
     for (const provider of providers) {
       try {
+        // biome-ignore lint/performance/noAwaitInLoops: Try providers in priority order and stop at the first successful extraction.
         return await provider.extract(source);
       } catch (error) {
         if (error instanceof OcrError) {

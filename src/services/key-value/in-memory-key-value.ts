@@ -41,7 +41,7 @@ export class InMemoryKeyValueService extends AbstractKeyValueService {
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     const expiresAt =
       ttlSeconds === undefined ? null : Date.now() + ttlSeconds * 1000;
-    this.store.set(key, { value, expiresAt });
+    this.store.set(key, { expiresAt, value });
   }
 
   async delete(key: string): Promise<void> {
@@ -61,7 +61,7 @@ export class InMemoryKeyValueService extends AbstractKeyValueService {
     }
 
     const next = (current as number) + amount;
-    this.store.set(key, { value: next, expiresAt: entry?.expiresAt ?? null });
+    this.store.set(key, { expiresAt: entry?.expiresAt ?? null, value: next });
     return next;
   }
 
@@ -76,11 +76,11 @@ export class InMemoryKeyValueService extends AbstractKeyValueService {
     }
 
     const expiresAt = Date.now() + ttlSeconds * 1000;
-    this.store.set(key, { value: entry.value, expiresAt });
+    this.store.set(key, { expiresAt, value: entry.value });
     return true;
   }
 
-  async zadd(): Promise<void> {
+  async zadd(_key: string, _score: number, _member: string): Promise<void> {
     throw new Error('InMemoryKeyValueService does not support sorted sets');
   }
 
@@ -92,7 +92,7 @@ export class InMemoryKeyValueService extends AbstractKeyValueService {
     throw new Error('InMemoryKeyValueService does not support sorted sets');
   }
 
-  async zrange(): Promise<string[]> {
+  async zrange(_key: string, _start: number, _stop: number): Promise<string[]> {
     throw new Error('InMemoryKeyValueService does not support sorted sets');
   }
 
@@ -114,7 +114,7 @@ export class InMemoryKeyValueService extends AbstractKeyValueService {
       ttlSeconds === undefined ? null : Date.now() + ttlSeconds * 1000;
 
     for (const [key, value] of keyValues) {
-      this.store.set(key, { value, expiresAt });
+      this.store.set(key, { expiresAt, value });
     }
   }
 

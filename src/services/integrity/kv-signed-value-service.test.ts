@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
+import { AbstractKeyValueService } from '../key-value/abstract-key-value';
 import { KvSignedValueService } from './kv-signed-value-service';
 
 /**
  * Mock KV service for testing
  */
-class MockKvService implements AbstractKeyValueService {
-  private store: Map<string, unknown> = new Map();
+class MockKvService extends AbstractKeyValueService {
+  private readonly store: Map<string, unknown> = new Map();
 
   async get<T>(key: string): Promise<T | null> {
     return (this.store.get(key) ?? null) as T | null;
@@ -20,6 +20,12 @@ class MockKvService implements AbstractKeyValueService {
     this.store.set(key, value);
   }
 
+  async mset<T>(entries: [string, T][]): Promise<void> {
+    for (const [key, value] of entries) {
+      this.store.set(key, value);
+    }
+  }
+
   async delete(key: string): Promise<void> {
     this.store.delete(key);
   }
@@ -29,14 +35,14 @@ class MockKvService implements AbstractKeyValueService {
   }
 
   async increment(key: string, amount = 1): Promise<number> {
-    const current = (this.store.get(key) as number) ?? 0;
+    const current = (this.store.get(key) as number | undefined) ?? 0;
     const updated = current + amount;
     this.store.set(key, updated);
     return updated;
   }
 
   async decrement(key: string, amount = 1): Promise<number> {
-    const current = (this.store.get(key) as number) ?? 0;
+    const current = (this.store.get(key) as number | undefined) ?? 0;
     const updated = current - amount;
     this.store.set(key, updated);
     return updated;
@@ -85,8 +91,8 @@ describe('KvSignedValueService', () => {
       const key = 'admin-config';
       const value = {
         id: 'admin-1',
-        role: 'superuser',
         permissions: ['read', 'write'],
+        role: 'superuser',
       };
 
       await signedKvService.set(key, value, secret);
@@ -257,6 +263,7 @@ describe('KvSignedValueService', () => {
       const values = ['v1', 'v2', 'v3'];
 
       for (const value of values) {
+        // biome-ignore lint/performance/noAwaitInLoops: Test operations deliberately exercise state transitions in order.
         await signedKvService.set(key, value, secret);
         const retrieved = await signedKvService.get<string>(key, secret);
         expect(retrieved).toBe(value);

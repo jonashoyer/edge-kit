@@ -1,35 +1,37 @@
 import { generateText, type LanguageModel } from 'ai';
 
 export interface HealthProbeResult {
+  error?: string;
+  latencyMs: number;
+  meta?: Record<string, unknown>;
   name: string;
   ok: boolean;
-  latencyMs: number;
-  error?: string;
-  meta?: Record<string, unknown>;
 }
 
 export interface HealthProbeDefinition {
   name: string;
-  timeoutMs: number;
+  // biome-ignore lint/suspicious/noConfusingVoidType: Callbacks may intentionally return no result, including Promise<void>.
   run: () => Promise<{ meta?: Record<string, unknown> } | void>;
+  timeoutMs: number;
 }
 
 export interface HealthProbeSuiteResult {
-  ok: boolean;
-  startedAt: number;
   finishedAt: number;
+  ok: boolean;
   probes: HealthProbeResult[];
+  startedAt: number;
 }
 
 export interface AiProviderProbeOptions {
-  name: string;
-  model: LanguageModel;
-  timeoutMs: number;
-  prompt?: string;
   maxOutputTokens?: number;
+  model: LanguageModel;
+  name: string;
+  prompt?: string;
+  timeoutMs: number;
   validate?: (args: {
     text: string;
     responseModelId?: string;
+    // biome-ignore lint/suspicious/noConfusingVoidType: Validators may only throw on failure and return no metadata.
   }) => Record<string, unknown> | void;
 }
 
@@ -67,17 +69,17 @@ export const runHealthProbe = async (
   try {
     const result = await runWithTimeout(probe.name, probe.timeoutMs, probe.run);
     return {
-      name: probe.name,
-      ok: true,
       latencyMs: Date.now() - startedAt,
       meta: result && 'meta' in result ? result.meta : undefined,
+      name: probe.name,
+      ok: true,
     };
   } catch (error) {
     return {
+      error: error instanceof Error ? error.message : String(error),
+      latencyMs: Date.now() - startedAt,
       name: probe.name,
       ok: false,
-      latencyMs: Date.now() - startedAt,
-      error: error instanceof Error ? error.message : String(error),
     };
   }
 };
@@ -92,10 +94,10 @@ export const runHealthProbeSuite = async (input: {
   const finishedAt = Date.now();
 
   return {
-    ok: probes.every((probe) => probe.ok),
-    startedAt,
     finishedAt,
+    ok: probes.every((probe) => probe.ok),
     probes,
+    startedAt,
   };
 };
 
@@ -107,12 +109,11 @@ export const createAiProviderProbe = (
 
   return {
     name: options.name,
-    timeoutMs: options.timeoutMs,
     run: async () => {
       const result = await generateText({
+        maxOutputTokens,
         model: options.model,
         prompt,
-        maxOutputTokens,
       });
 
       const text = result.text.trim();
@@ -124,8 +125,8 @@ export const createAiProviderProbe = (
 
       const meta = options.validate
         ? options.validate({
-            text,
             responseModelId: result.response.modelId,
+            text,
           })
         : {
             output: text,
@@ -138,5 +139,6 @@ export const createAiProviderProbe = (
 
       return { meta };
     },
+    timeoutMs: options.timeoutMs,
   };
 };

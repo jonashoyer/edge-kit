@@ -84,12 +84,12 @@ interface DevLauncherDashboardAppProps {
     manifest: LoadedDevLauncherManifest
   ) => Promise<ResolvedDevAction[]>;
   manifest: LoadedDevLauncherManifest;
-  openExternalUrl?: (url: string) => Promise<void>;
   onExitCode: (code: number) => void;
   onRequestExit?: (options: {
     controller: DevLauncherProcessController;
     hasFailure: boolean;
   }) => Promise<void>;
+  openExternalUrl?: (url: string) => Promise<void>;
   runDevAction?: (
     manifest: LoadedDevLauncherManifest,
     actionId: string,
@@ -121,16 +121,15 @@ const defaultRuntime: DevLauncherTuiSessionRuntime = {
   createController: (manifest) => new DevLauncherProcessManager(manifest),
   listActions: async (manifest) => await listDevActions(manifest, manifest),
   openExternalUrl: async (url) => openExternalUrl(url),
-  runDevAction: async (manifest, actionId, options) => {
-    return await executeDevActionWithSession(manifest, manifest, {
+  runDevAction: async (manifest, actionId, options) =>
+    await executeDevActionWithSession(manifest, manifest, {
       actionId,
       controller: options?.controller,
       hooks: {
         refreshActions: options?.refreshActions,
       },
       runtime: createTuiActionRuntime(),
-    });
-  },
+    }),
   stderr: process.stderr,
   stdin: process.stdin,
   stdout: process.stdout,
@@ -138,16 +137,14 @@ const defaultRuntime: DevLauncherTuiSessionRuntime = {
 
 const defaultListActions = async (
   loadedManifest: LoadedDevLauncherManifest
-): Promise<ResolvedDevAction[]> => {
-  return await defaultRuntime.listActions(loadedManifest);
-};
+): Promise<ResolvedDevAction[]> =>
+  await defaultRuntime.listActions(loadedManifest);
 
 const defaultRunDevAction = async (
   loadedManifest: LoadedDevLauncherManifest,
   actionId: string
-): Promise<DevActionOrchestrationResult> => {
-  return await defaultRuntime.runDevAction(loadedManifest, actionId);
-};
+): Promise<DevActionOrchestrationResult> =>
+  await defaultRuntime.runDevAction(loadedManifest, actionId);
 
 const STATUS_COLORS: Record<ManagedDevServiceStatus, string> = {
   failed: 'red',
@@ -207,9 +204,12 @@ const formatViewerLine = (
 
 const getRenderedRowCount = (value: string, width: number): number => {
   const lineWidth = Math.max(width, 1);
-  const rows = value.split('\n').reduce((total, line) => {
-    return total + Math.max(Math.ceil(line.length / lineWidth), 1);
-  }, 0);
+  const rows = value
+    .split('\n')
+    .reduce(
+      (total, line) => total + Math.max(Math.ceil(line.length / lineWidth), 1),
+      0
+    );
 
   return Math.max(rows, 1);
 };
@@ -279,35 +279,25 @@ const getMaxScrollOffsetByRenderedRows = (
   return 0;
 };
 
-const getDashboardLogLines = (terminalRows: number | undefined): number => {
-  return Math.max((terminalRows ?? 24) - 10, MIN_DASHBOARD_LOG_LINES);
-};
+const getDashboardLogLines = (terminalRows: number | undefined): number =>
+  Math.max((terminalRows ?? 24) - 10, MIN_DASHBOARD_LOG_LINES);
 
-const getFocusedLogLines = (terminalRows: number | undefined): number => {
-  return Math.max((terminalRows ?? 24) - 6, MIN_FOCUSED_LOG_LINES);
-};
+const getFocusedLogLines = (terminalRows: number | undefined): number =>
+  Math.max((terminalRows ?? 24) - 6, MIN_FOCUSED_LOG_LINES);
 
-const getDashboardLogColumns = (
-  terminalColumns: number | undefined
-): number => {
-  return Math.max(
+const getDashboardLogColumns = (terminalColumns: number | undefined): number =>
+  Math.max(
     (terminalColumns ?? DEFAULT_TERMINAL_COLUMNS) -
       DASHBOARD_SERVICE_LIST_WIDTH -
       DASHBOARD_DIVIDER_WIDTH,
     MIN_LOG_VIEWER_WIDTH
   );
-};
 
-const getFocusedLogColumns = (terminalColumns: number | undefined): number => {
-  return Math.max(
-    terminalColumns ?? DEFAULT_TERMINAL_COLUMNS,
-    MIN_LOG_VIEWER_WIDTH
-  );
-};
+const getFocusedLogColumns = (terminalColumns: number | undefined): number =>
+  Math.max(terminalColumns ?? DEFAULT_TERMINAL_COLUMNS, MIN_LOG_VIEWER_WIDTH);
 
-const getVerticalDivider = (rows: number): string => {
-  return Array.from({ length: Math.max(rows, 1) }, () => '│').join('\n');
-};
+const getVerticalDivider = (rows: number): string =>
+  Array.from({ length: Math.max(rows, 1) }, () => '│').join('\n');
 
 const getInitialOverlayKind = (
   allowStartupSelection: boolean | undefined,
@@ -328,9 +318,8 @@ const getInitialOverlayKind = (
   return 'service-picker';
 };
 
-const isEscapeKey = (input: string, key: { escape?: boolean }): boolean => {
-  return key.escape === true || input === '\u001B';
-};
+const isEscapeKey = (input: string, key: { escape?: boolean }): boolean =>
+  key.escape === true || input === '\u001B';
 
 const getFocusedHelpText = (openUrl?: string): string => {
   const controls = ['Esc dashboard', 'x actions'];
@@ -354,13 +343,11 @@ const getDashboardHelpText = (openUrl?: string): string => {
   return controls.join(', ');
 };
 
-const getStartupHelpText = (): string => {
-  return '↑/↓ move, Enter select, x actions, q quit';
-};
+const getStartupHelpText = (): string =>
+  '↑/↓ move, Enter select, x actions, q quit';
 
-const getActionHelpText = (): string => {
-  return '↑/↓ move, Enter run, hotkey run, r refresh, Esc close';
-};
+const getActionHelpText = (): string =>
+  '↑/↓ move, Enter run, hotkey run, r refresh, Esc close';
 
 const getActionSummaryText = (actions: ResolvedDevAction[]): string => {
   if (actions.length === 0) {
@@ -368,9 +355,9 @@ const getActionSummaryText = (actions: ResolvedDevAction[]): string => {
   }
 
   const availableCount = actions.filter((action) => action.available).length;
-  const availableHotkeys = actions.filter((action) => {
-    return action.available && action.hotkey;
-  });
+  const availableHotkeys = actions.filter(
+    (action) => action.available && action.hotkey
+  );
   const hotkeySuffix =
     availableHotkeys.length > 0
       ? ` Hotkeys: ${availableHotkeys
@@ -464,20 +451,23 @@ export function DevLauncherDashboardApp({
     []
   );
 
-  useEffect(() => {
-    return controller.subscribe(() => {
-      const nextSnapshot = controller.getSnapshot();
-      setSnapshot(nextSnapshot);
+  useEffect(
+    () =>
+      controller.subscribe(() => {
+        const nextSnapshot = controller.getSnapshot();
+        setSnapshot(nextSnapshot);
 
-      if (
-        nextSnapshot.managedServiceIds.some((serviceId) => {
-          return nextSnapshot.serviceStates[serviceId]?.status === 'failed';
-        })
-      ) {
-        setHasFailure(true);
-      }
-    });
-  }, [controller]);
+        if (
+          nextSnapshot.managedServiceIds.some(
+            (serviceId) =>
+              nextSnapshot.serviceStates[serviceId]?.status === 'failed'
+          )
+        ) {
+          setHasFailure(true);
+        }
+      }),
+    [controller]
+  );
 
   useEffect(() => {
     if (didApplyInitialSelection) {
@@ -558,9 +548,9 @@ export function DevLauncherDashboardApp({
       : null;
   const selectedAction = resolvedActions.at(overlay.cursor);
   const actionsByHotkey = new Map(
-    resolvedActions.flatMap((action) => {
-      return action.hotkey ? [[action.hotkey, action] as const] : [];
-    })
+    resolvedActions.flatMap((action) =>
+      action.hotkey ? [[action.hotkey, action] as const] : []
+    )
   );
 
   const runAction = (label: string, action: () => Promise<void>): void => {
@@ -693,7 +683,7 @@ export function DevLauncherDashboardApp({
         return;
       }
 
-      const execution = result.execution;
+      const { execution } = result;
       if (!execution) {
         setFlashMessage(`Action "${action.id}" did not produce a result.`);
         return;
@@ -985,16 +975,16 @@ export function DevLauncherDashboardApp({
         dashboardLogColumns,
         (entry) => formatViewerLine(manifest, entry, selectedRowId)
       );
-      setDashboardLogScrollOffset((currentOffset) => {
-        return Math.min(currentOffset + LOG_SCROLL_STEP, maxScrollOffset);
-      });
+      setDashboardLogScrollOffset((currentOffset) =>
+        Math.min(currentOffset + LOG_SCROLL_STEP, maxScrollOffset)
+      );
       return;
     }
 
     if (input === 'j') {
-      setDashboardLogScrollOffset((currentOffset) => {
-        return Math.max(currentOffset - LOG_SCROLL_STEP, 0);
-      });
+      setDashboardLogScrollOffset((currentOffset) =>
+        Math.max(currentOffset - LOG_SCROLL_STEP, 0)
+      );
     }
   });
 
@@ -1210,8 +1200,8 @@ export const startDevLauncherTuiSession = async (
       hasFailure: boolean;
     }) => Promise<void>;
   }
-): Promise<number> => {
-  return await new Promise<number>((resolve) => {
+): Promise<number> =>
+  await new Promise<number>((resolve) => {
     const controller = runtime.createController(manifest);
     render(
       <DevLauncherDashboardApp
@@ -1220,9 +1210,7 @@ export const startDevLauncherTuiSession = async (
         initialServiceIds={initialServiceIds}
         listActions={runtime.listActions}
         manifest={manifest}
-        onExitCode={(exitCode) => {
-          resolve(exitCode);
-        }}
+        onExitCode={resolve}
         onRequestExit={options?.onRequestExit}
         openExternalUrl={runtime.openExternalUrl}
         runDevAction={runtime.runDevAction}
@@ -1235,4 +1223,3 @@ export const startDevLauncherTuiSession = async (
       }
     );
   });
-};

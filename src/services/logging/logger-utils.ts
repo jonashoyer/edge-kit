@@ -5,14 +5,11 @@ export type SerializedLogMetadata = Exclude<
   undefined
 >;
 
-const isLoggablePrimitive = (value: unknown): value is LoggablePrimitive => {
-  return (
-    typeof value === 'string' ||
-    typeof value === 'number' ||
-    typeof value === 'boolean' ||
-    value == null
-  );
-};
+const isLoggablePrimitive = (value: unknown): value is LoggablePrimitive =>
+  typeof value === 'string' ||
+  typeof value === 'number' ||
+  typeof value === 'boolean' ||
+  value === null;
 
 const coercePrimitive = (value: unknown): LoggablePrimitive => {
   if (isLoggablePrimitive(value)) {
@@ -31,9 +28,10 @@ const coerceMetadataValue = (
 
   if (typeof value === 'object' && value) {
     return Object.fromEntries(
-      Object.entries(value).map(([key, nestedValue]) => {
-        return [key, coercePrimitive(nestedValue)];
-      })
+      Object.entries(value).map(([key, nestedValue]) => [
+        key,
+        coercePrimitive(nestedValue),
+      ])
     );
   }
 
@@ -48,9 +46,10 @@ export const normalizeOutputMetadata = (
   }
 
   return Object.fromEntries(
-    Object.entries(metadata).map(([key, value]) => {
-      return [key, coerceMetadataValue(value)];
-    })
+    Object.entries(metadata).map(([key, value]) => [
+      key,
+      coerceMetadataValue(value),
+    ])
   );
 };
 
@@ -63,9 +62,9 @@ export const safeJsonStringify = (value: unknown): string => {
   } catch (error) {
     try {
       return JSON.stringify({
+        fallback: String(value),
         serializationError:
           error instanceof Error ? error.message : String(error),
-        fallback: String(value),
       });
     } catch {
       return '{"serializationError":"Unable to serialize payload"}';

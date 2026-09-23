@@ -65,7 +65,7 @@ describe('AbstractKeyValueService.withCache', () => {
         calls += 1;
         return 'value';
       },
-      { ttlSeconds: 10, bypassCache: true }
+      { bypassCache: true, ttlSeconds: 10 }
     );
 
     expect(result).toBe('value');

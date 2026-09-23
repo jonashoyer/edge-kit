@@ -8,11 +8,15 @@ export interface ContextPageResult<TItem> {
 }
 
 export interface ContextProvider<TParams = unknown, TItem = unknown> {
-  readonly id: string;
+  // biome-ignore lint/style/useConsistentMethodSignatures: Bivariant methods support heterogeneous provider registries.
   fetch(params: TParams): Promise<ContextPageResult<TItem>>;
-  render(item: TItem): string;
-  renderPage?(result: ContextPageResult<TItem>): string;
+  // biome-ignore lint/style/useConsistentMethodSignatures: Bivariant methods support heterogeneous provider registries.
   getCacheKey?(params: TParams): string;
+  readonly id: string;
+  // biome-ignore lint/style/useConsistentMethodSignatures: Bivariant methods support heterogeneous provider registries.
+  render(item: TItem): string;
+  // biome-ignore lint/style/useConsistentMethodSignatures: Bivariant methods support heterogeneous provider registries.
+  renderPage?(result: ContextPageResult<TItem>): string;
 }
 
 export type ProviderRegistry = Record<string, ContextProvider>;
@@ -54,10 +58,10 @@ export type ContextRenderResult<
 };
 
 export interface ContextualizerOptions {
-  kv?: AbstractKeyValueService;
-  keyNamespace?: string;
-  ttlSeconds?: number;
   buildCacheKey?: (providerId: string, params: unknown) => string;
+  keyNamespace?: string;
+  kv?: AbstractKeyValueService;
+  ttlSeconds?: number;
 }
 
 export interface ContextFetchOptions {

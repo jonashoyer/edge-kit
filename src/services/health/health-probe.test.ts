@@ -16,7 +16,6 @@ describe('health probes', () => {
   it('captures successful probe results with latency and metadata', async () => {
     const result = await runHealthProbe({
       name: 'probe.ok',
-      timeoutMs: 1000,
       async run() {
         return {
           meta: {
@@ -24,6 +23,7 @@ describe('health probes', () => {
           },
         };
       },
+      timeoutMs: 1000,
     });
 
     expect(result.ok).toBe(true);
@@ -34,10 +34,10 @@ describe('health probes', () => {
   it('captures probe failures', async () => {
     const result = await runHealthProbe({
       name: 'probe.fail',
-      timeoutMs: 1000,
       async run() {
         throw new Error('boom');
       },
+      timeoutMs: 1000,
     });
 
     expect(result.ok).toBe(false);
@@ -47,10 +47,10 @@ describe('health probes', () => {
   it('converts timeouts into failed probe results', async () => {
     const result = await runHealthProbe({
       name: 'probe.timeout',
-      timeoutMs: 10,
       async run() {
         await new Promise((resolve) => setTimeout(resolve, 50));
       },
+      timeoutMs: 10,
     });
 
     expect(result.ok).toBe(false);
@@ -62,17 +62,15 @@ describe('health probes', () => {
       probes: [
         {
           name: 'probe.ok',
+          async run() {},
           timeoutMs: 1000,
-          async run() {
-            return;
-          },
         },
         {
           name: 'probe.fail',
-          timeoutMs: 1000,
           async run() {
             throw new Error('boom');
           },
+          timeoutMs: 1000,
         },
       ],
     });
@@ -84,16 +82,16 @@ describe('health probes', () => {
 
   it('creates AI provider probes with default validation', async () => {
     vi.mocked(generateText).mockResolvedValueOnce({
-      text: 'OK',
       response: {
         modelId: 'test-model',
       },
+      text: 'OK',
     } as never);
 
     const result = await runHealthProbe(
       createAiProviderProbe({
-        name: 'ai.ok',
         model: 'test-model' as unknown as LanguageModel,
+        name: 'ai.ok',
         timeoutMs: 1000,
       })
     );
@@ -107,16 +105,16 @@ describe('health probes', () => {
 
   it('fails AI provider probes on empty output', async () => {
     vi.mocked(generateText).mockResolvedValueOnce({
-      text: '   ',
       response: {
         modelId: 'test-model',
       },
+      text: '   ',
     } as never);
 
     const result = await runHealthProbe(
       createAiProviderProbe({
-        name: 'ai.empty',
         model: 'test-model' as unknown as LanguageModel,
+        name: 'ai.empty',
         timeoutMs: 1000,
       })
     );

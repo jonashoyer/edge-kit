@@ -8,8 +8,8 @@ import {
 } from './abstract-vector-database';
 
 interface UpstashVectorOptions extends VectorDatabaseOptions {
-  url: string;
   token: string;
+  url: string;
 }
 
 /**
@@ -18,15 +18,15 @@ interface UpstashVectorOptions extends VectorDatabaseOptions {
  * @deprecated Use `UpstashVector` from `@mastra/upstash` instead
  */
 export class UpstashVectorDatabase<
-  TMetadata = Record<string, any>,
+  TMetadata extends Record<string, unknown> = Record<string, unknown>,
 > extends AbstractVectorDatabase<TMetadata, number[]> {
-  private readonly client: Index;
+  private readonly client: Index<Record<string, unknown>>;
 
   constructor(options: UpstashVectorOptions) {
     super(options);
-    this.client = new Index({
-      url: options.url,
+    this.client = new Index<Record<string, unknown>>({
       token: options.token,
+      url: options.url,
     });
   }
 
@@ -37,8 +37,8 @@ export class UpstashVectorDatabase<
     await this.client.upsert(
       entries.map((entry) => ({
         id: entry.id,
+        metadata: entry.metadata,
         vector: entry.vector,
-        metadata: entry.metadata as any,
       })),
       { namespace }
     );
@@ -52,22 +52,29 @@ export class UpstashVectorDatabase<
     vector: number[],
     topK: number,
     opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
-  ): Promise<VectorEntry<number[], TMetadata, TIncludeVectors>[]> {
+  ): Promise<
+    VectorEntry<number[], TMetadata, TIncludeVectors, TIncludeMetadata>[]
+  > {
     const results = await this.client.query(
       {
-        vector,
-        topK,
-        includeVectors: opts?.includeVectors,
         includeMetadata: opts?.includeMetadata,
+        includeVectors: opts?.includeVectors,
+        topK,
+        vector,
       },
       { namespace }
     );
 
-    return results.map((result: any) => ({
-      id: result.id,
-      vector: opts?.includeVectors ? result.vector : undefined,
+    return results.map((result) => ({
+      id: String(result.id),
       metadata: opts?.includeMetadata ? result.metadata : undefined,
-    })) as VectorEntry<number[], TMetadata, TIncludeVectors>[];
+      vector: opts?.includeVectors ? result.vector : undefined,
+    })) as VectorEntry<
+      number[],
+      TMetadata,
+      TIncludeVectors,
+      TIncludeMetadata
+    >[];
   }
 
   async delete(namespace: string, ids: string[]): Promise<void> {
@@ -87,8 +94,8 @@ export class UpstashVectorDatabase<
     > | null)[]
   > {
     const results = await this.client.fetch(ids, {
-      includeVectors: opts?.includeVectors,
       includeMetadata: opts?.includeMetadata,
+      includeVectors: opts?.includeVectors,
       namespace,
     });
 
@@ -97,9 +104,9 @@ export class UpstashVectorDatabase<
         return null;
       }
       return {
-        id: e.id,
-        vector: opts?.includeVectors ? e.vector : undefined,
+        id: String(e.id),
         metadata: opts?.includeMetadata ? e.metadata : undefined,
+        vector: opts?.includeVectors ? e.vector : undefined,
       };
     }) as (VectorEntry<
       number[],

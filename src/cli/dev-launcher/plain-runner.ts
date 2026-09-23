@@ -123,9 +123,9 @@ export const runPlainDevSession = async (
     }
 
     if (
-      snapshot.managedServiceIds.some((serviceId) => {
-        return snapshot.serviceStates[serviceId]?.status === 'failed';
-      })
+      snapshot.managedServiceIds.some(
+        (serviceId) => snapshot.serviceStates[serviceId]?.status === 'failed'
+      )
     ) {
       exitCode = 1;
     }

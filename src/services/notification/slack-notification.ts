@@ -66,10 +66,10 @@ export class SlackNotificationService extends AbstractNotificationService {
     payload: { blocks?: unknown[]; text?: string }
   ): Promise<void> {
     await this.slackApi('chat.update', {
-      channel: channelId,
-      ts,
       blocks: payload.blocks,
+      channel: channelId,
       text: payload.text ?? ' ',
+      ts,
     });
   }
 
@@ -79,10 +79,10 @@ export class SlackNotificationService extends AbstractNotificationService {
     payload: { text?: string; blocks?: unknown[] }
   ): Promise<void> {
     await this.slackApi('chat.postEphemeral', {
-      channel: channelId,
-      user: userId,
-      text: payload.text ?? ' ',
       blocks: payload.blocks,
+      channel: channelId,
+      text: payload.text ?? ' ',
+      user: userId,
     });
   }
 
@@ -97,8 +97,8 @@ export class SlackNotificationService extends AbstractNotificationService {
   // Formatting helpers
   createButton(text: string, url: string): SlackBlockElement {
     return {
+      text: { text, type: 'plain_text' },
       type: 'button',
-      text: { type: 'plain_text', text },
       url,
     };
   }
@@ -109,17 +109,17 @@ export class SlackNotificationService extends AbstractNotificationService {
     value: string
   ): SlackBlockElement {
     return {
-      type: 'button',
-      text: { type: 'plain_text', text },
       action_id: actionId,
+      text: { text, type: 'plain_text' },
+      type: 'button',
       value,
     };
   }
 
   createSection(text: string): SlackBlock {
     return {
+      text: { text, type: 'mrkdwn' },
       type: 'section',
-      text: { type: 'mrkdwn', text },
     };
   }
 
@@ -132,7 +132,7 @@ export class SlackNotificationService extends AbstractNotificationService {
     if (isText(payload)) {
       return { channel, text: payload.text };
     }
-    return { channel, blocks: payload.blocks };
+    return { blocks: payload.blocks, channel };
   }
 
   private async slackApi<
@@ -142,18 +142,18 @@ export class SlackNotificationService extends AbstractNotificationService {
     body: Record<string, unknown>
   ): Promise<T> {
     const res = await fetchExt({
-      url: `https://slack.com/api/${method}`,
-      timeout: this.timeoutMs,
+      init: {
+        body: JSON.stringify(body),
+        headers: {
+          Authorization: `Bearer ${this.botToken}`,
+          'Content-type': 'application/json; charset=utf-8',
+        },
+        method: 'POST',
+      },
       retries: this.retries,
       retryDelay: this.retryDelay,
-      init: {
-        method: 'POST',
-        headers: {
-          'Content-type': 'application/json; charset=utf-8',
-          Authorization: `Bearer ${this.botToken}`,
-        },
-        body: JSON.stringify(body),
-      },
+      timeout: this.timeoutMs,
+      url: `https://slack.com/api/${method}`,
     });
 
     if (!res.ok) {
@@ -173,5 +173,6 @@ export class SlackNotificationService extends AbstractNotificationService {
 }
 
 function isText(payload: NotificationPayload): payload is TextNotification {
-  return (payload as TextNotification).text !== undefined;
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: Validate the runtime payload as well as its discriminant before treating it as text.
+  return 'text' in payload && payload.text !== undefined;
 }

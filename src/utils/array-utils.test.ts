@@ -17,20 +17,21 @@ describe('mapBy', () => {
 
   it('maps transformed values by a string key on the transformed value', () => {
     const rows = [
-      { id: 'a', organizationId: 'org-1', name: 'Ada' },
-      { id: 'b', organizationId: 'org-2', name: 'Linus' },
+      { id: 'a', name: 'Ada', organizationId: 'org-1' },
+      { id: 'b', name: 'Linus', organizationId: 'org-2' },
     ];
 
+    // biome-ignore assist/source/useSortedKeys: Infer the transform return type before contextually typing key.
     const mapped = mapBy(rows, {
       transform: (row) => ({
-        orgId: row.organizationId,
         label: `${row.name}:${row.id}`,
+        orgId: row.organizationId,
       }),
       key: (value) => value.orgId,
     });
 
-    expect(mapped.get('org-1')).toEqual({ orgId: 'org-1', label: 'Ada:a' });
-    expect(mapped.get('org-2')).toEqual({ orgId: 'org-2', label: 'Linus:b' });
+    expect(mapped.get('org-1')).toEqual({ label: 'Ada:a', orgId: 'org-1' });
+    expect(mapped.get('org-2')).toEqual({ label: 'Linus:b', orgId: 'org-2' });
   });
 
   it('filters source items before transforming values', () => {
@@ -41,6 +42,7 @@ describe('mapBy', () => {
     ];
     const transformedIds: string[] = [];
 
+    // biome-ignore assist/source/useSortedKeys: Infer the transform return type before contextually typing key.
     const mapped = mapBy(rows, {
       include: (row) => row.active,
       transform: (row) => {
@@ -110,32 +112,33 @@ describe('groupMapBy', () => {
 
   it('groups transformed values by a string key on the transformed value', () => {
     const rows = [
-      { id: 'a', organizationId: 'org-1', name: 'Ada' },
-      { id: 'b', organizationId: 'org-2', name: 'Linus' },
-      { id: 'c', organizationId: 'org-1', name: 'Grace' },
+      { id: 'a', name: 'Ada', organizationId: 'org-1' },
+      { id: 'b', name: 'Linus', organizationId: 'org-2' },
+      { id: 'c', name: 'Grace', organizationId: 'org-1' },
     ];
 
+    // biome-ignore assist/source/useSortedKeys: Infer the transform return type before contextually typing key.
     const grouped = groupMapBy(rows, {
       transform: (row) => ({
-        orgId: row.organizationId,
         label: `${row.name}:${row.id}`,
+        orgId: row.organizationId,
       }),
       key: (value) => value.orgId,
     });
 
     expect(grouped.get('org-1')).toEqual([
-      { orgId: 'org-1', label: 'Ada:a' },
-      { orgId: 'org-1', label: 'Grace:c' },
+      { label: 'Ada:a', orgId: 'org-1' },
+      { label: 'Grace:c', orgId: 'org-1' },
     ]);
     expect(grouped.get('org-2')).toEqual([
-      { orgId: 'org-2', label: 'Linus:b' },
+      { label: 'Linus:b', orgId: 'org-2' },
     ]);
   });
 
   it('returns an empty map for empty input', () => {
     const grouped = groupMapBy([], {
-      transform: (row: { groupId: string }) => row,
       key: (value) => value.groupId,
+      transform: (row: { groupId: string }) => row,
     });
 
     expect(grouped.size).toBe(0);
@@ -149,6 +152,7 @@ describe('groupMapBy', () => {
     ];
     const transformedIds: string[] = [];
 
+    // biome-ignore assist/source/useSortedKeys: Infer the transform return type before contextually typing key.
     const grouped = groupMapBy(rows, {
       include: (row) => row.active,
       transform: (row) => {

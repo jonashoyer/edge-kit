@@ -9,27 +9,25 @@ const logger = new ConsoleLogger();
 const searchSyncIngress = defineServiceIngress<{
   revision: string;
 }>({
-  name: 'search-sync',
   async execute(params) {
     await enqueueSearchSync(params.revision);
-    return undefined;
   },
+  name: 'search-sync',
 });
 
 const cacheRebuildIngress = defineServiceIngress<{
   scope: 'full' | 'partial';
 }>({
-  name: 'cache-rebuild',
   async execute(params) {
     await enqueueCacheRebuild(params.scope);
-    return undefined;
   },
+  name: 'cache-rebuild',
 });
 
 export const POST = createServiceIngressHandler({
   ingresses: [searchSyncIngress, cacheRebuildIngress],
-  secrets: [process.env.INTERNAL_SERVICE_INGRESS_SECRET!],
   logger,
+  secrets: [process.env.INTERNAL_SERVICE_INGRESS_SECRET!],
 });
 
 async function enqueueSearchSync(revision: string) {

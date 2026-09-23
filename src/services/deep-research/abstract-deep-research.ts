@@ -19,26 +19,26 @@ export type DeepResearchThinkingSummaries = 'auto' | 'none';
 export type DeepResearchVisualization = 'auto' | 'off';
 
 export interface DeepResearchAgentConfig {
+  collaborativePlanning?: boolean;
   thinkingSummaries?: DeepResearchThinkingSummaries;
   visualization?: DeepResearchVisualization;
-  collaborativePlanning?: boolean;
 }
 
 export interface DeepResearchTextInputPart {
-  type: 'text';
   text: string;
+  type: 'text';
 }
 
 export interface DeepResearchImageInputPart {
+  mimeType?: string;
   type: 'image';
   uri: string;
-  mimeType?: string;
 }
 
 export interface DeepResearchDocumentInputPart {
+  mimeType: string;
   type: 'document';
   uri: string;
-  mimeType: string;
 }
 
 export type DeepResearchInputPart =
@@ -61,16 +61,16 @@ export interface DeepResearchCodeExecutionTool {
 }
 
 export interface DeepResearchMcpServerTool {
-  type: 'mcp_server';
-  name?: string;
-  url?: string;
-  headers?: Record<string, string>;
   allowedTools?: string[];
+  headers?: Record<string, string>;
+  name?: string;
+  type: 'mcp_server';
+  url?: string;
 }
 
 export interface DeepResearchFileSearchTool {
-  type: 'file_search';
   fileSearchStoreNames: string[];
+  type: 'file_search';
 }
 
 export type DeepResearchTool =
@@ -81,12 +81,12 @@ export type DeepResearchTool =
   | DeepResearchFileSearchTool;
 
 export interface DeepResearchStartInput {
-  input: DeepResearchInput;
-  agentMode?: DeepResearchAgentMode;
   agentConfig?: DeepResearchAgentConfig;
-  tools?: DeepResearchTool[];
+  agentMode?: DeepResearchAgentMode;
+  input: DeepResearchInput;
   previousInteractionId?: string;
   providerOptions?: Record<string, unknown>;
+  tools?: DeepResearchTool[];
 }
 
 export interface DeepResearchGetInput {
@@ -99,22 +99,22 @@ export interface DeepResearchContinueInput
 }
 
 export interface DeepResearchWaitInput extends DeepResearchGetInput {
+  abortSignal?: AbortSignal;
   pollIntervalMs?: number;
   timeoutMs?: number;
-  abortSignal?: AbortSignal;
 }
 
 export interface DeepResearchMessageMetadata {
+  agent?: string;
   interactionId: string;
   provider: string;
-  status: DeepResearchStatus;
-  agent?: string;
   providerMetadata?: Record<string, unknown>;
+  status: DeepResearchStatus;
 }
 
 export interface DeepResearchDataParts {
-  [key: string]: Record<string, unknown>;
   'deep-research-output': Record<string, unknown>;
+  [key: string]: Record<string, unknown>;
 }
 
 export type DeepResearchTools = never;
@@ -131,20 +131,20 @@ export type DeepResearchMessage = UIMessage<
 >;
 
 export interface DeepResearchInteraction {
-  id: string;
-  status: DeepResearchStatus;
-  provider: string;
   agent?: string;
-  message: DeepResearchMessage;
-  text?: string;
   error?: DeepResearchProviderError;
+  id: string;
+  message: DeepResearchMessage;
+  provider: string;
   providerMetadata?: Record<string, unknown>;
+  status: DeepResearchStatus;
+  text?: string;
 }
 
 export interface DeepResearchProviderError {
   code?: string;
-  message: string;
   details?: Record<string, unknown>;
+  message: string;
 }
 
 export type DeepResearchErrorCode =
@@ -159,12 +159,13 @@ export class DeepResearchError extends CustomError<DeepResearchErrorCode> {
   readonly providerError: DeepResearchProviderError | undefined;
 
   constructor(args: {
+    cause?: unknown;
     code: DeepResearchErrorCode;
     message: string;
     interactionId?: string;
     providerError?: DeepResearchProviderError;
   }) {
-    super(args.message, args.code);
+    super(args.message, args.code, { cause: args.cause });
     this.interactionId = args.interactionId;
     this.providerError = args.providerError;
   }

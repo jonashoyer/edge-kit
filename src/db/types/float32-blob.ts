@@ -22,23 +22,6 @@ export const float32Blob = (dim: number) =>
     dataType() {
       return 'blob';
     },
-    toDriver(inputValue: Float32Array) {
-      let value = inputValue;
-      if (!(value instanceof Float32Array)) {
-        // Allow number[] at call-site for convenience
-        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
-        value = new Float32Array(value as unknown as number[]);
-      }
-
-      if (value.length !== dim) {
-        throw new Error(
-          `Embedding dimension mismatch: expected ${dim}, got ${value.length}`
-        );
-      }
-
-      // Convert Float32Array to Buffer without copying the underlying ArrayBuffer
-      return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
-    },
     fromDriver(value: Buffer | Uint8Array) {
       const buf = value instanceof Buffer ? value : Buffer.from(value);
 
@@ -65,5 +48,22 @@ export const float32Blob = (dim: number) =>
 
       // Return a fresh copy to avoid sharing the underlying buffer memory
       return new Float32Array(arr);
+    },
+    toDriver(inputValue: Float32Array) {
+      let value = inputValue;
+      if (!(value instanceof Float32Array)) {
+        // Allow number[] at call-site for convenience
+        // eslint-disable-next-line @typescript-eslint/consistent-type-assertions
+        value = new Float32Array(value as unknown as number[]);
+      }
+
+      if (value.length !== dim) {
+        throw new Error(
+          `Embedding dimension mismatch: expected ${dim}, got ${value.length}`
+        );
+      }
+
+      // Convert Float32Array to Buffer without copying the underlying ArrayBuffer
+      return Buffer.from(value.buffer, value.byteOffset, value.byteLength);
     },
   });

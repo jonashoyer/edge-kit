@@ -34,14 +34,15 @@ export class GitHubWebhookVerifier
     }
 
     const matched = await Promise.all(
-      this.secrets.map(async (secret) => {
-        return await verifyHmacHex({
-          value: request.rawBody,
-          secret,
-          algorithm: 'sha256',
-          expectedHex,
-        });
-      })
+      this.secrets.map(
+        async (secret) =>
+          await verifyHmacHex({
+            algorithm: 'sha256',
+            expectedHex,
+            secret,
+            value: request.rawBody,
+          })
+      )
     );
 
     if (!matched.some(Boolean)) {
@@ -56,17 +57,20 @@ export class GitHubWebhookVerifier
     let payload: GitHubWebhookPayload;
     try {
       payload = JSON.parse(request.rawBody) as GitHubWebhookPayload;
-    } catch {
-      throw new IncomingHookPayloadError('Invalid GitHub webhook JSON');
+    } catch (error) {
+      throw new IncomingHookPayloadError('Invalid GitHub webhook JSON', {
+        cause: error,
+      });
     }
 
     return {
-      provider: 'github',
-      event,
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: External requests can omit the delivery header.
       deliveryId: request.headers['x-github-delivery'] ?? null,
-      payload,
-      rawBody: request.rawBody,
+      event,
       headers: request.headers,
+      payload,
+      provider: 'github',
+      rawBody: request.rawBody,
     };
   }
 }

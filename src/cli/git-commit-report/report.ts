@@ -24,8 +24,8 @@ export interface GitCommitReportFileChange {
 export interface GitCommitReportEntry {
   additions: number;
   authorEmail: string;
-  authorName: string;
   authoredAt: string;
+  authorName: string;
   body?: string;
   deletions: number;
   fileChanges?: GitCommitReportFileChange[];
@@ -56,8 +56,8 @@ export interface GitCommitReportPullRequestReference {
 export interface GitCommitReportPullRequest
   extends GitCommitReportPullRequestReference {
   authorEmail: string;
-  authorName: string;
   authoredAt: string;
+  authorName: string;
   hash: string;
   shortHash: string;
 }
@@ -106,8 +106,8 @@ interface GitExecError extends Error {
 
 export const defaultGitCommitReportRuntime: GitCommitReportRuntime = {
   cwd: process.cwd(),
-  execFile: async (file, args, options) => {
-    return await new Promise<ExecFileResult>((resolve, reject) => {
+  execFile: async (file, args, options) =>
+    await new Promise<ExecFileResult>((resolve, reject) => {
       execFile(file, args, options, (error, stdout, stderr) => {
         if (error) {
           const gitError = error as GitExecError;
@@ -121,8 +121,7 @@ export const defaultGitCommitReportRuntime: GitCommitReportRuntime = {
           stdout,
         });
       });
-    });
-  },
+    }),
 };
 
 const ensureNonEmptyValue = (value: string | undefined, flagName: string) => {
@@ -141,9 +140,8 @@ const normalizeAuthorPatterns = (authors: string[]) => {
   return normalizedAuthors;
 };
 
-const buildAuthorPattern = (authors: string[]) => {
-  return authors.map((author) => `\\(${author}\\)`).join('\\|');
-};
+const buildAuthorPattern = (authors: string[]) =>
+  authors.map((author) => `\\(${author}\\)`).join('\\|');
 
 const parseStatValue = (value: string) => {
   if (value === '-') {
@@ -226,19 +224,18 @@ const parseShortStatSummary = (rawStats: string) => {
   };
 };
 
-const getMergeCommitTitle = (body: string) => {
-  return body
+const getMergeCommitTitle = (body: string) =>
+  body
     .split(NEWLINE_PATTERN)
     .map((line) => line.trim())
     .find((line) => line.length > 0);
-};
 
 const buildPullRequestUrl = (
   repository: string | undefined,
   pullRequestNumber: number
 ) => {
   if (!repository) {
-    return undefined;
+    return;
   }
 
   return `https://github.com/${repository}/pull/${pullRequestNumber}`;
@@ -315,30 +312,32 @@ const parseGitLogOutput = (
       ? undefined
       : parseShortStatSummary(rawStats);
     const additions =
-      fileChanges?.reduce((total, fileChange) => {
-        return total + (fileChange.additions ?? 0);
-      }, 0) ??
+      fileChanges?.reduce(
+        (total, fileChange) => total + (fileChange.additions ?? 0),
+        0
+      ) ??
       shortStatSummary?.additions ??
       0;
     const deletions =
-      fileChanges?.reduce((total, fileChange) => {
-        return total + (fileChange.deletions ?? 0);
-      }, 0) ??
+      fileChanges?.reduce(
+        (total, fileChange) => total + (fileChange.deletions ?? 0),
+        0
+      ) ??
       shortStatSummary?.deletions ??
       0;
 
     commits.push({
       additions,
       authorEmail,
-      authorName,
       authoredAt,
+      authorName,
       body: options.includeBody && body.length > 0 ? body : undefined,
       deletions,
       fileChanges,
       filesChanged: fileChanges?.length ?? shortStatSummary?.filesChanged ?? 0,
       hash,
-      shortHash,
       pullRequest,
+      shortHash,
       subject,
     });
   }
@@ -346,12 +345,11 @@ const parseGitLogOutput = (
   return commits;
 };
 
-const toIndentedBlock = (value: string) => {
-  return value
+const toIndentedBlock = (value: string) =>
+  value
     .split(NEWLINE_PATTERN)
     .map((line) => `  ${line}`)
     .join('\n');
-};
 
 const getPatchForCommit = async (
   hash: string,
@@ -384,9 +382,7 @@ const resolveGitHubRepository = async (
     const match = remote.match(GITHUB_REMOTE_PATTERN);
 
     return match?.[1];
-  } catch {
-    return undefined;
-  }
+  } catch {}
 };
 
 const collectPullRequests = (commits: GitCommitReportEntry[]) => {
@@ -399,8 +395,8 @@ const collectPullRequests = (commits: GitCommitReportEntry[]) => {
 
     pullRequests.set(commit.pullRequest.number, {
       authorEmail: commit.authorEmail,
-      authorName: commit.authorName,
       authoredAt: commit.authoredAt,
+      authorName: commit.authorName,
       hash: commit.hash,
       number: commit.pullRequest.number,
       shortHash: commit.shortHash,
@@ -431,7 +427,7 @@ const runGitCommand = async (
         ? error.stderr.trim()
         : '';
 
-    throw new Error(stderr.length > 0 ? stderr : message);
+    throw new Error(stderr.length > 0 ? stderr : message, { cause: error });
   }
 };
 
@@ -476,6 +472,7 @@ export const collectGitCommitReport = async (
 
   if (includePatch) {
     for (const commit of commits) {
+      // biome-ignore lint/performance/noAwaitInLoops: Bound git process and patch memory usage by reading one commit at a time.
       commit.patch = await getPatchForCommit(commit.hash, repoCwd, runtime);
     }
   }
@@ -594,6 +591,5 @@ export const formatGitCommitReport = (report: GitCommitReport): string => {
 /**
  * Formats a report as TOON for LLM-friendly CLI output.
  */
-export const formatGitCommitReportToon = (report: GitCommitReport): string => {
-  return encode(report);
-};
+export const formatGitCommitReportToon = (report: GitCommitReport): string =>
+  encode(report);

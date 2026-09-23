@@ -36,32 +36,32 @@ export class SlackWebhookAlertingService extends AbstractAlertingService {
       ? `[${this.environment.toUpperCase()}] `
       : '';
     const payload = {
-      channel: this.channel,
       attachments: [
         {
           color,
-          text: `${envPrefix}${message}`,
           fields: [
             ...(this.fields ?? []),
-            { title: 'Severity', value: options.severity, short: true },
-            { title: 'Source', value: options.source || 'N/A', short: true },
+            { short: true, title: 'Severity', value: options.severity },
+            { short: true, title: 'Source', value: options.source || 'N/A' },
             ...Object.entries(options.tags || {}).map(([key, value]) => ({
+              short: true,
               title: key,
               value,
-              short: true,
             })),
           ],
+          text: `${envPrefix}${message}`,
         },
       ],
+      channel: this.channel,
     };
 
     await fetchExt({
-      url: this.webhookUrl,
       init: {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
       },
+      url: this.webhookUrl,
     });
 
     this.logAlert(message, options);

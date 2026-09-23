@@ -469,10 +469,10 @@ export function mdSchema<T extends Record<string, unknown>>(
   config: MdSchemaConfig<T>
 ): MdSchema<T> {
   return {
-    config,
     build: (data: T | T[]) => mdBuild(data, config),
     buildXml: (data: T | T[], rootName?: string) =>
       mdBuildXml(data, config, rootName),
+    config,
   };
 }
 

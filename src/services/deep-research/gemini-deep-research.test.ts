@@ -4,8 +4,8 @@ import type { DeepResearchError } from './abstract-deep-research';
 import { GeminiDeepResearchService } from './gemini-deep-research';
 
 interface FetchCall {
-  url: string;
   init: RequestInit;
+  url: string;
 }
 
 const apiKey = 'test-gemini-key';
@@ -13,10 +13,10 @@ const baseUrl = 'https://gemini.test/v1beta';
 
 const jsonResponse = (body: Record<string, unknown>, status = 200): Response =>
   new Response(JSON.stringify(body), {
-    status,
     headers: {
       'content-type': 'application/json',
     },
+    status,
   });
 
 const parseBody = (call: FetchCall): Record<string, unknown> =>
@@ -41,8 +41,8 @@ describe('GeminiDeepResearchService', () => {
 
     globalThis.fetch = (async (input, init) => {
       calls.push({
-        url: String(input),
         init: init ?? {},
+        url: String(input),
       });
 
       const response = responses.shift();
@@ -61,26 +61,26 @@ describe('GeminiDeepResearchService', () => {
   it('starts stored background research with Gemini request fields', async () => {
     responses.push(
       jsonResponse({
+        agent: 'deep-research-preview-04-2026',
         id: 'interaction-1',
         status: 'in_progress',
-        agent: 'deep-research-preview-04-2026',
       })
     );
 
     const result = await createService().startResearch({
-      input: 'Research TypeScript queue patterns.',
       agentConfig: {
+        collaborativePlanning: true,
         thinkingSummaries: 'auto',
         visualization: 'auto',
-        collaborativePlanning: true,
       },
+      input: 'Research TypeScript queue patterns.',
     });
 
     expect(result).toMatchObject({
-      id: 'interaction-1',
-      status: 'in_progress',
-      provider: 'gemini',
       agent: 'deep-research-preview-04-2026',
+      id: 'interaction-1',
+      provider: 'gemini',
+      status: 'in_progress',
     });
     expect(calls).toHaveLength(1);
     expect(calls[0]?.url).toBe(`${baseUrl}/interactions`);
@@ -91,16 +91,16 @@ describe('GeminiDeepResearchService', () => {
 
     const body = parseBody(calls[0] as FetchCall);
     expect(body).toMatchObject({
-      input: 'Research TypeScript queue patterns.',
       agent: 'deep-research-preview-04-2026',
-      background: true,
-      store: true,
       agent_config: {
-        type: 'deep-research',
-        thinking_summaries: 'auto',
-        visualization: 'auto',
         collaborative_planning: true,
+        thinking_summaries: 'auto',
+        type: 'deep-research',
+        visualization: 'auto',
       },
+      background: true,
+      input: 'Research TypeScript queue patterns.',
+      store: true,
     });
   });
 
@@ -113,28 +113,28 @@ describe('GeminiDeepResearchService', () => {
     );
 
     await createService().continueResearch({
-      previousInteractionId: 'interaction-1',
       agentMode: 'max',
       input: [
-        { type: 'text', text: 'Compare this document to current news.' },
+        { text: 'Compare this document to current news.', type: 'text' },
         {
+          mimeType: 'application/pdf',
           type: 'document',
           uri: 'https://example.test/report.pdf',
-          mimeType: 'application/pdf',
         },
       ],
+      previousInteractionId: 'interaction-1',
       tools: [
         { type: 'google_search' },
         {
-          type: 'mcp_server',
-          name: 'Deployment Tracker',
-          url: 'https://mcp.example.test/mcp',
-          headers: { Authorization: 'Bearer token' },
           allowedTools: ['deployment_status'],
+          headers: { Authorization: 'Bearer token' },
+          name: 'Deployment Tracker',
+          type: 'mcp_server',
+          url: 'https://mcp.example.test/mcp',
         },
         {
-          type: 'file_search',
           fileSearchStoreNames: ['fileSearchStores/store-1'],
+          type: 'file_search',
         },
       ],
     });
@@ -145,25 +145,25 @@ describe('GeminiDeepResearchService', () => {
       previous_interaction_id: 'interaction-1',
     });
     expect(body.input).toEqual([
-      { type: 'text', text: 'Compare this document to current news.' },
+      { text: 'Compare this document to current news.', type: 'text' },
       {
+        mime_type: 'application/pdf',
         type: 'document',
         uri: 'https://example.test/report.pdf',
-        mime_type: 'application/pdf',
       },
     ]);
     expect(body.tools).toEqual([
       { type: 'google_search' },
       {
-        type: 'mcp_server',
-        name: 'Deployment Tracker',
-        url: 'https://mcp.example.test/mcp',
-        headers: { Authorization: 'Bearer token' },
         allowed_tools: ['deployment_status'],
+        headers: { Authorization: 'Bearer token' },
+        name: 'Deployment Tracker',
+        type: 'mcp_server',
+        url: 'https://mcp.example.test/mcp',
       },
       {
-        type: 'file_search',
         file_search_store_names: ['fileSearchStores/store-1'],
+        type: 'file_search',
       },
     ]);
   });
@@ -172,18 +172,18 @@ describe('GeminiDeepResearchService', () => {
     responses.push(
       jsonResponse({
         id: 'interaction-3',
-        status: 'completed',
         outputs: [
-          { type: 'text', text: 'Final report' },
-          { type: 'image', data: 'base64-data', mime_type: 'image/png' },
+          { text: 'Final report', type: 'text' },
+          { data: 'base64-data', mime_type: 'image/png', type: 'image' },
           {
-            type: 'source-url',
             id: 'source-1',
-            url: 'https://example.test/source',
             title: 'Example Source',
+            type: 'source-url',
+            url: 'https://example.test/source',
           },
-          { type: 'thought_summary', text: 'Checked source quality.' },
+          { text: 'Checked source quality.', type: 'thought_summary' },
         ],
+        status: 'completed',
       })
     );
 
@@ -194,57 +194,57 @@ describe('GeminiDeepResearchService', () => {
     expect(result.text).toBe('Final report');
     expect(result.message).toMatchObject({
       id: 'interaction-3',
-      role: 'assistant',
       metadata: {
         interactionId: 'interaction-3',
         provider: 'gemini',
         status: 'completed',
       },
+      role: 'assistant',
     });
     expect(result.message.parts).toEqual([
       {
-        type: 'text',
-        text: 'Final report',
         providerMetadata: {
-          gemini: { type: 'text', text: 'Final report' },
+          gemini: { text: 'Final report', type: 'text' },
         },
+        text: 'Final report',
+        type: 'text',
       },
       {
-        type: 'file',
         mediaType: 'image/png',
-        url: 'data:image/png;base64,base64-data',
         providerMetadata: {
           gemini: {
-            type: 'image',
             data: 'base64-data',
             mime_type: 'image/png',
+            type: 'image',
           },
         },
+        type: 'file',
+        url: 'data:image/png;base64,base64-data',
       },
       {
-        type: 'source-url',
-        sourceId: 'source-1',
-        url: 'https://example.test/source',
-        title: 'Example Source',
         providerMetadata: {
           gemini: {
-            type: 'source-url',
             id: 'source-1',
-            url: 'https://example.test/source',
             title: 'Example Source',
+            type: 'source-url',
+            url: 'https://example.test/source',
           },
         },
+        sourceId: 'source-1',
+        title: 'Example Source',
+        type: 'source-url',
+        url: 'https://example.test/source',
       },
       {
-        type: 'reasoning',
-        text: 'Checked source quality.',
-        state: 'done',
         providerMetadata: {
           gemini: {
-            type: 'thought_summary',
             text: 'Checked source quality.',
+            type: 'thought_summary',
           },
         },
+        state: 'done',
+        text: 'Checked source quality.',
+        type: 'reasoning',
       },
     ]);
   });
@@ -254,8 +254,8 @@ describe('GeminiDeepResearchService', () => {
       jsonResponse({ id: 'interaction-4', status: 'in_progress' }),
       jsonResponse({
         id: 'interaction-4',
+        outputs: [{ text: 'Done', type: 'text' }],
         status: 'completed',
-        outputs: [{ type: 'text', text: 'Done' }],
       })
     );
 
@@ -273,12 +273,12 @@ describe('GeminiDeepResearchService', () => {
   it('throws typed errors for failed research interactions', async () => {
     responses.push(
       jsonResponse({
-        id: 'interaction-5',
-        status: 'failed',
         error: {
           code: 'FAILED_PRECONDITION',
           message: 'Research failed',
         },
+        id: 'interaction-5',
+        status: 'failed',
       })
     );
 
@@ -319,11 +319,11 @@ describe('GeminiDeepResearchService', () => {
     responses.push(
       jsonResponse(
         {
-          id: 'interaction-7',
-          status: 'failed',
           error: {
             message: 'Invalid request',
           },
+          id: 'interaction-7',
+          status: 'failed',
         },
         400
       )

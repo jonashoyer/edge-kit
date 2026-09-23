@@ -5,20 +5,20 @@ import {
 } from 'ai';
 
 export interface AiDiagnosticIssue {
-  path: string;
-  message: string;
   expected?: string;
+  message: string;
+  path: string;
   received?: string;
 }
 
 export interface AiDiagnostics {
-  stage: string;
   errorType: string;
-  summary: string;
   finishReason?: string;
   issues: AiDiagnosticIssue[];
-  rawTextSnippet?: string;
   rawObjectPreview?: string;
+  rawTextSnippet?: string;
+  stage: string;
+  summary: string;
 }
 
 const MAX_TEXT_SNIPPET_LENGTH = 2000;
@@ -84,14 +84,14 @@ const toIssue = (value: unknown): AiDiagnosticIssue | null => {
 
   let message = 'Validation issue';
   if (typeof value.message === 'string') {
-    message = value.message;
+    ({ message } = value);
   } else if (typeof value.code === 'string') {
     message = value.code;
   }
 
   const issue: AiDiagnosticIssue = {
-    path: pathToString(value.path),
     message,
+    path: pathToString(value.path),
   };
 
   if ('expected' in value && value.expected !== undefined) {
@@ -182,8 +182,8 @@ const buildNoObjectGeneratedDiagnostics = (args: {
 
   if (JSONParseError.isInstance(error.cause)) {
     diagnostics.issues.push({
-      path: '$',
       message: error.cause.message,
+      path: '$',
     });
     return;
   }
@@ -191,8 +191,8 @@ const buildNoObjectGeneratedDiagnostics = (args: {
   if (TypeValidationError.isInstance(error.cause)) {
     const field = getTypeValidationField(error.cause);
     diagnostics.issues.push({
-      path: field ? `$.${field}` : '$',
       message: error.cause.message,
+      path: field ? `$.${field}` : '$',
     });
     diagnostics.issues.push(...getIssuesFromUnknown(error.cause.cause));
     return;
@@ -200,8 +200,8 @@ const buildNoObjectGeneratedDiagnostics = (args: {
 
   if (error.cause instanceof Error) {
     diagnostics.issues.push({
-      path: '$',
       message: error.cause.message,
+      path: '$',
     });
   }
 };
@@ -218,8 +218,8 @@ const buildJsonParseDiagnostics = (args: {
     MAX_TEXT_SNIPPET_LENGTH
   );
   diagnostics.issues.push({
-    path: '$',
     message: error.message,
+    path: '$',
   });
 };
 
@@ -231,8 +231,8 @@ const buildTypeValidationDiagnostics = (args: {
   const field = getTypeValidationField(error);
   diagnostics.errorType = error.name;
   diagnostics.issues.push({
-    path: field ? `$.${field}` : '$',
     message: error.message,
+    path: field ? `$.${field}` : '$',
   });
   diagnostics.issues.push(...getIssuesFromUnknown(error.cause));
 };
@@ -243,8 +243,8 @@ const buildGenericDiagnostics = (args: {
 }) => {
   const { diagnostics, error } = args;
   diagnostics.issues.push({
-    path: '$',
     message: getErrorMessage(error),
+    path: '$',
   });
 
   const cause =
@@ -266,11 +266,11 @@ export const buildAiDiagnosticsFromError = (args: {
   const { stage, error, summary, rawObject, rawText } = args;
 
   const diagnostics: AiDiagnostics = {
-    stage,
     errorType:
       error instanceof Error && error.name ? error.name : 'UnknownAiError',
-    summary,
     issues: [],
+    stage,
+    summary,
   };
 
   if (NoObjectGeneratedError.isInstance(error)) {

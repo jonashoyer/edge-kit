@@ -216,6 +216,7 @@ describe('formatGitCommitReport', () => {
     expect(
       formatGitCommitReport({
         commits: [],
+        pullRequests: [],
         query: {
           authors: [],
           cwd: '/repo',
@@ -225,7 +226,6 @@ describe('formatGitCommitReport', () => {
           since: '2026-03-17',
           until: '2026-03-19',
         },
-        pullRequests: [],
         totalAdditions: 0,
         totalCommits: 0,
         totalDeletions: 0,

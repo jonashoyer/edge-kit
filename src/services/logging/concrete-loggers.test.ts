@@ -1,24 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const ingestMock = vi.fn();
-vi.mock('@axiomhq/js', () => {
-  return {
-    Axiom: vi.fn(
-      class {
-        ingest = ingestMock;
-      }
-    ),
-  };
-});
+vi.mock('@axiomhq/js', () => ({
+  Axiom: vi.fn(
+    class {
+      ingest = ingestMock;
+    }
+  ),
+}));
 
 const pinoLevelMocks = {
   debug: vi.fn(),
+  error: vi.fn(),
   info: vi.fn(),
   warn: vi.fn(),
-  error: vi.fn(),
 };
 const pinoTransportMock = vi.fn(() => ({ mockedTransport: true }));
-const pinoMock = vi.fn(() => pinoLevelMocks);
+const pinoMock = vi.fn((..._args: unknown[]) => pinoLevelMocks);
 vi.mock('pino', () => {
   const fn = ((...args: unknown[]) => pinoMock(...args)) as unknown as {
     (...args: unknown[]): unknown;
@@ -71,8 +69,8 @@ describe('concrete loggers', () => {
     const { AxiomLogger } = await import('./axiom-logger');
 
     const loggerFromOptions = new AxiomLogger({
-      token: 'token-1',
       dataset: 'dataset-1',
+      token: 'token-1',
     });
     const loggerFromPositional = new AxiomLogger('token-2', 'dataset-2');
 

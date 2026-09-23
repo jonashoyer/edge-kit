@@ -1,18 +1,22 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { fnv1a64B64 } from '../crypto-utils';
-import { tpl } from './tpl';
+import { tpl, tpls } from './tpl';
 
 describe('Prompt', () => {
-  // biome-ignore lint/suspicious/noSkippedTests: This is currently expected to fail :/
-  it.skip('should be of type string', () => {
-    const a = tpl`Hello world`;
+  it('preserves metadata on the boxed tpl result', () => {
+    const result = tpl`Hello world`;
+    expect(typeof result).toBe('object');
+    expect(String(result)).toBe('Hello world');
+    expect(tpl.getHash(result)).toBe(fnv1a64B64('Hello world'));
+  });
+  it('returns a primitive string through tpls', () => {
+    const a = tpls`Hello world`;
     expect(typeof a).toBe('string');
   });
 
-  // biome-ignore lint/suspicious/noSkippedTests: This is currently expected to fail :/
-  it.skip('should be of zod string', () => {
-    const a = tpl`Hello world`;
+  it('returns a Zod-compatible string through tpls', () => {
+    const a = tpls`Hello world`;
     const parse = z.string().safeParse(a);
     expect(parse.success).toBe(true);
   });

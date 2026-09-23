@@ -32,8 +32,8 @@ export class SignedValueService extends AbstractSignedValue {
 
     return {
       algorithm: this.algorithm,
-      value,
       signature,
+      value,
     };
   }
 

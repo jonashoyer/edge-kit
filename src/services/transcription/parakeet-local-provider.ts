@@ -390,12 +390,14 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
     });
 
     processHandle.on('close', (code) => {
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: stderrTail is populated by asynchronous stderr events before close.
+      const stderr = this.stderrTail || 'no stderr output';
       this.rejectInflight(
         new ParakeetLocalTranscriptionError(
           'WORKER_FAILURE',
           code === 0
             ? 'Parakeet runtime exited cleanly.'
-            : `Parakeet runtime exited with code ${code}: ${this.stderrTail || 'no stderr output'}.`
+            : `Parakeet runtime exited with code ${code}: ${stderr}.`
         )
       );
       this.resetProcessState();
@@ -539,6 +541,7 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
   private consumeStdout(chunk: string): void {
     this.buffer += chunk;
 
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Process callbacks mutate stderr and buffers; parsing exits when no complete line remains.
     while (true) {
       const newlineIndex = this.buffer.indexOf('\n');
       if (newlineIndex < 0) {
@@ -555,7 +558,7 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
       let response: RuntimeResponse;
       try {
         response = JSON.parse(line) as RuntimeResponse;
-      } catch (_error) {
+      } catch {
         this.rejectInflight(
           new ParakeetLocalTranscriptionError(
             'INVALID_RESPONSE',
@@ -579,7 +582,7 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
         continue;
       }
 
-      const inflight = this.inflight;
+      const { inflight } = this;
       this.clearInflight();
       inflight.resolve(response);
     }
@@ -590,6 +593,7 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
     const failureReasons: string[] = [];
 
     for (const candidate of candidates) {
+      // biome-ignore lint/performance/noAwaitInLoops: Probe executable candidates in priority order and stop after the first usable runtime.
       const availability = await this.probePythonExecutable(candidate);
       if (!availability.executablePath) {
         if (availability.reason) {
@@ -646,8 +650,8 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
         await this.dependencies.access(executablePath);
       } catch {
         return {
-          reason: `missing executable at ${executablePath}`,
           executablePath: '',
+          reason: `missing executable at ${executablePath}`,
         };
       }
     }
@@ -668,8 +672,8 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
 
       processHandle.on('error', (error) => {
         resolve({
-          reason: `failed to launch ${executablePath}: ${error.message}`,
           executablePath: '',
+          reason: `failed to launch ${executablePath}: ${error.message}`,
         });
       });
 
@@ -680,11 +684,11 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
         }
 
         resolve({
+          executablePath: '',
           reason:
             stderr.trim().length > 0
               ? `${executablePath}: ${stderr.trim()}`
               : `${executablePath}: launcher probe exited with ${code}`,
-          executablePath: '',
         });
       });
     });
@@ -763,7 +767,7 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
       return;
     }
 
-    const inflight = this.inflight;
+    const { inflight } = this;
     this.clearInflight();
     inflight.reject(error);
   }
@@ -788,8 +792,8 @@ export class ParakeetLocalRuntime extends AbstractLocalTranscriptionRuntime {
 }
 
 export interface ParakeetTranscriptionProvider extends ProviderV3 {
-  transcription(modelId?: string): ParakeetLocalTranscriptionModel;
-  transcriptionModel(modelId?: string): ParakeetLocalTranscriptionModel;
+  transcription: (modelId?: string) => ParakeetLocalTranscriptionModel;
+  transcriptionModel: (modelId?: string) => ParakeetLocalTranscriptionModel;
 }
 
 /**
@@ -933,8 +937,8 @@ const mediaTypeToExtension = (mediaType: string): string => {
 
 const normalizeSegments = (
   segments: RuntimeSegment[]
-): LocalTranscriptionSegment[] => {
-  return segments
+): LocalTranscriptionSegment[] =>
+  segments
     .filter(
       (segment) =>
         typeof segment.text === 'string' &&
@@ -949,7 +953,6 @@ const normalizeSegments = (
     }))
     .filter((segment) => segment.text.length > 0)
     .sort((left, right) => left.startSecond - right.startSecond);
-};
 
 const getDurationInSeconds = (
   segments: LocalTranscriptionSegment[]

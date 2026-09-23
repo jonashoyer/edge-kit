@@ -151,8 +151,8 @@ interface ResolvedSkillSource {
 
 const createDefaultRuntime = (): SkillsCommandRuntime => ({
   cwd: process.cwd(),
-  execFile: async (file, args, options) => {
-    return await new Promise<ExecFileResult>((resolve, reject) => {
+  execFile: async (file, args, options) =>
+    await new Promise<ExecFileResult>((resolve, reject) => {
       execFile(file, args, options, (error, stdout, stderr) => {
         if (error) {
           const execError = error as ExecFileError;
@@ -166,8 +166,7 @@ const createDefaultRuntime = (): SkillsCommandRuntime => ({
           stdout,
         });
       });
-    });
-  },
+    }),
   homeDir: os.homedir(),
   stdout: process.stdout,
 });
@@ -221,9 +220,8 @@ const assertSafeSkillName = (name: string): string => {
   return normalizedName;
 };
 
-const getSkillsLockfilePath = (rootDirectoryPath: string): string => {
-  return path.join(rootDirectoryPath, LOCKFILE_NAME);
-};
+const getSkillsLockfilePath = (rootDirectoryPath: string): string =>
+  path.join(rootDirectoryPath, LOCKFILE_NAME);
 
 const isExistingDirectory = (directoryPath: string): boolean => {
   try {
@@ -241,12 +239,9 @@ const isExistingFile = (filePath: string): boolean => {
   }
 };
 
-const isSkillDirectory = (directoryPath: string): boolean => {
-  return (
-    isExistingDirectory(directoryPath) &&
-    isExistingFile(path.join(directoryPath, SKILL_FILE_NAME))
-  );
-};
+const isSkillDirectory = (directoryPath: string): boolean =>
+  isExistingDirectory(directoryPath) &&
+  isExistingFile(path.join(directoryPath, SKILL_FILE_NAME));
 
 const ensureSkillDirectory = (directoryPath: string, label: string): string => {
   const resolvedDirectoryPath = path.resolve(directoryPath);
@@ -265,8 +260,8 @@ const writeToon = (runtime: SkillsCommandRuntime, value: unknown): void => {
 
 const sortLockfileSkills = (
   skills: Record<string, SkillsLockfileEntry>
-): Record<string, SkillsLockfileEntry> => {
-  return Object.fromEntries(
+): Record<string, SkillsLockfileEntry> =>
+  Object.fromEntries(
     Object.entries(skills)
       .sort(([leftName], [rightName]) => leftName.localeCompare(rightName))
       .map(([name, entry]) => [
@@ -281,7 +276,6 @@ const sortLockfileSkills = (
         },
       ])
   );
-};
 
 export const readSkillsLockfile = (
   rootDirectoryPath: string
@@ -520,7 +514,7 @@ const runCommand = async (
         ? error.stderr.trim()
         : '';
 
-    throw new Error(stderr.length > 0 ? stderr : message);
+    throw new Error(stderr.length > 0 ? stderr : message, { cause: error });
   }
 };
 

@@ -23,8 +23,8 @@ class TestOcrService extends AbstractOcrService {
     }
 
     return {
-      provider: this.provider,
       markdown: 'ok',
+      provider: this.provider,
     };
   }
 }
@@ -37,8 +37,8 @@ describe('OcrServiceCollection', () => {
     ]);
 
     const result = await collection.extract({
-      url: 'https://example.com/file.pdf',
       contentType: 'application/pdf',
+      url: 'https://example.com/file.pdf',
     });
 
     expect(result.provider).toBe('second');
@@ -53,8 +53,8 @@ describe('OcrServiceCollection', () => {
 
     await expect(
       collection.extract({
-        url: 'https://example.com/file.pdf',
         contentType: 'application/pdf',
+        url: 'https://example.com/file.pdf',
       })
     ).rejects.toThrow('All OCR providers failed');
   });

@@ -6,8 +6,8 @@ export function minBigInt(...values: bigint[]): bigint {
   if (values.length === 0) {
     throw new Error('Cannot find minimum of an empty array.');
   }
-  let min = values[0];
-  for (let i = 1; i < values.length; i++) {
+  let [min] = values;
+  for (let i = 1; i < values.length; i += 1) {
     if (values[i] < min) {
       min = values[i];
     }
@@ -19,8 +19,8 @@ export function maxBigInt(...values: bigint[]): bigint {
   if (values.length === 0) {
     throw new Error('Cannot find maximum of an empty array.');
   }
-  let max = values[0];
-  for (let i = 1; i < values.length; i++) {
+  let [max] = values;
+  for (let i = 1; i < values.length; i += 1) {
     if (values[i] > max) {
       max = values[i];
     }

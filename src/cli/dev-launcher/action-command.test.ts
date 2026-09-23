@@ -1,6 +1,7 @@
 import { encode } from '@toon-format/toon';
 import { describe, expect, it, vi } from 'vitest';
 import {
+  type DevActionCommandRuntime,
   runDevActionListCommand,
   runDevActionRunCommand,
 } from './action-command';
@@ -58,7 +59,7 @@ const createRuntime = (overrides?: {
     actionRuntime: createActionRuntime(),
     listActions: vi.fn(async () => overrides?.actions ?? []),
     loadManifest: vi.fn(async () => createManifest()),
-    runAction: vi.fn(async () => {
+    runAction: vi.fn<DevActionCommandRuntime['runAction']>(async () => {
       if (overrides?.runActionError) {
         throw overrides.runActionError;
       }

@@ -53,8 +53,8 @@ export interface StorageAssetReadUrlResult<
   TMeta extends object = Record<string, unknown>,
 > {
   asset: StorageAssetRecord<TMeta>;
-  url: string;
   expiresAt: number;
+  url: string;
 }
 
 export interface StorageAssetOwnerRefInput extends StorageAssetOwnerRefScope {
@@ -69,21 +69,21 @@ export interface IssueStorageUploadInput<
   TUploadMeta extends object = Record<string, unknown>,
 > {
   id: string;
-  tenantId?: string | null;
-  objectKey?: string;
-  mimeType: string;
   maxBytes?: number;
-  minBytes?: number;
   meta?: TUploadMeta;
+  mimeType: string;
+  minBytes?: number;
+  objectKey?: string;
+  tenantId?: string | null;
 }
 
 export interface MarkStorageUploadCompletedInput<
   TUploadMeta extends object = Record<string, unknown>,
 > {
-  sizeBytes?: number | null;
   etag?: string | null;
-  uploadedAt?: Date;
   meta?: TUploadMeta;
+  sizeBytes?: number | null;
+  uploadedAt?: Date;
 }
 
 export interface FinalizeStorageUploadInput<
@@ -92,19 +92,19 @@ export interface FinalizeStorageUploadInput<
     UpsertStorageAssetInput<TMeta>,
     'id' | 'objectKey' | 'mimeType'
   > {
-  uploadId: string;
   assetId: string;
   syncRefs?: SyncStorageAssetRefsInput;
+  uploadId: string;
 }
 
 export interface IssuedStorageUploadResult<
   TUploadMeta extends object = Record<string, unknown>,
 > {
-  upload: StorageUploadLedgerRecord<TUploadMeta>;
-  url: string;
+  expiresAt: number;
   fields?: Record<string, string>;
   method: 'POST' | 'PUT';
-  expiresAt: number;
+  upload: StorageUploadLedgerRecord<TUploadMeta>;
+  url: string;
 }
 
 export interface FinalizedStorageUploadResult<
@@ -122,8 +122,8 @@ export interface PurgeExpiredUploadsOptions {
 }
 
 export interface PurgeOrphanedAssetsOptions {
-  olderThan?: Date;
   limit?: number;
+  olderThan?: Date;
 }
 
 export type StorageUploadKeyStrategy<
@@ -134,24 +134,22 @@ export interface StorageAssetInventoryServiceOptions<
   TMeta extends object = Record<string, unknown>,
   TUploadMeta extends object = Record<string, unknown>,
 > {
-  storage: AbstractStorage;
   assetCatalog: AbstractStorageAssetService<TMeta>;
   assetRefs?: AbstractStorageAssetRefService;
-  uploadLedger?: AbstractStorageUploadLedgerService<TUploadMeta>;
-  uploadKeyStrategy?: StorageUploadKeyStrategy<TUploadMeta>;
   previewMetadataBuilder?: StorageAssetPreviewMetadataBuilder<TMeta>;
+  storage: AbstractStorage;
+  uploadKeyStrategy?: StorageUploadKeyStrategy<TUploadMeta>;
+  uploadLedger?: AbstractStorageUploadLedgerService<TUploadMeta>;
 }
 
 const normalizeStorageWriteOptions = <
   TMeta extends object = Record<string, unknown>,
 >(
   input: WriteStorageAssetInput<TMeta>
-) => {
-  return {
-    ...input.storageWriteOptions,
-    contentType: input.storageWriteOptions?.contentType ?? input.mimeType,
-  };
-};
+) => ({
+  ...input.storageWriteOptions,
+  contentType: input.storageWriteOptions?.contentType ?? input.mimeType,
+});
 
 const normalizeRequiredString = (value: string, label: string): string => {
   const normalized = value.trim();
@@ -195,9 +193,8 @@ const mergeMeta = <TMeta extends object>(
   };
 };
 
-const isPreviewableMimeType = (mimeType: string): boolean => {
-  return mimeType.toLowerCase().startsWith('image/');
-};
+const isPreviewableMimeType = (mimeType: string): boolean =>
+  mimeType.toLowerCase().startsWith('image/');
 
 type ResolvePreviewMetadataInput<
   TMeta extends object = Record<string, unknown>,
@@ -268,26 +265,26 @@ export class StorageAssetInventoryService<
       normalizeStorageWriteOptions(input)
     );
     const meta = await this.resolvePreviewMetadata({
-      id: input.id,
-      objectKey: input.objectKey,
-      mimeType: input.mimeType,
-      source: input.source,
-      parentAssetId: input.parentAssetId ?? null,
-      tags: input.tags ?? [],
-      meta: input.meta,
       data: async () => await storageBodyToUint8Array(input.data),
+      id: input.id,
+      meta: input.meta,
+      mimeType: input.mimeType,
+      objectKey: input.objectKey,
+      parentAssetId: input.parentAssetId ?? null,
+      source: input.source,
+      tags: input.tags ?? [],
     });
 
     return await this.registerAsset({
-      id: input.id,
-      objectKey: input.objectKey,
-      mimeType: input.mimeType,
-      source: input.source,
-      parentAssetId: input.parentAssetId,
-      orphanedAt: input.orphanedAt,
-      tags: input.tags,
-      meta,
       createdAt: input.createdAt,
+      id: input.id,
+      meta,
+      mimeType: input.mimeType,
+      objectKey: input.objectKey,
+      orphanedAt: input.orphanedAt,
+      parentAssetId: input.parentAssetId,
+      source: input.source,
+      tags: input.tags,
       updatedAt: input.updatedAt,
     });
   }
@@ -312,8 +309,8 @@ export class StorageAssetInventoryService<
 
     return {
       asset,
-      url,
       expiresAt,
+      url,
     };
   }
 
@@ -346,19 +343,19 @@ export class StorageAssetInventoryService<
       minBytes: input.minBytes,
     });
     const upload = await uploadLedger.upsert({
-      id: input.id,
-      tenantId: existing?.tenantId ?? input.tenantId,
-      objectKey,
-      mimeType,
-      status: 'ISSUED',
-      sizeBytes: null,
+      consumedAt: null,
       etag: null,
       expiresAt: new Date(presigned.expiresAt),
+      id: input.id,
       issuedAt: new Date(),
       meta: existing ? mergeMeta(existing.meta, input.meta) : input.meta,
-      uploadedAt: null,
-      consumedAt: null,
+      mimeType,
+      objectKey,
       purgedAt: null,
+      sizeBytes: null,
+      status: 'ISSUED',
+      tenantId: existing?.tenantId ?? input.tenantId,
+      uploadedAt: null,
     });
 
     return {
@@ -383,11 +380,11 @@ export class StorageAssetInventoryService<
     }
 
     return await uploadLedger.update(uploadId, {
-      status: 'UPLOADED',
-      sizeBytes: input.sizeBytes ?? existing.sizeBytes,
       etag: input.etag ?? existing.etag,
-      uploadedAt: input.uploadedAt ?? new Date(),
       meta: mergeMeta(existing.meta, input.meta),
+      sizeBytes: input.sizeBytes ?? existing.sizeBytes,
+      status: 'UPLOADED',
+      uploadedAt: input.uploadedAt ?? new Date(),
     });
   }
 
@@ -419,26 +416,26 @@ export class StorageAssetInventoryService<
     const mimeType =
       upload.mimeType || metadata.contentType || 'application/octet-stream';
     const meta = await this.resolvePreviewMetadata({
-      id: input.assetId,
-      objectKey: upload.objectKey,
-      mimeType,
-      source: input.source,
-      parentAssetId: input.parentAssetId ?? null,
-      tags: input.tags ?? [],
-      meta: input.meta,
       data: async () =>
         new Uint8Array(await this.storage.read(upload.objectKey)),
+      id: input.assetId,
+      meta: input.meta,
+      mimeType,
+      objectKey: upload.objectKey,
+      parentAssetId: input.parentAssetId ?? null,
+      source: input.source,
+      tags: input.tags ?? [],
     });
     await this.registerAsset({
-      id: input.assetId,
-      objectKey: upload.objectKey,
-      mimeType,
-      source: input.source,
-      parentAssetId: input.parentAssetId,
-      orphanedAt: new Date(),
-      tags: input.tags,
-      meta,
       createdAt: input.createdAt,
+      id: input.assetId,
+      meta,
+      mimeType,
+      objectKey: upload.objectKey,
+      orphanedAt: new Date(),
+      parentAssetId: input.parentAssetId,
+      source: input.source,
+      tags: input.tags,
       updatedAt: input.updatedAt,
     });
 
@@ -449,12 +446,12 @@ export class StorageAssetInventoryService<
     const asset = await this.require(input.assetId);
 
     const consumedUpload = await uploadLedger.update(input.uploadId, {
-      status: 'CONSUMED',
-      sizeBytes: metadata.contentLength,
-      etag: metadata.etag ?? upload.etag,
-      uploadedAt: upload.uploadedAt ?? new Date(),
       consumedAt: new Date(),
+      etag: metadata.etag ?? upload.etag,
       purgedAt: null,
+      sizeBytes: metadata.contentLength,
+      status: 'CONSUMED',
+      uploadedAt: upload.uploadedAt ?? new Date(),
     });
 
     return {
@@ -477,10 +474,11 @@ export class StorageAssetInventoryService<
 
     for (const assetId of desiredAssetIds) {
       if (!existingIds.has(assetId)) {
+        // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
         await assetRefs.upsert({
           assetId,
-          ownerType: input.ownerType,
           ownerId: input.ownerId,
+          ownerType: input.ownerType,
           tenantId: input.tenantId,
         });
       }
@@ -488,10 +486,11 @@ export class StorageAssetInventoryService<
 
     for (const ref of existingRefs) {
       if (!desiredIds.has(ref.assetId)) {
+        // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
         await assetRefs.delete({
           assetId: ref.assetId,
-          ownerType: input.ownerType,
           ownerId: input.ownerId,
+          ownerType: input.ownerType,
           tenantId: input.tenantId,
         });
       }
@@ -510,8 +509,8 @@ export class StorageAssetInventoryService<
 
     const ref = await assetRefs.upsert({
       assetId: input.assetId,
-      ownerType: input.ownerType,
       ownerId: input.ownerId,
+      ownerType: input.ownerType,
       tenantId: input.tenantId,
     });
 
@@ -523,7 +522,7 @@ export class StorageAssetInventoryService<
   private async resolvePreviewMetadata(
     context: ResolvePreviewMetadataInput<TMeta>
   ): Promise<TMeta | undefined> {
-    const previewMetadataBuilder = this.previewMetadataBuilder;
+    const { previewMetadataBuilder } = this;
 
     if (
       !(previewMetadataBuilder && this.shouldBuildPreview(context.mimeType))
@@ -556,8 +555,8 @@ export class StorageAssetInventoryService<
 
     await assetRefs.delete({
       assetId: input.assetId,
-      ownerType: input.ownerType,
       ownerId: input.ownerId,
+      ownerType: input.ownerType,
       tenantId: input.tenantId,
     });
 
@@ -577,13 +576,14 @@ export class StorageAssetInventoryService<
     });
 
     for (const upload of uploads) {
+      // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
       if (await this.storage.exists(upload.objectKey)) {
         await this.storage.delete(upload.objectKey);
       }
 
       await uploadLedger.update(upload.id, {
-        status: 'PURGED',
         purgedAt: new Date(),
+        status: 'PURGED',
       });
     }
 
@@ -594,12 +594,13 @@ export class StorageAssetInventoryService<
     options: PurgeOrphanedAssetsOptions = {}
   ): Promise<StorageAssetRecord<TMeta>[]> {
     const roots = await this.assetCatalog.listOrphanedRoots({
-      olderThan: options.olderThan,
       limit: options.limit,
+      olderThan: options.olderThan,
     });
     const purgedRoots: StorageAssetRecord<TMeta>[] = [];
 
     for (const root of roots) {
+      // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
       const family = await this.resolveAssetFamily(root.id);
       const familyIds = family.map((asset) => asset.id);
 
@@ -619,6 +620,7 @@ export class StorageAssetInventoryService<
       }
 
       for (const asset of [...family].reverse()) {
+        // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
         await this.assetCatalog.delete(asset.id);
       }
 
@@ -666,6 +668,7 @@ export class StorageAssetInventoryService<
     }
 
     for (const asset of [...batch].reverse()) {
+      // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
       await this.assetCatalog.delete(asset.id);
     }
   }
@@ -767,6 +770,7 @@ export class StorageAssetInventoryService<
       const parentIds = [...queue];
       queue.length = 0;
 
+      // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
       const children = await this.assetCatalog.listByParentIds(parentIds);
 
       for (const child of children) {
@@ -790,6 +794,7 @@ export class StorageAssetInventoryService<
 
     for (const rawAssetId of assetIds) {
       const assetId = normalizeRequiredString(rawAssetId, 'assetId');
+      // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
       const root = await this.assetCatalog.resolveRoot(assetId);
 
       if (!root) {
@@ -804,6 +809,7 @@ export class StorageAssetInventoryService<
     }
 
     for (const rootId of rootIds) {
+      // biome-ignore lint/performance/noAwaitInLoops: Preserve catalog and storage mutation order, including child-before-parent deletion and dependent tree traversal.
       const family = await this.resolveAssetFamily(rootId);
       const familyIds = family.map((asset) => asset.id);
       const refs = await this.assetRefs.listByAssetIds(familyIds);

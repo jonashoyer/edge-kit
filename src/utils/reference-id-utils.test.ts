@@ -79,7 +79,7 @@ describe('getIndexReferenceId', () => {
 
   it('should produce unique IDs for all valid indices', () => {
     const ids = new Set<string>();
-    for (let i = MIN_INDEX; i <= MAX_INDEX; i++) {
+    for (let i = MIN_INDEX; i <= MAX_INDEX; i += 1) {
       ids.add(getIndexReferenceId(i));
     }
     expect(ids.size).toBe(TOTAL_IDS);
@@ -145,7 +145,7 @@ describe('getIndexFromReferenceId', () => {
 
   it('should correctly convert all valid reference IDs back to indices', () => {
     const indices = new Set<number>();
-    for (let i = MIN_INDEX; i <= MAX_INDEX; i++) {
+    for (let i = MIN_INDEX; i <= MAX_INDEX; i += 1) {
       const refId = getIndexReferenceId(i);
       const index = getIndexFromReferenceId(refId);
       indices.add(index);
@@ -156,7 +156,7 @@ describe('getIndexFromReferenceId', () => {
 
 describe('bidirectional mapping (getIndexReferenceId + getIndexFromReferenceId)', () => {
   it('should maintain perfect bijection - every index maps to exactly one ID and back', () => {
-    for (let i = MIN_INDEX; i <= MAX_INDEX; i++) {
+    for (let i = MIN_INDEX; i <= MAX_INDEX; i += 1) {
       const refId = getIndexReferenceId(i);
       const recovered = getIndexFromReferenceId(refId);
       expect(recovered).toBe(i);

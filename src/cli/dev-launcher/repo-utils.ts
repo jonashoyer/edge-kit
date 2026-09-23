@@ -22,19 +22,14 @@ const WORKSPACE_ITEM_PATTERN = /^\s*-\s*(.+?)\s*$/u;
 const TRAILING_SLASHES_PATTERN = /\/+$/;
 const WINDOWS_PATH_SEPARATOR_PATTERN = /\\/g;
 
-const normalizeRelativePath = (value: string): string => {
-  return value
+const normalizeRelativePath = (value: string): string =>
+  value
     .replace(WINDOWS_PATH_SEPARATOR_PATTERN, '/')
     .replace(LEADING_CURRENT_DIRECTORY_PATTERN, '')
     .replace(LEADING_SLASHES_PATTERN, '');
-};
 
-const normalizeWorkspacePattern = (pattern: string): string => {
-  return normalizeRelativePath(pattern.trim()).replace(
-    TRAILING_SLASHES_PATTERN,
-    ''
-  );
-};
+const normalizeWorkspacePattern = (pattern: string): string =>
+  normalizeRelativePath(pattern.trim()).replace(TRAILING_SLASHES_PATTERN, '');
 
 const stripQuotedPattern = (value: string): string => {
   const trimmedValue = value.trim();
@@ -77,9 +72,8 @@ const collectPackageDirectories = (
   return directories;
 };
 
-const readJsonFile = <T>(filePath: string): T => {
-  return JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
-};
+const readJsonFile = <T>(filePath: string): T =>
+  JSON.parse(fs.readFileSync(filePath, 'utf-8')) as T;
 
 const readWorkspacePatterns = (workspaceFilePath: string): string[] => {
   const content = fs.readFileSync(workspaceFilePath, 'utf-8');
@@ -129,17 +123,17 @@ const matchesWorkspacePackagePattern = (
     .filter((pattern) => stripQuotedPattern(pattern).startsWith('!'))
     .map((pattern) => normalizeWorkspacePattern(pattern.slice(1)));
 
-  const isIncluded = includePatterns.some((pattern) => {
-    return path.matchesGlob(normalizedRelativeDirectoryPath, pattern);
-  });
+  const isIncluded = includePatterns.some((pattern) =>
+    path.matchesGlob(normalizedRelativeDirectoryPath, pattern)
+  );
 
   if (!isIncluded) {
     return false;
   }
 
-  return !excludePatterns.some((pattern) => {
-    return path.matchesGlob(normalizedRelativeDirectoryPath, pattern);
-  });
+  return !excludePatterns.some((pattern) =>
+    path.matchesGlob(normalizedRelativeDirectoryPath, pattern)
+  );
 };
 
 /**
@@ -159,6 +153,7 @@ export const resolveDevLauncherConfigPath = (options?: {
 
   let currentDir = cwd;
 
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: Walk ancestors until the filesystem root terminates the search.
   while (true) {
     for (const fileName of CONFIG_FILE_NAMES) {
       const candidatePath = path.join(currentDir, fileName);
@@ -182,18 +177,15 @@ export const resolveDevLauncherConfigPath = (options?: {
 /**
  * Resolves the root directory that owns the dev-launcher manifest.
  */
-export const getRepoRootFromConfigPath = (configPath: string): string => {
-  return path.dirname(path.resolve(configPath));
-};
+export const getRepoRootFromConfigPath = (configPath: string): string =>
+  path.dirname(path.resolve(configPath));
 
 /**
  * Reads a package.json file and returns its parsed contents.
  */
 export const readPackageJson = <T extends { name?: string }>(
   packageJsonPath: string
-): T => {
-  return readJsonFile<T>(packageJsonPath);
-};
+): T => readJsonFile<T>(packageJsonPath);
 
 /**
  * Reads the pnpm workspace file at the repo root and returns the configured

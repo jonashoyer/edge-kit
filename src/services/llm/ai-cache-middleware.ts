@@ -43,13 +43,13 @@ type CacheKeyInput =
 
 export interface AiCacheOptions {
   /**
+   * Override the cache key builder for custom key strategies.
+   */
+  buildCacheKey?: (input: CacheKeyInput) => string;
+  /**
    * Namespace for all cache keys. Default: "ai:cache".
    */
   keyNamespace?: string;
-  /**
-   * TTL in seconds for cached entries. If omitted, entries do not expire.
-   */
-  ttlSeconds?: number;
   /**
    * Optional persistent cache store (KV, Redis, etc.).
    */
@@ -59,13 +59,13 @@ export interface AiCacheOptions {
    */
   logger?: AbstractLogger;
   /**
-   * Override the cache key builder for custom key strategies.
-   */
-  buildCacheKey?: (input: CacheKeyInput) => string;
-  /**
    * Decide whether to cache a given request.
    */
   shouldCache?: (input: CacheKeyInput) => boolean;
+  /**
+   * TTL in seconds for cached entries. If omitted, entries do not expire.
+   */
+  ttlSeconds?: number;
 }
 
 const DEFAULT_KEY_NAMESPACE = 'ai:cache';
@@ -158,8 +158,15 @@ const sanitizeForCache = (value: unknown, seen: WeakSet<object>): unknown => {
     return Array.from(new Uint8Array(value));
   }
 
+  return sanitizeCacheCollection(value, seen);
+};
+
+const sanitizeCacheCollection = (
+  value: unknown,
+  seen: WeakSet<object>
+): unknown => {
   if (value instanceof Map) {
-    const entries: Array<[unknown, unknown]> = [];
+    const entries: [unknown, unknown][] = [];
     for (const [key, entry] of value.entries()) {
       entries.push([
         sanitizeForCache(key, seen),
@@ -170,7 +177,7 @@ const sanitizeForCache = (value: unknown, seen: WeakSet<object>): unknown => {
   }
 
   if (value instanceof Set) {
-    const entries: Array<unknown> = [];
+    const entries: unknown[] = [];
     for (const entry of value.values()) {
       entries.push(sanitizeForCache(entry, seen));
     }
@@ -182,7 +189,7 @@ const sanitizeForCache = (value: unknown, seen: WeakSet<object>): unknown => {
   }
 
   if (Array.isArray(value)) {
-    const items: Array<unknown> = [];
+    const items: unknown[] = [];
     for (const entry of value) {
       items.push(sanitizeForCache(entry, seen));
     }
@@ -227,8 +234,6 @@ const toDate = (value: unknown): Date | undefined => {
       return date;
     }
   }
-
-  return;
 };
 
 const normalizeGenerateResult = (result: GenerateResult): GenerateResult => {

@@ -4,9 +4,8 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { getPnpmInstallState } from './package-state';
 
-const createTempDir = (): string => {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-package-state-'));
-};
+const createTempDir = (): string =>
+  fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-package-state-'));
 
 const writeFile = (filePath: string, content: string): void => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });

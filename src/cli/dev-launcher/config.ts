@@ -11,8 +11,6 @@ import {
   resolveDevLauncherConfigPath,
 } from './repo-utils';
 
-export { resolveDevLauncherConfigPath } from './repo-utils';
-
 import type {
   DevLauncherManifest,
   DevLauncherServiceDefinition,
@@ -60,9 +58,8 @@ const RESERVED_ACTION_HOTKEYS = new Set([
   'x',
 ]);
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null;
-};
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
 const isSupportedOpenUrl = (value: string): boolean => {
   try {
@@ -126,12 +123,12 @@ const validateDevActionDefinition = (
     );
   }
 
-  const label = value.label;
+  const { label } = value;
   if (typeof label !== 'string' || label.trim().length === 0) {
     throw new Error(`Action "${actionId}" must define a non-empty label.`);
   }
 
-  const impactPolicy = value.impactPolicy;
+  const { impactPolicy } = value;
   if (
     typeof impactPolicy !== 'string' ||
     !IMPACT_POLICIES.has(impactPolicy as DevActionImpactPolicy)
@@ -207,7 +204,7 @@ const validateActionsById = (
       value[actionId],
       index
     );
-    const hotkey = actionDefinition.hotkey;
+    const { hotkey } = actionDefinition;
     if (hotkey) {
       const existingOwner = hotkeyOwners.get(hotkey);
       if (existingOwner) {
@@ -325,7 +322,9 @@ const loadImportedDevLauncherConfigModule = async (
     importedModule = await import(moduleUrl);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Failed to load dev config "${configPath}": ${message}`);
+    throw new Error(`Failed to load dev config "${configPath}": ${message}`, {
+      cause: error,
+    });
   }
 
   return {
@@ -383,9 +382,8 @@ export const defineDevLauncherConfig = (
  */
 export const loadDevLauncherConfig = async (
   options?: DevLauncherConfigLoadOptions
-): Promise<LoadedDevLauncherManifest> => {
-  return normalizeLoadedDevLauncherConfig(options);
-};
+): Promise<LoadedDevLauncherManifest> =>
+  normalizeLoadedDevLauncherConfig(options);
 
 /**
  * Compatibility alias for callers that think in terms of manifests.

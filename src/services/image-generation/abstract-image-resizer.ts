@@ -2,23 +2,23 @@ import type { GeneratedImageAsset } from './abstract-image-generator';
 import type { ImageGenerationVariantProducer } from './image-generation-service';
 
 export interface ImageResizeRequest {
-  image: GeneratedImageAsset;
-  width?: number;
-  height?: number;
-  format?: string;
   fit?: 'contain' | 'cover' | 'fill' | 'inside' | 'outside';
+  format?: string;
+  height?: number;
+  image: GeneratedImageAsset;
   quality?: number;
+  width?: number;
 }
 
 export interface ImageResizeVariantDefinition {
-  name: string;
-  width?: number;
-  height?: number;
-  format?: string;
   fit?: 'contain' | 'cover' | 'fill' | 'inside' | 'outside';
+  format?: string;
+  height?: number;
+  meta?: Record<string, unknown>;
+  name: string;
   quality?: number;
   tags?: string[];
-  meta?: Record<string, unknown>;
+  width?: number;
 }
 
 export abstract class AbstractImageResizer {
@@ -30,31 +30,30 @@ export const createImageResizeVariantProducers = <
 >(
   resizer: AbstractImageResizer,
   variants: ImageResizeVariantDefinition[]
-): ImageGenerationVariantProducer<TRequest>[] => {
-  return variants.map((variant) => ({
+): ImageGenerationVariantProducer<TRequest>[] =>
+  variants.map((variant) => ({
     name: variant.name,
     async produce({ output }) {
       const image = await resizer.resize({
-        image: output.image,
-        width: variant.width,
-        height: variant.height,
-        format: variant.format,
         fit: variant.fit,
+        format: variant.format,
+        height: variant.height,
+        image: output.image,
         quality: variant.quality,
+        width: variant.width,
       });
 
       return {
         image,
-        tags: variant.tags,
         meta: {
-          width: variant.width,
-          height: variant.height,
-          format: variant.format,
           fit: variant.fit,
+          format: variant.format,
+          height: variant.height,
           quality: variant.quality,
+          width: variant.width,
           ...(variant.meta ?? {}),
         },
+        tags: variant.tags,
       };
     },
   }));
-};

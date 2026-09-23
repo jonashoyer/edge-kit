@@ -139,6 +139,15 @@ describe('listDevActions', () => {
   it('shows availability and reasons for configured actions', async () => {
     const manifest = createManifest();
     const config = createActionsConfig({
+      'db-push': {
+        impactPolicy: 'stop-selected',
+        isAvailable: async () => ({
+          available: false,
+          reason: 'Database is already current.',
+        }),
+        label: 'Push database',
+        async run() {},
+      },
       'install-deps': {
         hotkey: 'i',
         impactPolicy: 'stop-all',
@@ -150,16 +159,9 @@ describe('listDevActions', () => {
         async run() {},
         suggestInDev: true,
       },
-      'db-push': {
-        impactPolicy: 'stop-selected',
-        isAvailable: async () => ({
-          available: false,
-          reason: 'Database is already current.',
-        }),
-        label: 'Push database',
-        async run() {},
-      },
     });
+
+    config.actionIdsInOrder = ['install-deps', 'db-push'];
 
     const actions = await listDevActions(
       manifest,
@@ -397,19 +399,6 @@ describe('getDevPreflightActionSuggestions', () => {
     const manifest = createManifest();
     const checkedActionIds: string[] = [];
     const config = createActionsConfig({
-      'install-deps': {
-        impactPolicy: 'stop-all',
-        isAvailable: async () => {
-          checkedActionIds.push('install-deps');
-          return {
-            available: true,
-            reason: 'pnpm-lock.yaml is newer than node_modules/.modules.yaml.',
-          };
-        },
-        label: 'Install dependencies',
-        async run() {},
-        suggestInDev: true,
-      },
       'db-push': {
         impactPolicy: 'stop-selected',
         isAvailable: async () => {
@@ -423,6 +412,19 @@ describe('getDevPreflightActionSuggestions', () => {
         async run() {},
         suggestInDev: true,
       },
+      'install-deps': {
+        impactPolicy: 'stop-all',
+        isAvailable: async () => {
+          checkedActionIds.push('install-deps');
+          return {
+            available: true,
+            reason: 'pnpm-lock.yaml is newer than node_modules/.modules.yaml.',
+          };
+        },
+        label: 'Install dependencies',
+        async run() {},
+        suggestInDev: true,
+      },
       migrate: {
         impactPolicy: 'parallel',
         isAvailable: async () => {
@@ -433,6 +435,8 @@ describe('getDevPreflightActionSuggestions', () => {
         async run() {},
       },
     });
+
+    config.actionIdsInOrder = ['install-deps', 'db-push', 'migrate'];
 
     const suggestions = await getDevPreflightActionSuggestions(
       manifest,

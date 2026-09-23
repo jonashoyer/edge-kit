@@ -9,9 +9,6 @@ const ATTIO_RETRY_HTTP_STATUSES = [429, 503] as const;
 export type AttioObjectSlug = 'people' | 'companies' | 'deals' | (string & {});
 
 export interface AttioObjectMeta {
-  id: string;
-  name: string;
-  slug: string;
   attributes: Array<{
     id: string;
     slug: string;
@@ -19,19 +16,22 @@ export interface AttioObjectMeta {
     label?: string;
     required?: boolean;
   }>;
+  id: string;
+  name: string;
+  slug: string;
 }
 
 // Common response typings for Attio record APIs
 export interface AttioActor {
-  type: 'system' | 'workspace-member';
   id: string | null;
+  type: 'system' | 'workspace-member';
 }
 
 export interface AttioValueBase<TAttributeType extends string> {
   active_from: string;
   active_until: string | null;
-  created_by_actor: AttioActor;
   attribute_type: TAttributeType;
+  created_by_actor: AttioActor;
 }
 
 export interface AttioTextValueEntry extends AttioValueBase<'text'> {
@@ -48,8 +48,8 @@ export interface AttioTimestampValueEntry extends AttioValueBase<'timestamp'> {
 
 export interface AttioInteractionValueEntry
   extends AttioValueBase<'interaction'> {
-  interaction_type: string;
   interacted_at: string;
+  interaction_type: string;
   owner_actor: AttioActor;
 }
 
@@ -60,31 +60,31 @@ export interface AttioRecordReferenceEntry
 }
 
 export interface AttioLocationValueEntry extends AttioValueBase<'location'> {
+  country_code: string;
+  latitude: string | null;
   line_1: string | null;
   line_2: string | null;
   line_3: string | null;
   line_4: string | null;
   locality: string | null;
-  region: string | null;
-  postcode: string | null;
-  country_code: string;
-  latitude: string | null;
   longitude: string | null;
+  postcode: string | null;
+  region: string | null;
 }
 
 export interface AttioActorReferenceEntry
   extends AttioValueBase<'actor-reference'> {
-  referenced_actor_type: 'workspace-member' | string;
   referenced_actor_id: string;
+  referenced_actor_type: 'workspace-member' | string;
 }
 
 export interface AttioEmailAddressEntry
   extends AttioValueBase<'email-address'> {
-  original_email_address: string;
   email_address: string;
   email_domain: string;
-  email_root_domain: string;
   email_local_specifier: string;
+  email_root_domain: string;
+  original_email_address: string;
 }
 
 export interface AttioPhoneNumberValueEntry
@@ -97,8 +97,8 @@ export interface AttioPhoneNumberValueEntry
 export interface AttioPersonalNameValueEntry
   extends AttioValueBase<'personal-name'> {
   first_name: string;
-  last_name: string;
   full_name: string;
+  last_name: string;
 }
 
 export interface AttioDateValueEntry extends AttioValueBase<'date'> {
@@ -106,16 +106,16 @@ export interface AttioDateValueEntry extends AttioValueBase<'date'> {
 }
 
 export interface AttioSelectOptionId {
-  workspace_id: string;
-  object_id: string;
   attribute_id: string;
+  object_id: string;
   option_id: string;
+  workspace_id: string;
 }
 
 export interface AttioSelectOption {
   id: AttioSelectOptionId;
-  title: string;
   is_archived: boolean;
+  title: string;
 }
 
 export interface AttioSelectValueEntry extends AttioValueBase<'select'> {
@@ -140,16 +140,16 @@ export type AttioAttributeValueEntry =
 export type AttioValuesMap = Record<string, AttioAttributeValueEntry[]>;
 
 export interface AttioRecordId {
-  workspace_id: string;
   object_id: string;
   record_id: string;
+  workspace_id: string;
 }
 
 export interface AttioRecordData<TValuesMap = AttioValuesMap> {
-  id: AttioRecordId;
   created_at: string;
-  web_url: string;
+  id: AttioRecordId;
   values: TValuesMap;
+  web_url: string;
 }
 
 export interface CreateRecordResponse<TValuesMap = AttioValuesMap> {
@@ -217,8 +217,8 @@ export interface AttioFilterCondition {
  * }
  */
 export interface AttioPathFilter {
-  path: [string, string][];
   constraints: Record<string, unknown>;
+  path: [string, string][];
 }
 
 /**
@@ -231,8 +231,8 @@ export interface AttioPathFilter {
  */
 export interface AttioLogicalFilter {
   $and?: AttioFilter[];
-  $or?: AttioFilter[];
   $not?: AttioFilter;
+  $or?: AttioFilter[];
 }
 
 /**
@@ -245,28 +245,28 @@ export type AttioFilter =
 
 // Helper types for common filter patterns
 export interface AttioTextAttributeFilter {
-  $eq?: string;
   $contains?: string;
-  $starts_with?: string;
   $ends_with?: string;
+  $eq?: string;
   $not_empty?: boolean;
+  $starts_with?: string;
 }
 
 export interface AttioNumericAttributeFilter {
   $eq?: number;
+  $gt?: number;
+  $gte?: number;
   $lt?: number;
   $lte?: number;
-  $gte?: number;
-  $gt?: number;
   $not_empty?: boolean;
 }
 
 export interface AttioDateAttributeFilter {
   $eq?: string;
+  $gt?: string;
+  $gte?: string;
   $lt?: string;
   $lte?: string;
-  $gte?: string;
-  $gt?: string;
   $not_empty?: boolean;
 }
 
@@ -277,47 +277,47 @@ export interface AttioSelectAttributeFilter {
 }
 
 export interface AttioReferenceAttributeFilter {
+  $not_empty?: boolean;
   target_object?: string;
   target_record_id?: string;
-  $not_empty?: boolean;
 }
 
 export interface AttioEmailAttributeFilter {
+  $not_empty?: boolean;
   email_address?: AttioTextAttributeFilter;
   email_domain?: AttioTextAttributeFilter;
   email_root_domain?: AttioTextAttributeFilter;
-  $not_empty?: boolean;
 }
 
 export interface AttioPhoneAttributeFilter {
-  phone_number?: AttioTextAttributeFilter;
-  country_code?: AttioTextAttributeFilter;
   $not_empty?: boolean;
+  country_code?: AttioTextAttributeFilter;
+  phone_number?: AttioTextAttributeFilter;
 }
 
 export interface AttioLocationAttributeFilter {
-  locality?: AttioTextAttributeFilter;
-  region?: AttioTextAttributeFilter;
-  postcode?: AttioTextAttributeFilter;
-  country_code?: AttioTextAttributeFilter;
   $not_empty?: boolean;
+  country_code?: AttioTextAttributeFilter;
+  locality?: AttioTextAttributeFilter;
+  postcode?: AttioTextAttributeFilter;
+  region?: AttioTextAttributeFilter;
 }
 
 // Query records typings
 export type AttioSortDirection = 'asc' | 'desc';
 
 export interface AttioQuerySort {
-  direction: AttioSortDirection;
   attribute?: string;
+  direction: AttioSortDirection;
   field?: string;
   path?: [string, string][];
 }
 
 export interface QueryRecordsRequest {
   filter?: AttioFilter;
-  sorts?: AttioQuerySort[];
   limit?: number;
   offset?: number;
+  sorts?: AttioQuerySort[];
 }
 
 export interface QueryRecordsResponse<TValuesMap = AttioValuesMap> {
@@ -329,8 +329,8 @@ export interface QueryRecordsResponse<TValuesMap = AttioValuesMap> {
 // Attio person record value types, aligned with Attio's API payload structure
 export interface AttioNameEntry {
   first_name?: string | null;
-  last_name?: string | null;
   full_name?: string | null;
+  last_name?: string | null;
 }
 
 export interface AttioLinkedCompanyById {
@@ -339,8 +339,8 @@ export interface AttioLinkedCompanyById {
 }
 
 export interface AttioLinkedCompanyByDomain {
-  target_object: 'companies';
   domains: Array<{ domain: string }>;
+  target_object: 'companies';
 }
 
 export type AttioCompanyLink =
@@ -348,41 +348,41 @@ export type AttioCompanyLink =
   | AttioLinkedCompanyByDomain;
 
 export interface AttioPhoneNumberEntry {
-  original_phone_number: string;
   country_code?: string;
+  original_phone_number: string;
 }
 
 export interface AttioAddressEntry {
+  country_code?: string;
+  latitude?: string | null;
   line_1?: string | null;
   line_2?: string | null;
   line_3?: string | null;
   line_4?: string | null;
   locality?: string | null;
-  region?: string | null;
-  postcode?: string | null;
-  country_code?: string;
-  latitude?: string | null;
   longitude?: string | null;
+  postcode?: string | null;
+  region?: string | null;
 }
 
 export interface AttioPersonValues {
-  email_addresses?: string[];
-  name?: AttioNameEntry[];
-  description?: string;
   company?: AttioCompanyLink[];
+  description?: string;
+  email_addresses?: string[];
+  linkedin?: string;
+  name?: AttioNameEntry[];
   phone_numbers?: AttioPhoneNumberEntry[];
   primary_location?: AttioAddressEntry[];
-  linkedin?: string;
   [key: string]: unknown;
 }
 
 // Attio company record value types for assert/PUT requests
 export interface AttioCompanyValues {
-  name?: string;
   description?: string;
   domains?: string[];
-  team?: string[];
+  name?: string;
   primary_location?: string;
+  team?: string[];
   [key: string]: unknown;
 }
 
@@ -392,23 +392,23 @@ export interface AttioDomainValueEntry extends AttioValueBase<'domain'> {
 }
 
 export interface AttioCompanyRecordValues {
-  [key: string]: AttioAttributeValueEntry[] | undefined;
+  description?: AttioTextValueEntry[];
   domains?: AttioDomainValueEntry[];
   name?: AttioTextValueEntry[];
-  description?: AttioTextValueEntry[];
-  team?: AttioRecordReferenceEntry[];
   primary_location?: AttioLocationValueEntry[];
+  team?: AttioRecordReferenceEntry[];
+  [key: string]: AttioAttributeValueEntry[] | undefined;
 }
 
 export interface AttioPersonRecordValues {
-  [key: string]: AttioAttributeValueEntry[] | undefined;
-  email_addresses?: AttioEmailAddressEntry[];
-  name?: AttioPersonalNameValueEntry[];
-  description?: AttioTextValueEntry[];
   company?: AttioRecordReferenceEntry[];
+  description?: AttioTextValueEntry[];
+  email_addresses?: AttioEmailAddressEntry[];
+  linkedin?: AttioTextValueEntry[];
+  name?: AttioPersonalNameValueEntry[];
   phone_numbers?: AttioPhoneNumberValueEntry[];
   primary_location?: AttioLocationValueEntry[];
-  linkedin?: AttioTextValueEntry[];
+  [key: string]: AttioAttributeValueEntry[] | undefined;
 }
 
 export class AttioAPI {
@@ -438,11 +438,11 @@ export class AttioAPI {
     return await this.request<CreateRecordResponse<TValuesMap>>(
       `${this.baseUrl}/objects/${encodeURIComponent(object)}/records`,
       {
-        retries: ATTIO_IDEMPOTENT_RETRY_COUNT,
         init: {
-          method: 'PUT',
           body: JSON.stringify({ data: { values } }),
+          method: 'PUT',
         },
+        retries: ATTIO_IDEMPOTENT_RETRY_COUNT,
       }
     );
   }
@@ -458,8 +458,8 @@ export class AttioAPI {
       `${this.baseUrl}/objects/${encodeURIComponent(object)}/records`,
       {
         init: {
-          method: 'POST',
           body: JSON.stringify({ data: { values } }),
+          method: 'POST',
         },
       }
     );
@@ -506,11 +506,11 @@ export class AttioAPI {
     return await this.request<QueryRecordsResponse<TValuesMap>>(
       `${this.baseUrl}/objects/${encodeURIComponent(object)}/records/query`,
       {
-        retries: ATTIO_IDEMPOTENT_RETRY_COUNT,
         init: {
-          method: 'POST',
           body: JSON.stringify(query),
+          method: 'POST',
         },
+        retries: ATTIO_IDEMPOTENT_RETRY_COUNT,
       }
     );
   }
@@ -536,19 +536,19 @@ export class AttioAPI {
   ): Promise<T> {
     const init = options?.init;
     const res = await fetchExt({
-      url,
       init: {
         ...init,
         headers: {
-          'content-type': 'application/json',
           authorization: `Bearer ${this.apiKey}`,
+          'content-type': 'application/json',
           ...init?.headers,
         },
       },
-      timeout: ATTIO_REQUEST_TIMEOUT_MS,
       retries: options?.retries ?? 0,
       retryDelay: ATTIO_RETRY_DELAY_MS,
       retryOnHttpStatuses: [...ATTIO_RETRY_HTTP_STATUSES],
+      timeout: ATTIO_REQUEST_TIMEOUT_MS,
+      url,
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');

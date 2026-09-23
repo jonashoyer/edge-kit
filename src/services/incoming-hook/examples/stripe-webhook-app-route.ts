@@ -8,17 +8,17 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 });
 
 export const POST = createAppRouterIncomingHookHandler({
+  async handle(verified) {
+    return {
+      body: {
+        deliveryId: verified.deliveryId,
+        event: verified.event,
+        provider: verified.provider,
+      },
+      kind: 'processed',
+    };
+  },
   verifier: new StripeIncomingHookVerifier(stripe, [
     process.env.STRIPE_WEBHOOK_SECRET!,
   ]),
-  async handle(verified) {
-    return {
-      kind: 'processed',
-      body: {
-        provider: verified.provider,
-        event: verified.event,
-        deliveryId: verified.deliveryId,
-      },
-    };
-  },
 });

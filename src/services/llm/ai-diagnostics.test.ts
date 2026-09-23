@@ -14,22 +14,22 @@ import {
 describe('ai diagnostics', () => {
   it('extracts finish reason and text snippets from NoObjectGeneratedError', () => {
     const parseError = new JSONParseError({
-      text: '{"name": "broken"',
       cause: new Error('Unexpected end of JSON input'),
+      text: '{"name": "broken"',
     });
 
     const noObjectGenerated = new NoObjectGeneratedError({
-      message: 'No object generated: could not parse the response.',
       cause: parseError,
-      text: '{"name": "broken"',
-      response: {} as never,
-      usage: {} as never,
       finishReason: 'stop' as never,
+      message: 'No object generated: could not parse the response.',
+      response: {} as never,
+      text: '{"name": "broken"',
+      usage: {} as never,
     });
 
     const diagnostics = buildAiDiagnosticsFromError({
-      stage: 'object_generation',
       error: noObjectGenerated,
+      stage: 'object_generation',
       summary: 'Failed to generate object',
     });
 
@@ -41,24 +41,24 @@ describe('ai diagnostics', () => {
 
   it('extracts nested validation issue paths', () => {
     const validationError = new TypeValidationError({
-      value: { sections: [{ name: 123 }] },
       cause: {
         issues: [
           {
-            path: ['sections', 0, 'name'],
-            message: 'Expected string, received number',
             expected: 'string',
+            message: 'Expected string, received number',
+            path: ['sections', 0, 'name'],
             received: 'number',
           },
         ],
       },
+      value: { sections: [{ name: 123 }] },
     });
 
     const diagnostics = buildAiDiagnosticsFromError({
-      stage: 'schema_validation',
       error: validationError,
-      summary: 'Validation failed',
       rawObject: { sections: [{ name: 123 }] },
+      stage: 'schema_validation',
+      summary: 'Validation failed',
     });
 
     expect(diagnostics.errorType).toBe('AI_TypeValidationError');
@@ -75,10 +75,10 @@ describe('ai diagnostics', () => {
   it('traverses cause chains for AiDiagnosticError', () => {
     const diagnosticError = new AiDiagnosticError({
       diagnostics: {
-        stage: 'mapping',
         errorType: 'InvariantError',
+        issues: [{ message: 'Missing section', path: '$.sections' }],
+        stage: 'mapping',
         summary: 'Missing section',
-        issues: [{ path: '$.sections', message: 'Missing section' }],
       },
     });
 

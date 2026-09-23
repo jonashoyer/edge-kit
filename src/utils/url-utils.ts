@@ -13,9 +13,10 @@ export const getUrlDomain = (url: string) => {
   }
 };
 
-export const urlStripQueryHash = (url: string) => {
-  return url.replace(/\/?((\?|#).*)?$/, '');
-};
+const QUERY_HASH_REGEX = /\/?((\?|#).*)?$/;
+
+export const urlStripQueryHash = (url: string) =>
+  url.replace(QUERY_HASH_REGEX, '');
 
 export const getHostname = (url: string) => {
   try {
@@ -26,14 +27,7 @@ export const getHostname = (url: string) => {
 };
 
 // New function
-export const isValidUrl = (url: string): boolean => {
-  try {
-    new URL(url);
-    return true;
-  } catch {
-    return false;
-  }
-};
+export const isValidUrl = (url: string): boolean => URL.canParse(url);
 
 // New function
 export const getQueryParams = (url: string): Record<string, string> => {

@@ -20,12 +20,11 @@ export class AxiomAlertingService extends AbstractAlertingService {
     this.dataset = dataset;
   }
 
-  // biome-ignore lint/suspicious/useAwait: Axiom ingest is not async
   async alert(message: string, options: AlertOptions) {
     this.client.ingest(this.dataset, [
       {
-        severity: options.severity,
         message,
+        severity: options.severity,
         source: options.source,
         ...options.tags,
         timestamp: new Date().toISOString(),

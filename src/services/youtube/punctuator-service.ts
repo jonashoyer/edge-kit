@@ -1,19 +1,23 @@
 import type { TokenClassificationPipeline } from '@huggingface/transformers';
 
 interface Prediction {
-  word: string;
   entity: string;
   index: number;
+  word: string;
 }
 
 interface Segment {
-  text: string[];
   startIdx: number;
+  text: string[];
 }
 
 // https://huggingface.co/unikei/distilbert-base-re-punctuate
 export class PunctuatorService {
-  constructor(private pipeline: TokenClassificationPipeline) {}
+  private readonly pipeline: TokenClassificationPipeline;
+
+  constructor(pipeline: TokenClassificationPipeline) {
+    this.pipeline = pipeline;
+  }
 
   punctuateWordPiece(wordPiece: string, label: string): string {
     let processed = wordPiece;
@@ -34,7 +38,7 @@ export class PunctuatorService {
   punctuateSegment(predictions: Prediction[]): string {
     let result = '';
 
-    for (let i = 0; i < predictions.length; i++) {
+    for (let i = 0; i < predictions.length; i += 1) {
       const p = predictions[i]!;
 
       const wp = p.word.startsWith('##') ? p.word?.slice(2) : p.word;
@@ -70,11 +74,11 @@ export class PunctuatorService {
     )) as Prediction[][];
 
     return {
+      predictions,
       text: this.punctuateSegment(predictions.flat())
         .replace(/\s+/g, ' ')
         .replace(/\s'\s/g, "'")
         .trim(),
-      predictions,
     };
   }
 
@@ -97,11 +101,9 @@ export class PunctuatorService {
     length: number,
     overlap: number
   ): Segment[] {
-    return Array(Math.ceil(words.length / length))
-      .fill(0)
-      .map((_, i) => ({
-        text: words.slice(i * length, (i + 1) * length + overlap),
-        startIdx: i * length,
-      }));
+    return new Array(Math.ceil(words.length / length)).fill(0).map((_, i) => ({
+      startIdx: i * length,
+      text: words.slice(i * length, (i + 1) * length + overlap),
+    }));
   }
 }

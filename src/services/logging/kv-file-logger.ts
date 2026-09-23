@@ -22,28 +22,28 @@ const DEFAULT_CHUNK_SIZE = 500;
 const KV_NAMESPACE_PREFIX = 'lg:kv-file:';
 
 interface KvFileLoggerMetadataEnvelope {
-  type: 'metadata';
-  startedAt: string;
-  endedAt: string;
   droppedEntryCount: number;
-  maxEntries: number;
+  endedAt: string;
   entryCount: number;
+  maxEntries: number;
   metadata?: SerializedLogMetadata;
+  startedAt: string;
+  type: 'metadata';
 }
 
 interface KvFileLoggerStoredMeta {
-  startedAt: string;
   metadata?: SerializedLogMetadata;
+  startedAt: string;
 }
 
 interface KvFileLoggerState {
-  seqKey: string;
+  closeLockName: string;
+  closeResultKey: string;
   droppedKey: string;
   entryPrefix: string;
-  closeResultKey: string;
-  startedAtKey: string;
   metaKey: string;
-  closeLockName: string;
+  seqKey: string;
+  startedAtKey: string;
 }
 
 const buildState = (key: string, mediatorKey?: string): KvFileLoggerState => {
@@ -51,13 +51,13 @@ const buildState = (key: string, mediatorKey?: string): KvFileLoggerState => {
   const ns = `${KV_NAMESPACE_PREFIX}${suffix}`;
 
   return {
-    seqKey: `${ns}:seq`,
+    closeLockName: `${ns}:close`,
+    closeResultKey: `${ns}:close-result`,
     droppedKey: `${ns}:dropped`,
     entryPrefix: `${ns}:entry:`,
-    closeResultKey: `${ns}:close-result`,
-    startedAtKey: `${ns}:started-at`,
     metaKey: `${ns}:meta`,
-    closeLockName: `${ns}:close`,
+    seqKey: `${ns}:seq`,
+    startedAtKey: `${ns}:started-at`,
   };
 };
 
@@ -83,30 +83,30 @@ const toNumber = (value: unknown): number | null => {
 };
 
 export interface KvFileLoggerEntry {
-  timestamp: string;
   level: LogLevel;
   message: string;
   metadata?: SerializedLogMetadata;
+  timestamp: string;
 }
 
 export interface KvFileLoggerOptions {
+  closeLockTtlSeconds?: number;
+  closeResultTtlSeconds?: number;
+  entryTtlSeconds?: number;
   key: string;
-  storage: AbstractStorage;
   kv: AbstractKeyValueService;
-  metadata?: Record<string, unknown>;
-  passthrough?: StandardLogger;
   maxEntries?: number;
   mediatorKey?: string;
-  entryTtlSeconds?: number;
-  closeResultTtlSeconds?: number;
-  closeLockTtlSeconds?: number;
+  metadata?: Record<string, unknown>;
+  passthrough?: StandardLogger;
+  storage: AbstractStorage;
 }
 
 export interface KvFileLoggerCloseResult {
+  entryCount: number;
+  expiresAt: number;
   key: string;
   url: string;
-  expiresAt: number;
-  entryCount: number;
 }
 
 export class KvFileLogger extends AbstractLogger {
@@ -214,15 +214,16 @@ export class KvFileLogger extends AbstractLogger {
   override log(message: string, level: LogLevel, metadata?: LogMetadata): void {
     this.passthrough?.[level](message, metadata);
 
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: close() mutates this state outside the current method.
     if (this.closed) {
       return;
     }
 
     const normalizedMetadata = AbstractLogger.serializeLogMetadata(metadata);
     const entry: KvFileLoggerEntry = {
-      timestamp: new Date().toISOString(),
       level,
       message,
+      timestamp: new Date().toISOString(),
     };
     if (normalizedMetadata) {
       entry.metadata = normalizedMetadata;
@@ -327,12 +328,14 @@ export class KvFileLogger extends AbstractLogger {
     const entryKeys =
       seq === 0
         ? []
-        : Array.from({ length: seq - from + 1 }, (_, index) => {
-            return `${this.state.entryPrefix}${from + index}`;
-          });
+        : Array.from(
+            { length: seq - from + 1 },
+            (_, index) => `${this.state.entryPrefix}${from + index}`
+          );
 
     const retainedEntries: string[] = [];
     for (const keyChunk of chunk(entryKeys, DEFAULT_CHUNK_SIZE)) {
+      // biome-ignore lint/performance/noAwaitInLoops: Bound each batch request and preserve retained log ordering.
       const values = await this.kv.mget<string>(keyChunk);
       for (const value of values) {
         if (value === null) {
@@ -348,12 +351,12 @@ export class KvFileLogger extends AbstractLogger {
     const metadata = normalizeOutputMetadata(metaValue?.metadata);
     const endedAt = new Date().toISOString();
     const metadataEnvelope: KvFileLoggerMetadataEnvelope = {
-      type: 'metadata',
-      startedAt,
-      endedAt,
       droppedEntryCount,
-      maxEntries: this.maxEntries,
+      endedAt,
       entryCount: retainedEntries.length,
+      maxEntries: this.maxEntries,
+      startedAt,
+      type: 'metadata',
     };
     if (metadata) {
       metadataEnvelope.metadata = metadata;
@@ -363,10 +366,10 @@ export class KvFileLogger extends AbstractLogger {
 
     return {
       content: lines.join('\n'),
-      entryCount: retainedEntries.length,
       droppedEntryCount,
-      startedAt,
+      entryCount: retainedEntries.length,
       metadata,
+      startedAt,
     };
   }
 
@@ -375,11 +378,13 @@ export class KvFileLogger extends AbstractLogger {
     const entryKeys =
       seq === 0
         ? []
-        : Array.from({ length: seq - from + 1 }, (_, index) => {
-            return `${this.state.entryPrefix}${from + index}`;
-          });
+        : Array.from(
+            { length: seq - from + 1 },
+            (_, index) => `${this.state.entryPrefix}${from + index}`
+          );
 
     for (const keyChunk of chunk(entryKeys, DEFAULT_CHUNK_SIZE)) {
+      // biome-ignore lint/performance/noAwaitInLoops: Bound each batch request and preserve retained log ordering.
       await this.kv.mdelete(keyChunk);
     }
 
@@ -421,11 +426,11 @@ export class KvFileLogger extends AbstractLogger {
           await this.storage.write(this.key, Buffer.from(closeData.content), {
             metadata: {
               ...(closeData.metadata ?? {}),
-              startedAt: closeData.startedAt,
-              endedAt: new Date().toISOString(),
               droppedEntryCount: closeData.droppedEntryCount,
-              maxEntries: this.maxEntries,
+              endedAt: new Date().toISOString(),
               entryCount: closeData.entryCount,
+              maxEntries: this.maxEntries,
+              startedAt: closeData.startedAt,
             },
           });
 
@@ -433,10 +438,10 @@ export class KvFileLogger extends AbstractLogger {
             this.key
           );
           const closeResult: KvFileLoggerCloseResult = {
+            entryCount: closeData.entryCount,
+            expiresAt,
             key: this.key,
             url,
-            expiresAt,
-            entryCount: closeData.entryCount,
           };
 
           await this.kv.set(

@@ -17,6 +17,7 @@ export class PipelineSingleton {
     if (!PipelineSingleton.instance) {
       PipelineSingleton.instance = this;
     }
+    // biome-ignore lint/correctness/noConstructorReturn: The public constructor intentionally returns the shared owner for existing callers.
     return PipelineSingleton.instance;
   }
 

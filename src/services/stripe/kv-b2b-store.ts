@@ -9,8 +9,11 @@ import type {
 } from './types';
 
 export class StripeB2BKVStore extends AbstractStripeB2BStore {
-  constructor(private kvService: AbstractKeyValueService) {
+  private readonly kvService: AbstractKeyValueService;
+
+  constructor(kvService: AbstractKeyValueService) {
     super();
+    this.kvService = kvService;
   }
 
   async setUserToCustomerMapping(

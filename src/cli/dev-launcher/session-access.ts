@@ -38,12 +38,11 @@ export interface DevLauncherResolvedSessionAccess {
   summary: DevLauncherSessionGetResult;
 }
 
-const createNoSessionError = (): DevLauncherSessionClientError => {
-  return new DevLauncherSessionClientError(
+const createNoSessionError = (): DevLauncherSessionClientError =>
+  new DevLauncherSessionClientError(
     'no_session',
     'No dev launcher session is running for this repo.'
   );
-};
 
 export class DevLauncherSessionAccess {
   readonly #manifest: LoadedDevLauncherManifest;
@@ -62,23 +61,17 @@ export class DevLauncherSessionAccess {
     bootstrapRuntime: DevLauncherBootstrapRuntime
   ): DevLauncherSessionAccessRuntime {
     return {
-      bootstrapSession: async (manifest) => {
-        return await bootstrapDevLauncherSessionInTerminal(
-          manifest,
-          bootstrapRuntime
-        );
-      },
+      bootstrapSession: async (manifest) =>
+        await bootstrapDevLauncherSessionInTerminal(manifest, bootstrapRuntime),
       clientRuntime,
-      createRemoteController: (manifest, client, initialSummary) => {
-        return new DevLauncherRemoteProcessController(
+      createRemoteController: (manifest, client, initialSummary) =>
+        new DevLauncherRemoteProcessController(
           manifest,
           client,
           initialSummary
-        );
-      },
-      createSessionClient: (manifest, metadata) => {
-        return new DevLauncherSessionClient(manifest, clientRuntime, metadata);
-      },
+        ),
+      createSessionClient: (manifest, metadata) =>
+        new DevLauncherSessionClient(manifest, clientRuntime, metadata),
     };
   }
 

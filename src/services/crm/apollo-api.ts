@@ -3,9 +3,9 @@ import { fetchExt } from '../../utils/fetch-utils';
 const DEFAULT_APOLLO_BASE_URL = 'https://api.apollo.io/api/v1';
 
 export interface ApolloContact {
-  id: string;
   email?: string | null;
   email_status?: string | null;
+  id: string;
   typed_custom_fields?: Record<string, unknown>;
   [key: string]: unknown;
 }
@@ -21,10 +21,10 @@ export interface ApolloSearchResponse {
 }
 
 export interface ApolloLabel {
-  id: string;
-  name: string;
   cached_count?: number;
   created_at?: string;
+  id: string;
+  name: string;
   updated_at?: string;
   [key: string]: unknown;
 }
@@ -40,26 +40,26 @@ export interface ApolloLabelsResponse {
 }
 
 export interface ApolloOutreachEmailRecipient {
+  contact_id?: string | null;
   email?: string | null;
   raw_name?: string | null;
   recipient_type_cd?: string | null;
-  contact_id?: string | null;
   user_id?: string | null;
 }
 
 export interface ApolloOutreachEmailMessage {
+  campaign_name?: string | null;
+  completed_at?: string | null;
+  contact_id?: string | null;
+  due_at?: string | null;
+  emailer_campaign_id?: string | null;
+  emailer_step_id?: string | null;
   id: string;
+  not_sent_reason?: string | null;
+  recipients?: ApolloOutreachEmailRecipient[];
   status?: string | null;
   to_email?: string | null;
   to_name?: string | null;
-  due_at?: string | null;
-  completed_at?: string | null;
-  emailer_campaign_id?: string | null;
-  emailer_step_id?: string | null;
-  contact_id?: string | null;
-  not_sent_reason?: string | null;
-  campaign_name?: string | null;
-  recipients?: ApolloOutreachEmailRecipient[];
   [key: string]: unknown;
 }
 
@@ -74,6 +74,7 @@ export interface ApolloOutreachEmailSearchResponse {
 }
 
 export interface ApolloSequenceSearchResponse {
+  breadcrumbs?: Record<string, unknown>[];
   emailer_campaigns: Array<{
     id: string;
     name?: string;
@@ -88,7 +89,6 @@ export interface ApolloSequenceSearchResponse {
     total_pages?: number;
     total_entries?: number;
   };
-  breadcrumbs?: Record<string, unknown>[];
 }
 
 export interface ApolloClientOptions {
@@ -172,8 +172,8 @@ export class ApolloClient {
     if (updates.length === 0) return;
 
     await this.request('POST', '/contacts/bulk_update', {
-      contact_attributes: updates,
       async: true,
+      contact_attributes: updates,
     });
   }
 
@@ -191,10 +191,10 @@ export class ApolloClient {
   }): Promise<ApolloOutreachEmailSearchResponse> {
     const query = this.buildQuery({
       'emailer_campaign_ids[]': params.emailerCampaignIds,
-      'emailer_message_stats[]': params.emailerMessageStats,
       emailer_message_date_range_mode: params.emailerMessageDateRangeMode,
-      'emailer_message_date_range[min]': params.emailerMessageDateRangeMin,
       'emailer_message_date_range[max]': params.emailerMessageDateRangeMax,
+      'emailer_message_date_range[min]': params.emailerMessageDateRangeMin,
+      'emailer_message_stats[]': params.emailerMessageStats,
       page: params.page,
       per_page: params.perPage,
     });
@@ -214,8 +214,8 @@ export class ApolloClient {
     mode: 'mark_as_finished' | 'remove' | 'stop';
   }): Promise<void> {
     const query = this.buildQuery({
-      'emailer_campaign_ids[]': params.emailerCampaignIds,
       'contact_ids[]': params.contactIds,
+      'emailer_campaign_ids[]': params.emailerCampaignIds,
       mode: params.mode,
     });
 
@@ -234,9 +234,9 @@ export class ApolloClient {
     perPage?: number;
   }): Promise<ApolloSequenceSearchResponse> {
     const query = this.buildQuery({
-      q_name: params.query,
       page: params.page,
       per_page: params.perPage,
+      q_name: params.query,
     });
 
     return await this.request<ApolloSequenceSearchResponse>(
@@ -253,18 +253,18 @@ export class ApolloClient {
     const url = `${this.baseUrl}${path}`;
 
     const response = await fetchExt({
-      url,
       init: {
-        method,
+        body: body ? JSON.stringify(body) : undefined,
         headers: {
-          'Content-Type': 'application/json',
           'Cache-Control': 'no-cache',
+          'Content-Type': 'application/json',
           'x-api-key': this.apiKey,
         },
-        body: body ? JSON.stringify(body) : undefined,
+        method,
       },
       retries: 3,
       retryDelay: 750,
+      url,
     });
 
     if (!response.ok) {

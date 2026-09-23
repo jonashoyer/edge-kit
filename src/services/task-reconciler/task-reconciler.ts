@@ -100,16 +100,16 @@ export class TaskReconciler extends AbstractTaskReconciler {
     );
 
     this.logger?.info('task-reconciler.check', {
-      taskName: options.taskName,
-      desiredRevision: options.desiredRevision,
       appliedRevision: state?.appliedRevision ?? null,
+      desiredRevision: options.desiredRevision,
       forced: options.force ?? false,
       reason,
+      taskName: options.taskName,
     });
 
     return {
-      shouldReconcile: reason !== 'up-to-date',
       reason,
+      shouldReconcile: reason !== 'up-to-date',
       state,
     };
   }
@@ -120,15 +120,15 @@ export class TaskReconciler extends AbstractTaskReconciler {
   ): Promise<CheckTaskResult> {
     const resolvedTask = await this.resolveRegisteredTask(taskName);
     const result = await this.shouldReconcile({
-      taskName: resolvedTask.taskName,
       desiredRevision: resolvedTask.desiredRevision,
       force: options.force,
+      taskName: resolvedTask.taskName,
     });
 
     return {
       ...result,
-      taskName: resolvedTask.taskName,
       desiredRevision: resolvedTask.desiredRevision,
+      taskName: resolvedTask.taskName,
       ...(resolvedTask.metadata ? { metadata: resolvedTask.metadata } : {}),
     };
   }
@@ -143,6 +143,7 @@ export class TaskReconciler extends AbstractTaskReconciler {
 
     for (const taskName of this.taskOrder) {
       try {
+        // biome-ignore lint/performance/noAwaitInLoops: Tasks run in dependency order and must not reconcile concurrently.
         const result = await this.checkTask(taskName, options);
         results.push(result);
 
@@ -160,13 +161,13 @@ export class TaskReconciler extends AbstractTaskReconciler {
 
     return {
       outcome: 'completed',
+      results,
       summary: {
         checked: results.length,
+        failed,
         stale,
         upToDate,
-        failed,
       },
-      results,
     };
   }
 
@@ -176,9 +177,9 @@ export class TaskReconciler extends AbstractTaskReconciler {
     this.assertInputs(options.taskName, options.desiredRevision);
 
     const initialCheck = await this.shouldReconcile({
-      taskName: options.taskName,
       desiredRevision: options.desiredRevision,
       force: options.force,
+      taskName: options.taskName,
     });
 
     if (!initialCheck.shouldReconcile) {
@@ -187,11 +188,11 @@ export class TaskReconciler extends AbstractTaskReconciler {
         this.createEmptyState(options.taskName, options.metadata);
 
       this.logger?.info('task-reconciler.skip', {
-        taskName: options.taskName,
-        desiredRevision: options.desiredRevision,
         appliedRevision: state.appliedRevision,
+        desiredRevision: options.desiredRevision,
         forced: options.force ?? false,
         reason: initialCheck.reason,
+        taskName: options.taskName,
       });
 
       return {
@@ -206,13 +207,13 @@ export class TaskReconciler extends AbstractTaskReconciler {
 
     try {
       const acquireResult = await this.mutex.acquire(lockName);
-      token = acquireResult.token;
+      ({ token } = acquireResult);
     } catch (error) {
       this.logger?.warn('task-reconciler.lock-contention', {
-        taskName: options.taskName,
         desiredRevision: options.desiredRevision,
-        forced: options.force ?? false,
         error,
+        forced: options.force ?? false,
+        taskName: options.taskName,
       });
       throw error;
     }
@@ -231,11 +232,11 @@ export class TaskReconciler extends AbstractTaskReconciler {
           this.createEmptyState(options.taskName, options.metadata);
 
         this.logger?.info('task-reconciler.skip', {
-          taskName: options.taskName,
-          desiredRevision: options.desiredRevision,
           appliedRevision: state.appliedRevision,
+          desiredRevision: options.desiredRevision,
           forced: options.force ?? false,
           reason: reasonAfterLock,
+          taskName: options.taskName,
         });
 
         return {
@@ -251,27 +252,27 @@ export class TaskReconciler extends AbstractTaskReconciler {
       const metadata = options.metadata ?? stateAfterLock?.metadata;
       const previousAppliedRevision = stateAfterLock?.appliedRevision ?? null;
       let currentState: TaskReconcilerState = {
-        taskName: options.taskName,
         appliedRevision: previousAppliedRevision,
         lastAttemptedRevision: options.desiredRevision,
-        status: 'running',
+        lastCompletedAt: stateAfterLock?.lastCompletedAt ?? null,
+        lastError: null,
+        lastHeartbeatAt: startedAt,
         lastRunId: runId,
         lastStartedAt: startedAt,
-        lastHeartbeatAt: startedAt,
-        lastCompletedAt: stateAfterLock?.lastCompletedAt ?? null,
         lastSucceededAt: stateAfterLock?.lastSucceededAt ?? null,
-        lastError: null,
+        status: 'running',
+        taskName: options.taskName,
         ...(metadata ? { metadata } : {}),
       };
 
       await this.writeState(currentState);
 
       const loggerMetadata: LogMetadata = {
-        taskName: options.taskName,
-        desiredRevision: options.desiredRevision,
         appliedRevision: previousAppliedRevision,
-        runId,
+        desiredRevision: options.desiredRevision,
         forced: options.force ?? false,
+        runId,
+        taskName: options.taskName,
       };
 
       this.logger?.info('task-reconciler.start', loggerMetadata);
@@ -297,22 +298,22 @@ export class TaskReconciler extends AbstractTaskReconciler {
 
       try {
         await options.run({
+          desiredRevision: options.desiredRevision,
+          loggerMetadata,
+          refreshLease,
           runId,
           taskName: options.taskName,
-          desiredRevision: options.desiredRevision,
-          refreshLease,
-          loggerMetadata,
         });
 
         const completedAt = new Date().toISOString();
         currentState = {
           ...currentState,
           appliedRevision: options.desiredRevision,
-          status: 'succeeded',
           lastCompletedAt: completedAt,
+          lastError: null,
           lastHeartbeatAt: completedAt,
           lastSucceededAt: completedAt,
-          lastError: null,
+          status: 'succeeded',
         };
         await this.writeState(currentState);
 
@@ -324,9 +325,9 @@ export class TaskReconciler extends AbstractTaskReconciler {
         });
 
         return {
+          durationMs,
           outcome: 'executed',
           runId,
-          durationMs,
           state: currentState,
         };
       } catch (error) {
@@ -334,10 +335,10 @@ export class TaskReconciler extends AbstractTaskReconciler {
         currentState = {
           ...currentState,
           appliedRevision: previousAppliedRevision,
-          status: 'failed',
           lastCompletedAt: completedAt,
-          lastHeartbeatAt: completedAt,
           lastError: toTaskError(error),
+          lastHeartbeatAt: completedAt,
+          status: 'failed',
         };
         await this.writeState(currentState);
 
@@ -379,8 +380,9 @@ export class TaskReconciler extends AbstractTaskReconciler {
       let desiredRevision: string | null = null;
 
       try {
+        // biome-ignore lint/performance/noAwaitInLoops: Tasks run in dependency order and must not reconcile concurrently.
         const resolvedTask = await this.resolveRegisteredTask(taskName);
-        desiredRevision = resolvedTask.desiredRevision;
+        ({ desiredRevision } = resolvedTask);
         const result = await this.reconcileResolvedTask(
           resolvedTask,
           options.force ?? false
@@ -405,13 +407,13 @@ export class TaskReconciler extends AbstractTaskReconciler {
 
     return {
       outcome: 'completed',
+      results,
       summary: {
         checked: results.length,
         executed,
-        skipped,
         failed,
+        skipped,
       },
-      results,
     };
   }
 
@@ -481,8 +483,8 @@ export class TaskReconciler extends AbstractTaskReconciler {
     }
 
     return {
-      tasksByName,
       taskOrder,
+      tasksByName,
     };
   }
 
@@ -494,10 +496,10 @@ export class TaskReconciler extends AbstractTaskReconciler {
     this.assertInputs(task.taskName, desiredRevision);
 
     return {
-      task,
-      taskName: task.taskName,
       desiredRevision,
       metadata: task.metadata,
+      task,
+      taskName: task.taskName,
     };
   }
 
@@ -506,17 +508,17 @@ export class TaskReconciler extends AbstractTaskReconciler {
     force: boolean
   ): Promise<RegisteredTaskReconcileResult> {
     const result = await this.reconcile({
-      taskName: resolvedTask.taskName,
       desiredRevision: resolvedTask.desiredRevision,
       force,
       metadata: resolvedTask.metadata,
       run: resolvedTask.task.run,
+      taskName: resolvedTask.taskName,
     });
 
     return {
       ...result,
-      taskName: resolvedTask.taskName,
       desiredRevision: resolvedTask.desiredRevision,
+      taskName: resolvedTask.taskName,
       ...(resolvedTask.metadata ? { metadata: resolvedTask.metadata } : {}),
     };
   }
@@ -528,10 +530,10 @@ export class TaskReconciler extends AbstractTaskReconciler {
     const task = this.tasksByName.get(taskName);
 
     return {
-      taskName,
       desiredRevision: null,
-      outcome: 'failed',
       error: toTaskError(error),
+      outcome: 'failed',
+      taskName,
       ...(task?.metadata ? { metadata: task.metadata } : {}),
     };
   }
@@ -545,11 +547,11 @@ export class TaskReconciler extends AbstractTaskReconciler {
     const state = await this.readState(taskName);
 
     return {
-      taskName,
       desiredRevision: desiredRevision ?? state?.lastAttemptedRevision ?? null,
-      outcome: 'failed',
       error: toTaskError(error),
+      outcome: 'failed',
       state,
+      taskName,
       ...(task?.metadata ? { metadata: task.metadata } : {}),
     };
   }
@@ -559,16 +561,16 @@ export class TaskReconciler extends AbstractTaskReconciler {
     metadata?: Record<string, unknown>
   ): TaskReconcilerState {
     return {
-      taskName,
       appliedRevision: null,
       lastAttemptedRevision: null,
-      status: 'idle',
+      lastCompletedAt: null,
+      lastError: null,
+      lastHeartbeatAt: null,
       lastRunId: null,
       lastStartedAt: null,
-      lastHeartbeatAt: null,
-      lastCompletedAt: null,
       lastSucceededAt: null,
-      lastError: null,
+      status: 'idle',
+      taskName,
       ...(metadata ? { metadata } : {}),
     };
   }

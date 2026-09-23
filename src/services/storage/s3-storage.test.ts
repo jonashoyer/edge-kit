@@ -6,9 +6,9 @@ import { R2Storage } from './r2-storage';
 import { S3Storage } from './s3-storage';
 
 const { sendMock, clientOptions, commandInputs } = vi.hoisted(() => ({
-  sendMock: vi.fn(),
   clientOptions: [] as Record<string, unknown>[],
   commandInputs: new Map<string, unknown[]>(),
+  sendMock: vi.fn(),
 }));
 
 vi.mock('@aws-sdk/client-s3', () => {
@@ -110,20 +110,20 @@ vi.mock('@aws-sdk/client-s3', () => {
   }
 
   return {
-    S3Client,
-    PutObjectCommand,
-    GetObjectCommand,
-    HeadObjectCommand,
+    AbortMultipartUploadCommand,
+    CompleteMultipartUploadCommand,
+    CreateMultipartUploadCommand,
     DeleteObjectCommand,
     DeleteObjectsCommand,
-    ListObjectsV2Command,
-    CreateMultipartUploadCommand,
+    GetObjectCommand,
+    HeadObjectCommand,
     ListMultipartUploadsCommand,
-    ListPartsCommand,
-    UploadPartCommand,
-    CompleteMultipartUploadCommand,
-    AbortMultipartUploadCommand,
+    ListObjectsV2Command,
     ListObjectVersionsCommand,
+    ListPartsCommand,
+    PutObjectCommand,
+    S3Client,
+    UploadPartCommand,
   };
 });
 
@@ -137,11 +137,11 @@ vi.mock('@aws-sdk/s3-presigned-post', () => ({
 
 const createVersionedStorage = () =>
   new S3Storage({
-    bucket: 'bucket',
-    region: 'eu-west-1',
     accessKeyId: 'key',
-    secretAccessKey: 'secret',
+    bucket: 'bucket',
     maxAttempts: 1,
+    region: 'eu-west-1',
+    secretAccessKey: 'secret',
     versioning: 'enabled',
   });
 
@@ -156,9 +156,9 @@ describe('S3Storage', () => {
 
   it('keeps immutable capability absent until versioning is explicitly configured', () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -168,9 +168,9 @@ describe('S3Storage', () => {
 
   it('keeps R2 immutable and multipart capabilities absent until validated', () => {
     const r2 = new R2Storage({
+      accessKeyId: 'key',
       accountId: 'account',
       bucket: 'bucket',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -180,9 +180,9 @@ describe('S3Storage', () => {
 
   it('writes metadata through provider-native object metadata', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -197,8 +197,8 @@ describe('S3Storage', () => {
 
     expect(commandInputs.get('PutObjectCommand')?.[0]).toMatchObject({
       Bucket: 'bucket',
-      Key: 'logs/file.ndjson',
       ContentType: 'application/x-ndjson',
+      Key: 'logs/file.ndjson',
       Metadata: {
         runId: '123',
       },
@@ -207,9 +207,9 @@ describe('S3Storage', () => {
 
   it('distinguishes not-found errors in exists()', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -220,9 +220,9 @@ describe('S3Storage', () => {
 
   it('deleteMany is a no-op for empty arrays', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -233,9 +233,9 @@ describe('S3Storage', () => {
 
   it('exposes paginated list results through explorer', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -245,21 +245,21 @@ describe('S3Storage', () => {
     });
 
     const result = await storage.explorer.listPage('docs/', {
-      maxKeys: 2,
       continuationToken: 'start',
+      maxKeys: 2,
     });
 
     expect(result).toEqual({
-      keys: ['a.txt', 'b.txt'],
       continuationToken: 'next-token',
+      keys: ['a.txt', 'b.txt'],
     });
   });
 
   it('aggregates list results through explorer.list()', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -280,23 +280,23 @@ describe('S3Storage', () => {
 
   it('creates POST presigned upload URLs and supports the bytesLimit alias', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
     vi.mocked(createPresignedPost).mockResolvedValueOnce({
-      url: 'https://upload.example',
       fields: {
         key: 'files/test.txt',
       },
+      url: 'https://upload.example',
     } as never);
 
     const startedAt = Date.now();
     const result = await storage.createWritePresignedUrl('files/test.txt', {
-      contentType: 'text/plain',
       bytesLimit: 1024,
+      contentType: 'text/plain',
     });
 
     expect(result.method).toBe('POST');
@@ -307,10 +307,10 @@ describe('S3Storage', () => {
 
   it('creates PUT presigned upload URLs for backblaze-style endpoints', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       endpoint: 'https://s3.us-west-001.backblazeb2.com',
       region: 'us-west-001',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -322,17 +322,17 @@ describe('S3Storage', () => {
     });
 
     expect(result).toEqual({
-      url: 'https://upload.example',
-      method: 'PUT',
       expiresAt: expect.any(Number),
+      method: 'PUT',
+      url: 'https://upload.example',
     });
   });
 
   it('surfaces metadata through objectMetadata()', async () => {
     const storage = new S3Storage({
+      accessKeyId: 'key',
       bucket: 'bucket',
       region: 'eu-west-1',
-      accessKeyId: 'key',
       secretAccessKey: 'secret',
     });
 
@@ -363,51 +363,51 @@ describe('S3Storage', () => {
     const storage = createVersionedStorage();
 
     sendMock.mockResolvedValueOnce({}).mockResolvedValueOnce({
+      ChecksumSHA256: 'digest-1',
       ContentLength: 5,
       ContentType: 'text/plain',
       ETag: '"etag-1"',
-      VersionId: 'version-1',
-      ChecksumSHA256: 'digest-1',
       LastModified: new Date('2026-09-17T12:00:00.000Z'),
       Metadata: {
         source: 'tests',
       },
+      VersionId: 'version-1',
     });
 
     const result = await storage.immutable?.createObject<{ source?: string }>(
       'objects/file.txt',
       'hello',
       {
+        checksum: { algorithm: 'sha256', value: 'digest-1' },
         contentType: 'text/plain',
         metadata: { source: 'tests' },
-        checksum: { algorithm: 'sha256', value: 'digest-1' },
       }
     );
 
     expect(result).toEqual({
-      status: 'created',
       object: {
-        key: 'objects/file.txt',
-        contentLength: 5,
-        contentType: 'text/plain',
-        etag: '"etag-1"',
-        versionId: 'version-1',
         checksum: {
           algorithm: 'sha256',
           value: 'digest-1',
         },
+        contentLength: 5,
+        contentType: 'text/plain',
+        etag: '"etag-1"',
+        key: 'objects/file.txt',
         lastModified: new Date('2026-09-17T12:00:00.000Z').getTime(),
         meta: {
           source: 'tests',
         },
+        versionId: 'version-1',
       },
+      status: 'created',
     });
     expect(commandInputs.get('PutObjectCommand')?.[0]).toMatchObject({
       Bucket: 'bucket',
-      Key: 'objects/file.txt',
-      IfNoneMatch: '*',
       ChecksumAlgorithm: 'SHA256',
       ChecksumSHA256: 'digest-1',
+      IfNoneMatch: '*',
+      Key: 'objects/file.txt',
     });
   });
 
@@ -456,14 +456,14 @@ describe('S3Storage', () => {
     );
 
     expect(result).toEqual({
-      url: 'https://download.example',
       expiresAt: expect.any(Number),
+      url: 'https://download.example',
     });
     expect(commandInputs.get('GetObjectCommand')?.[0]).toMatchObject({
       Bucket: 'bucket',
       Key: 'objects/file.txt',
-      VersionId: 'version-1',
       ResponseCacheControl: 'private, no-store',
+      VersionId: 'version-1',
     });
     expect(vi.mocked(getSignedUrl).mock.calls.at(-1)?.[2]).toMatchObject({
       expiresIn: 300,
@@ -475,30 +475,30 @@ describe('S3Storage', () => {
 
     sendMock
       .mockResolvedValueOnce({
-        Versions: [
-          { Key: 'objects/file.txt', VersionId: 'v1' },
-          { Key: 'objects/file.txt-extra', VersionId: 'skip' },
-        ],
         DeleteMarkers: [{ Key: 'objects/file.txt', VersionId: 'd1' }],
         IsTruncated: true,
         NextKeyMarker: 'objects/file.txt',
         NextVersionIdMarker: 'marker-2',
+        Versions: [
+          { Key: 'objects/file.txt', VersionId: 'v1' },
+          { Key: 'objects/file.txt-extra', VersionId: 'skip' },
+        ],
       })
       .mockResolvedValueOnce({
         Deleted: [{ Key: 'objects/file.txt', VersionId: 'v1' }],
       })
       .mockResolvedValueOnce({
-        Versions: [{ Key: 'objects/file.txt', VersionId: 'v2' }],
         DeleteMarkers: [],
         IsTruncated: false,
+        Versions: [{ Key: 'objects/file.txt', VersionId: 'v2' }],
       })
       .mockResolvedValueOnce({
         Errors: [
           {
-            Key: 'objects/file.txt',
-            VersionId: 'v2',
             Code: 'AccessDenied',
+            Key: 'objects/file.txt',
             Message: 'Denied',
+            VersionId: 'v2',
           },
         ],
       });
@@ -510,10 +510,10 @@ describe('S3Storage', () => {
         code: 'DELETE_FAILED',
         errors: [
           {
-            key: 'objects/file.txt',
-            versionId: 'v2',
             code: 'AccessDenied',
+            key: 'objects/file.txt',
             message: 'Denied',
+            versionId: 'v2',
           },
         ],
       })
@@ -542,17 +542,17 @@ describe('S3Storage', () => {
 
     sendMock
       .mockResolvedValueOnce({
+        IsTruncated: true,
+        NextKeyMarker: 'objects/file.txt',
+        NextUploadIdMarker: 'marker-2',
         Uploads: [
           { Key: 'objects/file.txt', UploadId: 'upload-1' },
           { Key: 'objects/file.txt-partial', UploadId: 'skip' },
         ],
-        IsTruncated: true,
-        NextKeyMarker: 'objects/file.txt',
-        NextUploadIdMarker: 'marker-2',
       })
       .mockResolvedValueOnce({
-        Uploads: [{ Key: 'objects/file.txt', UploadId: 'upload-2' }],
         IsTruncated: false,
+        Uploads: [{ Key: 'objects/file.txt', UploadId: 'upload-2' }],
       });
 
     await expect(storage.multipart?.find('objects/file.txt')).resolves.toEqual([
@@ -565,10 +565,10 @@ describe('S3Storage', () => {
     const storage = createVersionedStorage();
 
     sendMock.mockResolvedValueOnce({
-      Uploads: [{ Key: 'objects/file.txt', UploadId: 'upload-1' }],
       IsTruncated: true,
       NextKeyMarker: undefined,
       NextUploadIdMarker: 'marker-2',
+      Uploads: [{ Key: 'objects/file.txt', UploadId: 'upload-1' }],
     });
 
     await expect(storage.multipart?.find('objects/file.txt')).rejects.toThrow(
@@ -585,11 +585,11 @@ describe('S3Storage', () => {
 
     const result = await storage.multipart?.createPartPresignedUrl(
       {
-        key: 'objects/file.txt',
-        uploadId: 'upload-1',
         expectedBytes: 20,
-        partSizeBytes: 8,
+        key: 'objects/file.txt',
         partCount: 3,
+        partSizeBytes: 8,
+        uploadId: 'upload-1',
       },
       3,
       {
@@ -598,25 +598,25 @@ describe('S3Storage', () => {
     );
 
     expect(result).toEqual({
-      key: 'objects/file.txt',
-      uploadId: 'upload-1',
-      partNumber: 3,
-      method: 'PUT',
-      url: 'https://upload-part.example',
+      expiresAt: expect.any(Number),
       headers: {
         'Content-Type': 'video/webm',
       },
-      expiresAt: expect.any(Number),
-      offsetBytes: 16,
+      key: 'objects/file.txt',
       lengthBytes: 4,
       maxBytes: 4,
+      method: 'PUT',
+      offsetBytes: 16,
+      partNumber: 3,
+      uploadId: 'upload-1',
+      url: 'https://upload-part.example',
     });
     expect(commandInputs.get('UploadPartCommand')?.[0]).toMatchObject({
       Bucket: 'bucket',
-      Key: 'objects/file.txt',
-      UploadId: 'upload-1',
-      PartNumber: 3,
       ContentLength: 4,
+      Key: 'objects/file.txt',
+      PartNumber: 3,
+      UploadId: 'upload-1',
     });
     expect(vi.mocked(getSignedUrl).mock.calls[0]?.[2]).toMatchObject({
       expiresIn: 900,
@@ -629,13 +629,13 @@ describe('S3Storage', () => {
 
     sendMock
       .mockResolvedValueOnce({
-        Parts: [{ PartNumber: 1, ETag: '"part-1"', Size: 8 }],
         IsTruncated: true,
         NextPartNumberMarker: 1,
+        Parts: [{ ETag: '"part-1"', PartNumber: 1, Size: 8 }],
       })
       .mockResolvedValueOnce({
-        Parts: [{ PartNumber: 2, ETag: '"part-2"', Size: 4 }],
         IsTruncated: false,
+        Parts: [{ ETag: '"part-2"', PartNumber: 2, Size: 4 }],
       })
       .mockResolvedValueOnce({
         VersionId: 'version-2',
@@ -649,11 +649,11 @@ describe('S3Storage', () => {
 
     const result = await storage.multipart?.complete(
       {
-        key: 'objects/file.txt',
-        uploadId: 'upload-1',
         expectedBytes: 12,
-        partSizeBytes: 8,
+        key: 'objects/file.txt',
         partCount: 2,
+        partSizeBytes: 8,
+        uploadId: 'upload-1',
       },
       {
         contentType: 'video/webm',
@@ -661,27 +661,27 @@ describe('S3Storage', () => {
     );
 
     expect(result).toEqual({
-      key: 'objects/file.txt',
+      checksum: undefined,
       contentLength: 12,
       contentType: 'video/webm',
       etag: '"etag-2"',
-      versionId: 'version-2',
-      checksum: undefined,
+      key: 'objects/file.txt',
       lastModified: undefined,
       meta: undefined,
+      versionId: 'version-2',
     });
     expect(
       commandInputs.get('CompleteMultipartUploadCommand')?.[0]
     ).toMatchObject({
       Bucket: 'bucket',
       Key: 'objects/file.txt',
-      UploadId: 'upload-1',
       MultipartUpload: {
         Parts: [
-          { PartNumber: 1, ETag: '"part-1"' },
-          { PartNumber: 2, ETag: '"part-2"' },
+          { ETag: '"part-1"', PartNumber: 1 },
+          { ETag: '"part-2"', PartNumber: 2 },
         ],
       },
+      UploadId: 'upload-1',
     });
   });
 
@@ -689,18 +689,18 @@ describe('S3Storage', () => {
     const storage = createVersionedStorage();
 
     sendMock.mockResolvedValueOnce({
-      Parts: [{ PartNumber: 1, ETag: '"part-1"', Size: 7 }],
       IsTruncated: false,
+      Parts: [{ ETag: '"part-1"', PartNumber: 1, Size: 7 }],
     });
 
     await expect(
       storage.multipart?.complete(
         {
-          key: 'objects/file.txt',
-          uploadId: 'upload-1',
           expectedBytes: 8,
-          partSizeBytes: 8,
+          key: 'objects/file.txt',
           partCount: 1,
+          partSizeBytes: 8,
+          uploadId: 'upload-1',
         },
         {
           contentType: 'video/webm',
@@ -715,8 +715,8 @@ describe('S3Storage', () => {
     const storage = createVersionedStorage();
 
     sendMock.mockResolvedValueOnce({}).mockResolvedValueOnce({
-      Parts: [{ PartNumber: 1, ETag: '"part-1"', Size: 8 }],
       IsTruncated: false,
+      Parts: [{ ETag: '"part-1"', PartNumber: 1, Size: 8 }],
     });
 
     await expect(

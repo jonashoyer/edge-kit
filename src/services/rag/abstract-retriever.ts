@@ -4,17 +4,17 @@ export interface ChunkedDocumentMeta {
   docId: string;
   source?: string;
   tags?: string[];
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface RetrieverQueryOptions {
-  topK?: number;
-  includeVectors?: boolean;
   includeMetadata?: boolean;
+  includeVectors?: boolean;
+  topK?: number;
 }
 
 export interface EmbedderService {
-  embed(texts: string[]): Promise<number[][]>;
+  embed: (texts: string[]) => Promise<number[][]>;
 }
 
 /**
@@ -38,5 +38,5 @@ export abstract class AbstractRetriever<
     namespace: string,
     query: string,
     options?: RetrieverQueryOptions
-  ): Promise<VectorEntry<number[], TMetadata, any>[]>;
+  ): Promise<VectorEntry<number[], TMetadata, boolean>[]>;
 }

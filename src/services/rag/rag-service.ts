@@ -21,11 +21,11 @@ export interface RagChunkMetadataBase {
 }
 
 export interface Reranker<TMeta = RagChunkMetadataBase> {
-  rerank(
+  rerank: (
     query: string,
     items: Array<{ id: string; text: string; metadata?: TMeta }>,
     topK?: number
-  ): Promise<
+  ) => Promise<
     Array<{ id: string; text: string; metadata?: TMeta; score?: number }>
   >;
 }
@@ -38,11 +38,7 @@ export interface RagServiceOptions<
     true
   > = AbstractVectorDatabase<TMeta, number[], true>,
 > {
-  vectorDb: TVectorDb;
-  embeddingModel: EmbeddingModelV3; // model from AI SDK provider (e.g. voyage.embeddingModel('voyage-3'))
   chunker?: AbstractChunker;
-  reranker?: Reranker<TMeta>;
-  storeTextInMetadata?: boolean; // default: true (recommended for reranking)
   contextualized?: {
     enabled: boolean; // when true, use Voyage contextualized chunk embeddings API
     apiKey: string;
@@ -51,25 +47,29 @@ export interface RagServiceOptions<
     outputDimension?: 256 | 512 | 1024 | 2048;
     outputDtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary';
   };
+  embeddingModel: EmbeddingModelV3; // model from AI SDK provider (e.g. voyage.embeddingModel('voyage-3'))
+  reranker?: Reranker<TMeta>;
+  storeTextInMetadata?: boolean; // default: true (recommended for reranking)
+  vectorDb: TVectorDb;
 }
 
 export interface IndexDocumentOptions<
   TMeta extends RagChunkMetadataBase = RagChunkMetadataBase,
 > {
-  namespace: string;
-  docId: string;
-  text: string;
   baseMetadata?: Omit<TMeta, 'docId' | 'text'>;
+  docId: string;
+  namespace: string;
+  text: string;
 }
 
 export interface SearchOptions {
+  candidateTopK?: number;
+  includeMetadata?: boolean;
+  includeVectors?: boolean;
   namespace: string;
   query: string;
-  topK?: number;
-  candidateTopK?: number;
-  includeVectors?: boolean;
-  includeMetadata?: boolean;
   rerank?: boolean; // default false
+  topK?: number;
 }
 
 // Voyage contextualized embeddings recommend no overlap
@@ -109,8 +109,8 @@ export class RagService<
     if (this.contextualized) {
       this.contextualizedEmbedder = new VoyageContextualizedEmbedder({
         apiKey: this.contextualized.apiKey,
-        model: this.contextualized.model,
         baseUrl: this.contextualized.baseUrl,
+        model: this.contextualized.model,
         outputDimension: this.contextualized.outputDimension,
         outputDtype: this.contextualized.outputDtype,
       });
@@ -154,12 +154,12 @@ export class RagService<
 
     const entries = chunks.map((c, i) => ({
       id: c.id,
-      vector: vectors[i],
       metadata: {
         ...(baseMetadata ?? {}),
         docId,
         ...(this.storeTextInMetadata ? { text: c.text } : {}),
       } as TMeta,
+      vector: vectors[i],
     }));
 
     await this.vectorDb.upsert(
@@ -206,9 +206,9 @@ export class RagService<
     );
 
     if (!shouldRerank) return results;
-    const reranker = this.reranker;
+    const { reranker } = this;
     if (!reranker) return results;
-    const getContent = this.vectorDb.getContent;
+    const { getContent } = this.vectorDb;
     if (!getContent) {
       throw new Error('Reranking requires vectorDb.getContent to be provided.');
     }
@@ -217,8 +217,8 @@ export class RagService<
     const contents = await getContent(options.namespace, ids);
     const items = results.map((result, index) => ({
       id: result.id,
-      text: contents[index] ?? '',
       metadata: result.metadata,
+      text: contents[index] ?? '',
     }));
     const reranked = await reranker.rerank(options.query, items, topK);
 

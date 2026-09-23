@@ -186,7 +186,7 @@ describe('NotionClient', () => {
     for await (const result of client.iterateDataSource('source-1', {
       filter: { property: 'Name', rich_text: { is_not_empty: true } },
       page_size: 2,
-      sorts: [{ timestamp: 'last_edited_time', direction: 'ascending' }],
+      sorts: [{ direction: 'ascending', timestamp: 'last_edited_time' }],
     })) {
       streamed.push(result.id);
     }

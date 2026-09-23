@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Nullable } from '../../utils/type-utils';
 import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
-import type { AbstractStorage } from '../storage/abstract-storage';
+import { AbstractStorage } from '../storage/abstract-storage';
 import { KvFileLogger } from './kv-file-logger';
 
 class InMemoryKeyValueService implements AbstractKeyValueService {
@@ -12,9 +12,7 @@ class InMemoryKeyValueService implements AbstractKeyValueService {
   }
 
   async mget<T>(keys: string[]): Promise<Nullable<T>[]> {
-    return keys.map((key) => {
-      return (this.store.get(key) as T | undefined) ?? null;
-    });
+    return keys.map((key) => (this.store.get(key) as T | undefined) ?? null);
   }
 
   async set<T>(key: string, value: T, _ttlSeconds?: number): Promise<void> {
@@ -104,6 +102,7 @@ class InMemoryKeyValueService implements AbstractKeyValueService {
 
   async mset<T>(keyValues: [string, T][], ttlSeconds?: number): Promise<void> {
     for (const [key, value] of keyValues) {
+      // biome-ignore lint/performance/noAwaitInLoops: Test operations deliberately exercise state transitions in order.
       await this.set(key, value, ttlSeconds);
     }
   }
@@ -128,22 +127,24 @@ class InMemoryKeyValueService implements AbstractKeyValueService {
 }
 
 const createStorageMock = () => {
-  const storage: AbstractStorage = {
-    write: vi.fn(async () => undefined),
-    read: vi.fn(async () => Buffer.from('')),
-    delete: vi.fn(async () => undefined),
-    list: vi.fn(async () => []),
-    createReadPresignedUrl: vi.fn(async () => ({
+  const storage: AbstractStorage = new (class extends AbstractStorage {
+    createReadPresignedUrl = vi.fn(async () => ({
+      expiresAt: 1_700_000_000_000,
       url: 'https://example.com/kv-log.jsonl',
+    }));
+    createWritePresignedUrl = vi.fn(async () => ({
       expiresAt: 1_700_000_000_000,
-    })),
-    createWritePresignedUrl: vi.fn(async () => ({
+      method: 'PUT' as const,
       url: 'https://example.com/upload',
-      method: 'PUT',
-      expiresAt: 1_700_000_000_000,
-    })),
-    objectMetadata: vi.fn(async () => ({ contentLength: 0, meta: undefined })),
-  };
+    }));
+    delete = vi.fn(async () => undefined);
+    objectMetadata = vi.fn(async () => {
+      throw new Error('Unexpected metadata request');
+    });
+    read = vi.fn(async () => Buffer.from(''));
+    write = vi.fn(async () => undefined);
+    exists = vi.fn(async () => false);
+  })({});
 
   return storage;
 };
@@ -155,7 +156,7 @@ const createDeferred = <T>() => {
     resolve = res;
     reject = rej;
   });
-  return { promise, resolve, reject };
+  return { promise, reject, resolve };
 };
 
 const flush = async () => {
@@ -168,6 +169,7 @@ const waitFor = async (
   attempts = 20
 ) => {
   for (let index = 0; index < attempts; index += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: Test operations deliberately exercise state transitions in order.
     if (await predicate()) {
       return;
     }
@@ -182,10 +184,10 @@ describe('KvFileLogger', () => {
     const storage = createStorageMock();
     const logger = new KvFileLogger({
       key: 'logs/kv/test-1.jsonl',
-      mediatorKey: 'test-queue',
       kv,
-      storage,
+      mediatorKey: 'test-queue',
       metadata: { source: 'kv-test' },
+      storage,
     });
 
     const cyclic: Record<string, unknown> = {};
@@ -193,18 +195,18 @@ describe('KvFileLogger', () => {
 
     logger.info('entry.created', {
       cyclic,
-      payload: { id: '123' },
       error: new Error('boom'),
+      payload: { id: '123' },
     });
 
-    await waitFor(async () => {
-      return await kv.exists('lg:kv-file:test-queue:entry:1');
-    });
+    await waitFor(async () => await kv.exists('lg:kv-file:test-queue:entry:1'));
 
     await logger.close();
 
     const content = vi.mocked(storage.write).mock.calls[0]?.[1];
-    const lines = content?.toString('utf8').split('\n') ?? [];
+    const lines =
+      (Buffer.isBuffer(content) ? content.toString('utf8') : '').split('\n') ??
+      [];
     expect(lines).toHaveLength(2);
 
     const metadata = JSON.parse(lines[0] ?? '{}');
@@ -222,16 +224,16 @@ describe('KvFileLogger', () => {
     const storage = createStorageMock();
     const passthrough = {
       debug: vi.fn(),
+      error: vi.fn(),
       info: vi.fn(),
       warn: vi.fn(),
-      error: vi.fn(),
     };
     const logger = new KvFileLogger({
       key: 'logs/kv/test-2.jsonl',
-      mediatorKey: 'test-pass',
       kv,
-      storage,
+      mediatorKey: 'test-pass',
       passthrough,
+      storage,
     });
 
     logger.debug('a', { a: 1 });
@@ -252,10 +254,10 @@ describe('KvFileLogger', () => {
     const storage = createStorageMock();
     const logger = new KvFileLogger({
       key: 'logs/kv/test-3.jsonl',
-      mediatorKey: 'test-drop',
       kv,
-      storage,
       maxEntries: 2,
+      mediatorKey: 'test-drop',
+      storage,
     });
 
     logger.info('entry-1');
@@ -264,9 +266,8 @@ describe('KvFileLogger', () => {
 
     await logger.close();
 
-    const content = vi
-      .mocked(storage.write)
-      .mock.calls[0]?.[1].toString('utf8');
+    const written = vi.mocked(storage.write).mock.calls[0]?.[1];
+    const content = Buffer.isBuffer(written) ? written.toString('utf8') : '';
     const lines = content?.split('\n') ?? [];
     const metadata = JSON.parse(lines[0] ?? '{}');
     const first = JSON.parse(lines[1] ?? '{}');
@@ -286,8 +287,8 @@ describe('KvFileLogger', () => {
 
     const logger = new KvFileLogger({
       key: 'logs/kv/test-4.jsonl',
-      mediatorKey: 'test-local-close',
       kv,
+      mediatorKey: 'test-local-close',
       storage,
     });
     logger.info('entry');
@@ -312,16 +313,16 @@ describe('KvFileLogger', () => {
 
     const loggerA = new KvFileLogger({
       key: 'logs/kv/test-5.jsonl',
-      mediatorKey: 'test-distributed-close',
       kv,
+      mediatorKey: 'test-distributed-close',
       storage,
     });
     loggerA.info('entry-from-a');
 
     const loggerB = new KvFileLogger({
       key: 'logs/kv/test-5.jsonl',
-      mediatorKey: 'test-distributed-close',
       kv,
+      mediatorKey: 'test-distributed-close',
       storage,
     });
 
@@ -340,8 +341,8 @@ describe('KvFileLogger', () => {
     const storage = createStorageMock();
     const logger = new KvFileLogger({
       key: 'logs/kv/test-6.jsonl',
-      mediatorKey: 'test-cleanup',
       kv,
+      mediatorKey: 'test-cleanup',
       storage,
     });
     logger.info('entry');
@@ -364,8 +365,8 @@ describe('KvFileLogger', () => {
 
     const logger = new KvFileLogger({
       key: 'logs/kv/test-7.jsonl',
-      mediatorKey: 'test-retry',
       kv,
+      mediatorKey: 'test-retry',
       storage,
     });
     logger.info('entry-before-failure');

@@ -50,8 +50,8 @@ class MemoryStorage extends AbstractStorage {
     opts?: { contentType?: string }
   ): Promise<void> {
     this.objects.set(key, {
-      data,
       contentType: opts?.contentType,
+      data,
     });
   }
 
@@ -78,8 +78,8 @@ class MemoryStorage extends AbstractStorage {
     expiresAt: number;
   }> {
     return {
-      url: `https://example.test/read/${key}`,
       expiresAt: Date.now() + 60_000,
+      url: `https://example.test/read/${key}`,
     };
   }
 
@@ -89,9 +89,9 @@ class MemoryStorage extends AbstractStorage {
     expiresAt: number;
   }> {
     return {
-      url: 'https://example.test/write',
-      method: 'PUT',
       expiresAt: Date.now() + 60_000,
+      method: 'PUT',
+      url: 'https://example.test/write',
     };
   }
 
@@ -211,18 +211,18 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<object> {
     const existing = this.assets.get(input.id);
     const createdAt = input.createdAt ?? existing?.createdAt ?? new Date();
     const record: StorageAssetRecord<object> = {
+      createdAt,
       id: input.id,
-      objectKey: input.objectKey,
+      meta: input.meta ?? existing?.meta ?? {},
       mimeType: input.mimeType,
-      source: input.source,
-      parentAssetId: input.parentAssetId ?? null,
+      objectKey: input.objectKey,
       orphanedAt:
         input.orphanedAt === undefined
           ? (existing?.orphanedAt ?? null)
           : input.orphanedAt,
+      parentAssetId: input.parentAssetId ?? null,
+      source: input.source,
       tags: [...new Set(input.tags ?? existing?.tags ?? [])],
-      meta: input.meta ?? existing?.meta ?? {},
-      createdAt,
       updatedAt: input.updatedAt ?? new Date(),
     };
 
@@ -258,7 +258,7 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<object> {
   ): Promise<StorageAssetRecord<object> | null> {
     let current = this.assets.get(assetId) ?? null;
 
-    while (current?.parentAssetId !== null) {
+    while (current && current.parentAssetId !== null) {
       current = this.assets.get(current.parentAssetId) ?? null;
     }
 
@@ -269,20 +269,22 @@ class MemoryStorageAssetService extends AbstractStorageAssetService<object> {
 class FakeImageGenerator extends AbstractImageGenerator<ImageGenerationRequest> {
   readonly provider = 'fake-provider';
 
-  override async generate(): Promise<ImageGenerationOutput> {
+  override async generate(
+    _request: ImageGenerationRequest
+  ): Promise<ImageGenerationOutput> {
     return {
+      image: {
+        altText: 'Generated hero image',
+        data: new Uint8Array([1, 2, 3, 4]),
+        height: 1024,
+        mimeType: 'image/png',
+        width: 1024,
+      },
       model: 'fake-model',
-      revisedPrompt: 'revised hero prompt',
       providerMeta: {
         costUsd: 0.02,
       },
-      image: {
-        data: new Uint8Array([1, 2, 3, 4]),
-        mimeType: 'image/png',
-        width: 1024,
-        height: 1024,
-        altText: 'Generated hero image',
-      },
+      revisedPrompt: 'revised hero prompt',
     };
   }
 }
@@ -306,11 +308,11 @@ class FakeImageResizer extends AbstractImageResizer {
     format?: string;
   }) {
     return {
+      altText: image.altText,
       data: new Uint8Array([9, 8, 7]),
+      height,
       mimeType: format ? `image/${format}` : image.mimeType,
       width,
-      height,
-      altText: image.altText,
     };
   }
 }
@@ -324,13 +326,13 @@ describe('ImageGenerationService', () => {
     storage = new MemoryStorage();
     assetCatalog = new MemoryStorageAssetService();
     assetInventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog,
+      storage,
     });
   });
 
   it('supports pure generation without storage dependencies', async () => {
-    const service = new ImageGenerationService({
+    const service = new ImageGenerationService<ImageGenerationRequest>({
       generator: new FakeImageGenerator(),
     });
 
@@ -348,7 +350,7 @@ describe('ImageGenerationService', () => {
   });
 
   it('can generate and store with raw storage only', async () => {
-    const service = new ImageGenerationService({
+    const service = new ImageGenerationService<ImageGenerationRequest>({
       generator: new FakeImageGenerator(),
       storage,
     });
@@ -373,18 +375,18 @@ describe('ImageGenerationService', () => {
   });
 
   it('can compose its own inventory from storage and asset catalog', async () => {
-    const service = new ImageGenerationService({
+    const service = new ImageGenerationService<ImageGenerationRequest>({
+      assetCatalog,
       generator: new FakeImageGenerator(),
       storage,
-      assetCatalog,
       variantProducers: createImageResizeVariantProducers(
         new FakeImageResizer(),
         [
           {
+            format: 'webp',
+            height: 320,
             name: 'thumb',
             width: 320,
-            height: 320,
-            format: 'webp',
           },
         ]
       ),
@@ -408,23 +410,23 @@ describe('ImageGenerationService', () => {
   });
 
   it('can generate variants in memory via resize helpers', async () => {
-    const service = new ImageGenerationService({
+    const service = new ImageGenerationService<ImageGenerationRequest>({
       generator: new FakeImageGenerator(),
       variantProducers: createImageResizeVariantProducers(
         new FakeImageResizer(),
         [
           {
-            name: 'social',
-            width: 1200,
-            height: 630,
             format: 'webp',
+            height: 630,
+            name: 'social',
             tags: ['social'],
+            width: 1200,
           },
           {
+            format: 'webp',
+            height: 320,
             name: 'thumb',
             width: 320,
-            height: 320,
-            format: 'webp',
           },
         ]
       ),
@@ -450,36 +452,36 @@ describe('ImageGenerationService', () => {
   });
 
   it('persists originals and resized child variants through asset inventory', async () => {
-    const service = new ImageGenerationService({
-      generator: new FakeImageGenerator(),
+    const service = new ImageGenerationService<ImageGenerationRequest>({
       assetInventory,
+      buildOriginalExtraMeta: ({ generationId }) => ({
+        generationId,
+      }),
+      generator: new FakeImageGenerator(),
       variantProducers: createImageResizeVariantProducers(
         new FakeImageResizer(),
         [
           {
-            name: 'social',
-            width: 1200,
-            height: 630,
             format: 'webp',
+            height: 630,
+            name: 'social',
             tags: ['social'],
+            width: 1200,
           },
           {
+            format: 'webp',
+            height: 320,
             name: 'thumb',
             width: 320,
-            height: 320,
-            format: 'webp',
           },
         ]
       ),
-      buildOriginalExtraMeta: ({ generationId }) => ({
-        generationId,
-      }),
     });
 
     const result = await service.generateAndStore(
       {
-        prompt: 'hero product shot',
         model: 'request-model',
+        prompt: 'hero product shot',
       },
       {
         generationId: 'gen_123',
@@ -510,31 +512,30 @@ describe('ImageGenerationService', () => {
   });
 
   it('threads preview metadata builders into composed inventory writes', async () => {
-    const service = new ImageGenerationService({
-      generator: new FakeImageGenerator(),
-      storage,
+    const service = new ImageGenerationService<ImageGenerationRequest>({
       assetCatalog,
-      previewMetadataBuilder: async ({ meta }) => {
-        return {
+      generator: new FakeImageGenerator(),
+      previewMetadataBuilder: async ({ meta }) =>
+        ({
           ...(meta ?? {}),
           preview: {
+            aspectRatio: 1,
+            dataUrl: 'data:image/png;base64,stub',
+            height: 32,
             kind: 'thumbhash',
             value: 'stub-hash',
-            dataUrl: 'data:image/png;base64,stub',
             width: 32,
-            height: 32,
-            aspectRatio: 1,
           },
-        } satisfies StorageAssetPreviewMeta;
-      },
+        }) satisfies StorageAssetPreviewMeta,
+      storage,
       variantProducers: createImageResizeVariantProducers(
         new FakeImageResizer(),
         [
           {
+            format: 'webp',
+            height: 320,
             name: 'thumb',
             width: 320,
-            height: 320,
-            format: 'webp',
           },
         ]
       ),
@@ -554,17 +555,17 @@ describe('ImageGenerationService', () => {
   });
 
   it('hydrates history from inventory-backed generated roots only', async () => {
-    const service = new ImageGenerationService({
-      generator: new FakeImageGenerator(),
+    const service = new ImageGenerationService<ImageGenerationRequest>({
       assetInventory,
+      generator: new FakeImageGenerator(),
       variantProducers: createImageResizeVariantProducers(
         new FakeImageResizer(),
         [
           {
+            format: 'webp',
+            height: 320,
             name: 'thumb',
             width: 320,
-            height: 320,
-            format: 'webp',
           },
         ]
       ),
@@ -580,18 +581,18 @@ describe('ImageGenerationService', () => {
     );
 
     await assetCatalog.create({
+      createdAt: new Date('2026-03-19T08:00:00.000Z'),
       id: 'upload_1',
-      objectKey: 'uploads/upload_1/original.png',
-      mimeType: 'image/png',
-      source: 'uploaded',
-      tags: [],
       meta: {
         kind: 'upload',
-        provider: 'uploader',
         prompt: 'ignored',
+        provider: 'uploader',
         role: 'original',
       },
-      createdAt: new Date('2026-03-19T08:00:00.000Z'),
+      mimeType: 'image/png',
+      objectKey: 'uploads/upload_1/original.png',
+      source: 'uploaded',
+      tags: [],
       updatedAt: new Date('2026-03-19T08:00:00.000Z'),
     });
 
@@ -618,8 +619,8 @@ describe('ImageGenerationService', () => {
     expect(history.nextCursor).toBeDefined();
 
     const secondPage = await service.listHistory({
-      limit: 5,
       cursor: history.nextCursor,
+      limit: 5,
     });
 
     expect(secondPage.items.map((item) => item.generationId)).toEqual([

@@ -18,6 +18,7 @@ import type {
   DevLauncherLogEntry,
   DevLauncherLogsReadParams,
   DevLauncherLogsReadResult,
+  DevLauncherRpcResponse,
   DevLauncherSessionGetResult,
   DevLauncherSessionMetadata,
   DevLauncherSupervisorSnapshot,
@@ -28,11 +29,11 @@ import type {
 interface ClientSocketLike {
   destroy: () => void;
   end: () => void;
-  on: (event: 'data' | 'error', listener: (...args: any[]) => void) => void;
-  once: (
-    event: 'connect' | 'data' | 'end' | 'error',
-    listener: (...args: any[]) => void
-  ) => void;
+  on: ((event: 'data', listener: (chunk: Buffer | string) => void) => void) &
+    ((event: 'error', listener: (error: Error) => void) => void);
+  once: ((event: 'connect' | 'end', listener: () => void) => void) &
+    ((event: 'data', listener: (chunk: Buffer | string) => void) => void) &
+    ((event: 'error', listener: (error: Error) => void) => void);
   write: (chunk: string) => boolean;
 }
 
@@ -224,7 +225,9 @@ export class DevLauncherSessionClient {
           }
 
           try {
-            const parsedResponse = JSON.parse(line) as any;
+            const parsedResponse = JSON.parse(
+              line
+            ) as DevLauncherRpcResponse<unknown>;
             if (isDevLauncherRpcResponseFailure(parsedResponse)) {
               settle(() => {
                 reject(
@@ -370,10 +373,11 @@ export class DevLauncherRemoteProcessController
 
   async waitUntilIdle(): Promise<void> {
     while (
-      Object.values(this.#snapshot.serviceStates).some((state) => {
-        return state.status === 'starting' || state.status === 'stopping';
-      })
+      Object.values(this.#snapshot.serviceStates).some(
+        (state) => state.status === 'starting' || state.status === 'stopping'
+      )
     ) {
+      // biome-ignore lint/performance/noAwaitInLoops: Shutdown polling must observe each snapshot before waiting again.
       await this.#refreshSnapshot();
       await new Promise<void>((resolve) => {
         setTimeout(resolve, 50);

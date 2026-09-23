@@ -18,8 +18,8 @@ function getStripeB2B(): StripeB2BService {
     stripe,
     {
       baseUrl: process.env.APP_URL || 'http://localhost:3000',
-      successPath: '/billing/success',
       cancelPath: '/billing',
+      successPath: '/billing/success',
       webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
     }
   );

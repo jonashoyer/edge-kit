@@ -3,7 +3,10 @@ import {
   DevLauncherSessionAccess,
   type DevLauncherSessionAccessRuntime,
 } from './session-access';
-import { DevLauncherSessionClientError } from './session-client';
+import {
+  DevLauncherRemoteProcessController,
+  DevLauncherSessionClientError,
+} from './session-client';
 import {
   runDevLauncherLogsCommand,
   runDevLauncherServiceStartCommand,
@@ -103,9 +106,12 @@ const createSessionAccessRuntime = (overrides?: {
       overrides?.stopSession ?? (async () => ({ stopped: true as const }))
     ),
   };
-  const createRemoteController = vi.fn((_manifest, _client, summary) => ({
-    initialSummary: summary,
-  }));
+  const createRemoteController = vi.fn<
+    DevLauncherSessionAccessRuntime['createRemoteController']
+  >(
+    (manifest, client, summary) =>
+      new DevLauncherRemoteProcessController(manifest, client, summary)
+  );
   const runtime: DevLauncherSessionAccessRuntime = {
     bootstrapSession: vi.fn(
       overrides?.bootstrapSession ?? (async () => createSessionMetadata())

@@ -27,14 +27,13 @@ const DEFAULT_MAX_DRIFT_MS = 3 * 60 * 1000;
 export const buildSignedServiceRequestCanonicalString = (
   request: Pick<IncomingHookRequest, 'method' | 'pathname' | 'rawBody'>,
   timestamp: string
-) => {
-  return [
+) =>
+  [
     request.method.toUpperCase(),
     request.pathname,
     timestamp,
     request.rawBody,
   ].join('\n');
-};
 
 export type CreateServiceIngressHeadersOptions = {
   ingress: string;
@@ -116,14 +115,15 @@ export class SignedServiceRequestVerifier<TPayload = unknown>
       timestamp
     );
     const matched = await Promise.all(
-      this.secrets.map(async (secret) => {
-        return await verifyHmacHex({
-          value: canonical,
-          secret,
-          algorithm: 'sha256',
-          expectedHex,
-        });
-      })
+      this.secrets.map(
+        async (secret) =>
+          await verifyHmacHex({
+            algorithm: 'sha256',
+            expectedHex,
+            secret,
+            value: canonical,
+          })
+      )
     );
 
     if (!matched.some(Boolean)) {
@@ -133,17 +133,19 @@ export class SignedServiceRequestVerifier<TPayload = unknown>
     let payload: TPayload;
     try {
       payload = JSON.parse(request.rawBody) as TPayload;
-    } catch {
-      throw new IncomingHookPayloadError('Invalid service request JSON');
+    } catch (error) {
+      throw new IncomingHookPayloadError('Invalid service request JSON', {
+        cause: error,
+      });
     }
 
     return {
-      provider: 'service',
-      event: ingress,
       deliveryId: null,
-      payload,
-      rawBody: request.rawBody,
+      event: ingress,
       headers: request.headers,
+      payload,
+      provider: 'service',
+      rawBody: request.rawBody,
     };
   }
 }

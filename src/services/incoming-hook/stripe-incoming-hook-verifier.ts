@@ -49,12 +49,12 @@ export class StripeIncomingHookVerifier
     }
 
     return {
-      provider: 'stripe',
-      event: event.type,
       deliveryId: event.id,
-      payload: event,
-      rawBody: request.rawBody,
+      event: event.type,
       headers: request.headers,
+      payload: event,
+      provider: 'stripe',
+      rawBody: request.rawBody,
     };
   }
 }

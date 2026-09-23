@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { DevActionSuggestion } from './action-runner';
+import type { DevLauncherCommandRuntime } from './session-commands';
 import {
   resolveInitialServiceIds,
   runDevLauncherCommand,
@@ -25,18 +26,18 @@ const createManifest = (): LoadedDevLauncherManifest => ({
   repoRoot: '/repo',
   serviceIdsInOrder: ['app', 'api'],
   servicesById: {
-    app: {
-      label: 'App',
-      target: {
-        kind: 'root-script',
-        script: 'dev:app',
-      },
-    },
     api: {
       label: 'API',
       target: {
         kind: 'root-script',
         script: 'dev:api',
+      },
+    },
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev:app',
       },
     },
   },
@@ -102,34 +103,36 @@ const createRuntime = (overrides?: {
   const stdout = {
     write: vi.fn(),
   } as unknown as NodeJS.WriteStream;
-  const startTuiSession = vi.fn(async () => 0);
-  const runPlainSession = vi.fn(async () => 0);
-  const createRemoteController = vi.fn(() => {
-    return {
-      applyServiceSet: vi.fn(async () => undefined),
-      getSnapshot: vi.fn(() => createSessionSummary().session.snapshot),
-      restartService: vi.fn(async () => undefined),
-      startService: vi.fn(async () => undefined),
-      stopAll: vi.fn(async () => undefined),
-      stopService: vi.fn(async () => undefined),
-      subscribe: vi.fn(() => () => undefined),
-      waitUntilIdle: vi.fn(async () => undefined),
-    };
-  });
+  const startTuiSession = vi.fn<DevLauncherCommandRuntime['startTuiSession']>(
+    async () => 0
+  );
+  const runPlainSession = vi.fn<DevLauncherCommandRuntime['runPlainSession']>(
+    async () => 0
+  );
+  const createRemoteController = vi.fn(() => ({
+    applyServiceSet: vi.fn(async () => undefined),
+    getSnapshot: vi.fn(() => createSessionSummary().session.snapshot),
+    restartService: vi.fn(async () => undefined),
+    startService: vi.fn(async () => undefined),
+    stopAll: vi.fn(async () => undefined),
+    stopService: vi.fn(async () => undefined),
+    subscribe: vi.fn(() => () => undefined),
+    waitUntilIdle: vi.fn(async () => undefined),
+  }));
   const existingClient = {
-    applyServiceSet: vi.fn(async (serviceIds: string[]) => {
-      return createSessionSummary(serviceIds);
-    }),
+    applyServiceSet: vi.fn(async (serviceIds: string[]) =>
+      createSessionSummary(serviceIds)
+    ),
     getSession: vi.fn(async () => createSessionSummary(['app'])),
-    resolveSession: vi.fn(async () => {
-      return overrides?.existingSession ? createSessionMetadata() : null;
-    }),
+    resolveSession: vi.fn(async () =>
+      overrides?.existingSession ? createSessionMetadata() : null
+    ),
     stopSession: vi.fn(async () => ({ stopped: true as const })),
   };
   const attachedClient = {
-    applyServiceSet: vi.fn(async (serviceIds: string[]) => {
-      return createSessionSummary(serviceIds);
-    }),
+    applyServiceSet: vi.fn(async (serviceIds: string[]) =>
+      createSessionSummary(serviceIds)
+    ),
     getSession: vi.fn(async () => createSessionSummary()),
     resolveSession: vi.fn(async () => createSessionMetadata()),
     stopSession: vi.fn(async () => ({ stopped: true as const })),
@@ -151,13 +154,13 @@ const createRuntime = (overrides?: {
         setTimeout,
       },
       createRemoteController,
-      createSessionClient: vi.fn((_loadedManifest, metadata) => {
-        return metadata ? attachedClient : existingClient;
-      }),
+      createSessionClient: vi.fn((_loadedManifest, metadata) =>
+        metadata ? attachedClient : existingClient
+      ),
       createSessionServer: vi.fn(() => sessionServer),
-      getPreflightSuggestions: vi.fn(async () => {
-        return overrides?.preflightSuggestions ?? [];
-      }),
+      getPreflightSuggestions: vi.fn(
+        async () => overrides?.preflightSuggestions ?? []
+      ),
       isInteractiveTuiSupported: () => overrides?.interactive ?? true,
       loadManifest: vi.fn(async () => manifest),
       runPlainSession,

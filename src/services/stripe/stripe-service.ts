@@ -8,12 +8,23 @@ import { StripeSyncService } from './sync-service';
 import { StripeWebhookService } from './webhook-service';
 
 export interface StripeServiceOptions {
-  logger?: AbstractLogger;
-
   /**
    * Base URL for the application (used for success/cancel URLs)
    */
   baseUrl: string;
+
+  /**
+   * Path to redirect to after cancelling checkout
+   * Will be appended to baseUrl
+   */
+  cancelPath?: string;
+  logger?: AbstractLogger;
+
+  /**
+   * Stripe secret key
+   * Should be loaded from environment variable
+   */
+  secretKey: string;
 
   /**
    * Path for the success callback after checkout
@@ -22,22 +33,10 @@ export interface StripeServiceOptions {
   successPath?: string;
 
   /**
-   * Path to redirect to after cancelling checkout
-   * Will be appended to baseUrl
-   */
-  cancelPath?: string;
-
-  /**
    * Secret for webhook verification
    * Should be loaded from environment variable
    */
   webhookSecret: string;
-
-  /**
-   * Stripe secret key
-   * Should be loaded from environment variable
-   */
-  secretKey: string;
 }
 
 /**
@@ -70,9 +69,9 @@ export class StripeService {
     this.syncService = new StripeSyncService(store, stripe, options.logger);
 
     this.checkoutService = new StripeCheckoutService(store, stripe, {
+      cancelUrl: `${options.baseUrl}${options.cancelPath || '/'}`,
       logger: options.logger,
       successUrl: `${options.baseUrl}${options.successPath || '/success'}`,
-      cancelUrl: `${options.baseUrl}${options.cancelPath || '/'}`,
     });
 
     this.webhookService = new StripeWebhookService(

@@ -8,7 +8,7 @@ import type { StripeSubscription } from './types';
  * Handles key-value storage operations for the Stripe service
  */
 export class StripeKVStore implements AbstractStripeStore {
-  private kvService: AbstractKeyValueService;
+  private readonly kvService: AbstractKeyValueService;
 
   constructor(kvService: AbstractKeyValueService) {
     this.kvService = kvService;

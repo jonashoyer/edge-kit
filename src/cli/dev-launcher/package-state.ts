@@ -7,9 +7,8 @@ const toRelativePath = (repoRoot: string, filePath: string): string => {
   return relativePath.length > 0 ? relativePath : path.basename(filePath);
 };
 
-const getExistingFilePaths = (filePaths: string[]): string[] => {
-  return filePaths.filter((filePath) => fs.existsSync(filePath));
-};
+const getExistingFilePaths = (filePaths: string[]): string[] =>
+  filePaths.filter((filePath) => fs.existsSync(filePath));
 
 export interface PnpmInstallState {
   installMarkerPath: string;

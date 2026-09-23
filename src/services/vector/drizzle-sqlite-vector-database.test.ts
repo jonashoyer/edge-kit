@@ -1,5 +1,7 @@
+import type Database from 'better-sqlite3';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { loadSqliteVec } from '../../db/sqlite-vec-loader';
 import { float32Blob } from '../../db/types/float32-blob';
 import type { VectorEntry } from './abstract-vector-database';
 import { DrizzleSqliteVectorDatabase } from './drizzle-sqlite-vector-database';
@@ -7,36 +9,28 @@ import { DrizzleSqliteVectorDatabase } from './drizzle-sqlite-vector-database';
 // Test schema
 const EMBED_DIM = 1536;
 const embeddings = sqliteTable('embeddings', {
-  id: text('id').primaryKey(),
-  namespace: text('namespace').notNull(),
-  embedding: float32Blob(EMBED_DIM)('embedding'),
-  metadata: text('metadata'),
   createdAt: integer('created_at')
     .notNull()
     .default(Math.floor(Date.now() / 1000)),
+  embedding: float32Blob(EMBED_DIM)('embedding'),
+  id: text('id').primaryKey(),
+  metadata: text('metadata'),
+  namespace: text('namespace').notNull(),
 });
-
-// Mock table with proper structure
-const mockTable = {
-  ...embeddings,
-  _: {
-    name: 'embeddings',
-  },
-};
 
 // Mock better-sqlite3 Database
 const mockDatabase = {
+  exec: vi.fn(),
   loadExtension: vi.fn(),
   pragma: vi.fn(),
   prepare: vi.fn(),
-  exec: vi.fn(),
   transaction: vi.fn(),
 };
 
 // Mock drizzle database
 const mockDrizzleDb = {
   driver: {
-    database: mockDatabase,
+    database: mockDatabase as unknown as Database.Database,
   },
 };
 
@@ -55,19 +49,19 @@ describe('DrizzleSqliteVectorDatabase', () => {
     contentStore.clear();
 
     vectorDb = new DrizzleSqliteVectorDatabase({
-      db: mockDrizzleDb as any,
-      table: mockTable as any,
       columns: {
-        id: embeddings.id,
-        namespace: embeddings.namespace,
         embedding: embeddings.embedding,
+        id: embeddings.id,
         metadata: embeddings.metadata,
+        namespace: embeddings.namespace,
       },
+      db: mockDrizzleDb,
       dim: EMBED_DIM,
       getContent: (namespace, ids) =>
         Promise.resolve(
           ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
         ),
+      table: embeddings,
     });
   });
 
@@ -78,18 +72,18 @@ describe('DrizzleSqliteVectorDatabase', () => {
 
     it('should load sqlite-vec extension', () => {
       // The extension loading is mocked, so we just verify the constructor works
-      expect(vectorDb).toBeDefined();
+      expect(loadSqliteVec).toHaveBeenCalled();
     });
   });
 
   describe('ensureIndexes', () => {
-    it('should create vec0 virtual table and indexes', () => {
+    it('should create vec0 virtual table without unsupported indexes', () => {
       vectorDb.ensureIndexes();
 
       expect(mockDatabase.exec).toHaveBeenCalledWith(
         expect.stringContaining('CREATE VIRTUAL TABLE IF NOT EXISTS')
       );
-      expect(mockDatabase.exec).toHaveBeenCalledWith(
+      expect(mockDatabase.exec).not.toHaveBeenCalledWith(
         expect.stringContaining('CREATE INDEX IF NOT EXISTS')
       );
     });
@@ -104,21 +98,21 @@ describe('DrizzleSqliteVectorDatabase', () => {
     >[] = [
       {
         id: 'doc:1#0',
-        vector: new Array(EMBED_DIM).fill(0.1),
-        metadata: { title: 'Test Doc', chunk: 0 },
+        metadata: { chunk: 0, title: 'Test Doc' },
+        vector: Array.from({ length: EMBED_DIM }, () => 0.1),
       },
       {
         id: 'doc:1#1',
-        vector: new Array(EMBED_DIM).fill(0.2),
-        metadata: { title: 'Test Doc', chunk: 1 },
+        metadata: { chunk: 1, title: 'Test Doc' },
+        vector: Array.from({ length: EMBED_DIM }, () => 0.2),
       },
     ];
 
     it('should validate vector dimensions', async () => {
       const invalidEntry = {
         id: 'invalid',
-        vector: new Array(100), // Wrong dimension
-        metadata: { title: 'Test', chunk: 0 },
+        metadata: { chunk: 0, title: 'Test' },
+        vector: Array.from({ length: 100 }, () => 0), // Wrong dimension
       };
 
       await expect(
@@ -148,15 +142,15 @@ describe('DrizzleSqliteVectorDatabase', () => {
 
       expect(mockDatabase.transaction).toHaveBeenCalled();
       expect(mockTransactionFn).toHaveBeenCalled();
-      expect(mockDatabase.prepare).toHaveBeenCalledTimes(2); // baseInsert and vecInsert
+      expect(mockDatabase.prepare).toHaveBeenCalledTimes(3); // baseInsert, vecDelete, and vecInsert
     });
   });
 
   describe('query', () => {
-    const queryVector = new Array(EMBED_DIM).fill(0.5);
+    const queryVector = Array.from({ length: EMBED_DIM }, () => 0.5);
 
     it('should validate query vector dimensions', async () => {
-      const invalidVector = new Array(100); // Wrong dimension
+      const invalidVector = Array.from({ length: 100 }, () => 0); // Wrong dimension
 
       await expect(
         vectorDb.query('test-namespace', invalidVector, 2)
@@ -166,26 +160,28 @@ describe('DrizzleSqliteVectorDatabase', () => {
     it('should query vectors successfully', async () => {
       const mockVecStatement = {
         all: vi.fn().mockReturnValue([
-          { id: 'doc:1#0', namespace: 'test-namespace', distance: 0.1 },
-          { id: 'doc:1#1', namespace: 'test-namespace', distance: 0.2 },
+          { distance: 0.1, id: 'doc:1#0', namespace: 'test-namespace' },
+          { distance: 0.2, id: 'doc:1#1', namespace: 'test-namespace' },
         ]),
       };
 
       const mockBaseStatement = {
         all: vi.fn().mockReturnValue([
           {
-            id: 'doc:1#0',
             embedding: Buffer.from(
-              new Float32Array(new Array(EMBED_DIM).fill(0.1)).buffer
+              new Float32Array(Array.from({ length: EMBED_DIM }, () => 0.1))
+                .buffer
             ),
-            metadata: JSON.stringify({ title: 'Test Doc', chunk: 0 }),
+            id: 'doc:1#0',
+            metadata: JSON.stringify({ chunk: 0, title: 'Test Doc' }),
           },
           {
-            id: 'doc:1#1',
             embedding: Buffer.from(
-              new Float32Array(new Array(EMBED_DIM).fill(0.2)).buffer
+              new Float32Array(Array.from({ length: EMBED_DIM }, () => 0.2))
+                .buffer
             ),
-            metadata: JSON.stringify({ title: 'Test Doc', chunk: 1 }),
+            id: 'doc:1#1',
+            metadata: JSON.stringify({ chunk: 1, title: 'Test Doc' }),
           },
         ]),
       };
@@ -213,18 +209,20 @@ describe('DrizzleSqliteVectorDatabase', () => {
       const mockStatement = {
         all: vi.fn().mockReturnValue([
           {
-            id: 'doc:1#0',
             embedding: Buffer.from(
-              new Float32Array(new Array(EMBED_DIM).fill(0.1)).buffer
+              new Float32Array(Array.from({ length: EMBED_DIM }, () => 0.1))
+                .buffer
             ),
-            metadata: JSON.stringify({ title: 'Test Doc', chunk: 0 }),
+            id: 'doc:1#0',
+            metadata: JSON.stringify({ chunk: 0, title: 'Test Doc' }),
           },
           {
-            id: 'doc:1#1',
             embedding: Buffer.from(
-              new Float32Array(new Array(EMBED_DIM).fill(0.2)).buffer
+              new Float32Array(Array.from({ length: EMBED_DIM }, () => 0.2))
+                .buffer
             ),
-            metadata: JSON.stringify({ title: 'Test Doc', chunk: 1 }),
+            id: 'doc:1#1',
+            metadata: JSON.stringify({ chunk: 1, title: 'Test Doc' }),
           },
         ]),
       };
@@ -270,25 +268,26 @@ describe('DrizzleSqliteVectorDatabase', () => {
 
   describe('error handling', () => {
     it('should throw error for unsupported driver', () => {
-      const invalidDb = {} as any;
+      const invalidDb = {};
 
-      expect(() => {
-        new DrizzleSqliteVectorDatabase({
-          db: invalidDb,
-          table: mockTable as any,
-          columns: {
-            id: embeddings.id,
-            namespace: embeddings.namespace,
-            embedding: embeddings.embedding,
-            metadata: embeddings.metadata,
-          },
-          dim: EMBED_DIM,
-          getContent: (namespace, ids) =>
-            Promise.resolve(
-              ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
-            ),
-        });
-      }).toThrow('requires better-sqlite3 driver');
+      expect(
+        () =>
+          new DrizzleSqliteVectorDatabase({
+            columns: {
+              embedding: embeddings.embedding,
+              id: embeddings.id,
+              metadata: embeddings.metadata,
+              namespace: embeddings.namespace,
+            },
+            db: invalidDb,
+            dim: EMBED_DIM,
+            getContent: (namespace, ids) =>
+              Promise.resolve(
+                ids.map((id) => contentStore.get(`${namespace}:${id}`) ?? null)
+              ),
+            table: embeddings,
+          })
+      ).toThrow('requires better-sqlite3 driver');
     });
   });
 

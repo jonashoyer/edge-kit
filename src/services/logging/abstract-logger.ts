@@ -42,7 +42,7 @@ export abstract class AbstractLogger implements StandardLogger {
       typeof value === 'string' ||
       typeof value === 'number' ||
       typeof value === 'boolean' ||
-      value == null
+      value === null
     ) {
       return value;
     }
@@ -57,9 +57,10 @@ export abstract class AbstractLogger implements StandardLogger {
     if (!metadata) return;
 
     return Object.fromEntries(
-      Object.entries(metadata).map(([key, value]) => {
-        return [key, AbstractLogger.serializeLogValue(value)];
-      })
+      Object.entries(metadata).map(([key, value]) => [
+        key,
+        AbstractLogger.serializeLogValue(value),
+      ])
     ) as Record<string, LoggablePrimitive | Record<string, LoggablePrimitive>>;
   }
 }

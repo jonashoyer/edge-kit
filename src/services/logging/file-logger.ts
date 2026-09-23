@@ -14,35 +14,35 @@ import {
 const DEFAULT_MAX_ENTRIES = 10_000;
 
 interface FileLoggerMetadataEnvelope {
-  type: 'metadata';
-  startedAt: string;
-  endedAt: string;
   droppedEntryCount: number;
-  maxEntries: number;
+  endedAt: string;
   entryCount: number;
+  maxEntries: number;
   metadata?: SerializedLogMetadata;
+  startedAt: string;
+  type: 'metadata';
 }
 
 export interface FileLoggerEntry {
-  timestamp: string;
   level: LogLevel;
   message: string;
   metadata?: SerializedLogMetadata;
+  timestamp: string;
 }
 
 export interface FileLoggerOptions {
   key: string;
-  storage: AbstractStorage;
+  maxEntries?: number;
   metadata?: Record<string, unknown>;
   passthrough?: StandardLogger;
-  maxEntries?: number;
+  storage: AbstractStorage;
 }
 
 export interface FileLoggerCloseResult {
+  entryCount: number;
+  expiresAt: number;
   key: string;
   url: string;
-  expiresAt: number;
-  entryCount: number;
 }
 
 export class FileLogger extends AbstractLogger {
@@ -82,15 +82,16 @@ export class FileLogger extends AbstractLogger {
   override log(message: string, level: LogLevel, metadata?: LogMetadata): void {
     this.passthrough?.[level](message, metadata);
 
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: close() mutates this state outside the current method.
     if (this.closed) {
       return;
     }
 
     const normalizedMetadata = AbstractLogger.serializeLogMetadata(metadata);
     const entry: FileLoggerEntry = {
-      timestamp: new Date().toISOString(),
       level,
       message,
+      timestamp: new Date().toISOString(),
     };
 
     if (normalizedMetadata) {
@@ -144,12 +145,12 @@ export class FileLogger extends AbstractLogger {
     try {
       const endedAt = new Date().toISOString();
       const metadataEnvelope: FileLoggerMetadataEnvelope = {
-        type: 'metadata',
-        startedAt: this.startedAt,
-        endedAt,
         droppedEntryCount: this.droppedEntryCount,
-        maxEntries: this.maxEntries,
+        endedAt,
         entryCount: this.entries.length,
+        maxEntries: this.maxEntries,
+        startedAt: this.startedAt,
+        type: 'metadata',
       };
 
       if (this.metadata) {
@@ -159,15 +160,15 @@ export class FileLogger extends AbstractLogger {
       const lines: string[] = [safeJsonStringify(metadataEnvelope)];
       for (const entry of this.entries) {
         const normalized: FileLoggerEntry = {
-          timestamp:
-            typeof entry.timestamp === 'string'
-              ? entry.timestamp
-              : String(entry.timestamp),
           level: entry.level,
           message:
             typeof entry.message === 'string'
               ? entry.message
               : String(entry.message),
+          timestamp:
+            typeof entry.timestamp === 'string'
+              ? entry.timestamp
+              : String(entry.timestamp),
         };
         const outputMetadata = normalizeOutputMetadata(entry.metadata);
         if (outputMetadata) {
@@ -180,11 +181,11 @@ export class FileLogger extends AbstractLogger {
       await this.storage.write(this.key, Buffer.from(content), {
         metadata: {
           ...(this.metadata ?? {}),
-          startedAt: this.startedAt,
-          endedAt,
           droppedEntryCount: this.droppedEntryCount,
-          maxEntries: this.maxEntries,
+          endedAt,
           entryCount: this.entries.length,
+          maxEntries: this.maxEntries,
+          startedAt: this.startedAt,
         },
       });
 
@@ -193,10 +194,10 @@ export class FileLogger extends AbstractLogger {
       );
 
       const result: FileLoggerCloseResult = {
+        entryCount: this.entries.length,
+        expiresAt,
         key: this.key,
         url,
-        expiresAt,
-        entryCount: this.entries.length,
       };
 
       this.closeResult = result;

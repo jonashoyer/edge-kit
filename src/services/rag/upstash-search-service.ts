@@ -50,7 +50,7 @@ export class UpstashSearchService<
     super();
     this.client =
       options.url && options.token
-        ? new Search({ url: options.url, token: options.token })
+        ? new Search({ token: options.token, url: options.url })
         : Search.fromEnv();
   }
 
@@ -62,8 +62,8 @@ export class UpstashSearchService<
     const index = this.client.index<{ text: string }, TMeta>(namespace);
     await index.upsert(
       chunks.map((c) => ({
-        id: c.id,
         content: { text: c.text },
+        id: c.id,
         metadata: c.metadata,
       }))
     );
@@ -98,16 +98,16 @@ export class UpstashSearchService<
   ): Promise<VectorEntry<number[], TMeta, false>[]> {
     const index = this.client.index<{ text: string }, TMeta>(namespace);
     const res = await index.search({
-      query,
       limit: options?.topK,
+      query,
       reranking: options?.reranking,
     });
 
     const mapped = res.map((doc) => ({
       id: doc.id,
+      metadata: doc.metadata as TMeta,
       // Upstash Search does not expose vectors; align with VectorEntry shape using conditional generics
       vector: undefined as never,
-      metadata: doc.metadata as TMeta,
     }));
 
     return mapped as VectorEntry<number[], TMeta, false>[];

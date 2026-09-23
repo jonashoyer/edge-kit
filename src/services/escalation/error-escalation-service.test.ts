@@ -37,17 +37,17 @@ describe('ErrorEscalationService threshold cooldown', () => {
       alerting
     );
     const config: CaptureConfig = {
-      name: 'Repeated client error',
-      severity: 'error',
       groupId: 'fingerprint',
+      name: 'Repeated client error',
       rules: [
         {
-          type: 'threshold',
-          count: 3,
-          windowSeconds: 2 * 24 * 60 * 60,
           cooldownSeconds: 24 * 60 * 60,
+          count: 3,
+          type: 'threshold',
+          windowSeconds: 2 * 24 * 60 * 60,
         },
       ],
+      severity: 'error',
     };
 
     await service.capture(new Error('failure'), config);

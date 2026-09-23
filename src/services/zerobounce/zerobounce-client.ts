@@ -6,6 +6,7 @@ import { Throttler } from '../../utils/throttler';
 
 export interface ZeroBounceEmailResult {
   address: string;
+  error?: string;
   status:
     | 'valid'
     | 'invalid'
@@ -41,7 +42,6 @@ export interface ZeroBounceEmailResult {
     | 'alternate'
     | 'accept_all'
     | 'role_based_accept_all';
-  error?: string;
 }
 
 export interface ZeroBounceResponse {
@@ -51,11 +51,6 @@ export interface ZeroBounceResponse {
 
 export interface ZeroBounceClientOptions {
   /**
-   * Maximum number of API calls per minute.
-   * @default 5
-   */
-  requestsPerMinute?: number;
-  /**
    * Optional cache file path for storing results across runs.
    */
   cacheFilePath?: string;
@@ -64,6 +59,11 @@ export interface ZeroBounceClientOptions {
    * @default false
    */
   enableCache?: boolean;
+  /**
+   * Maximum number of API calls per minute.
+   * @default 5
+   */
+  requestsPerMinute?: number;
 }
 
 /**
@@ -132,25 +132,25 @@ export class ZeroBounceClient {
     const url = new URL('https://api.zerobounce.net/v2/validatebatch');
 
     const response = await fetchExt({
-      url: url.toString(),
       init: {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        method: 'POST',
         body: JSON.stringify({
+          activity_data: true,
           api_key: this.apiKey,
           email_batch: uncachedEmails.map((email) => ({
             email_address: email,
             ip_address: null,
           })),
-          activity_data: true,
           verify_plus: true,
         }),
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
       },
       retries: 3,
       retryDelay: 750,
       timeout: 120_000,
+      url: url.toString(),
     });
 
     if (!response.ok) {
@@ -201,8 +201,6 @@ export class ZeroBounceClient {
         JSON.stringify(cacheObject, null, 2),
         'utf8'
       );
-    } catch {
-      return;
-    }
+    } catch {}
   }
 }

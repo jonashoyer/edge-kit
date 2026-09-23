@@ -46,9 +46,5 @@ export const getDevLauncherStateRoot = (
   return path.join(runtime.homedir(), '.local', 'state', 'edge-kit');
 };
 
-export const getDevLauncherRepoHash = (repoRoot: string): string => {
-  return createHash('sha1')
-    .update(path.resolve(repoRoot))
-    .digest('hex')
-    .slice(0, 12);
-};
+export const getDevLauncherRepoHash = (repoRoot: string): string =>
+  createHash('sha1').update(path.resolve(repoRoot)).digest('hex').slice(0, 12);

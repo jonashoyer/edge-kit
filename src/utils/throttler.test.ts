@@ -37,23 +37,19 @@ describe('Throttler admission', () => {
     expect(starts).toEqual([0, 20, 60_000]);
   });
 
-  it.each([
-    0,
-    -1,
-    Number.NaN,
-    Number.POSITIVE_INFINITY,
-  ])('rejects invalid RPM %s', (rpm) => {
-    expect(() => new Throttler(rpm)).toThrow('requestsPerMinute');
-  });
+  it.each([0, -1, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects invalid RPM %s',
+    (rpm) => {
+      expect(() => new Throttler(rpm)).toThrow('requestsPerMinute');
+    }
+  );
 
-  it.each([
-    -1,
-    0.5,
-    Number.NaN,
-    Number.POSITIVE_INFINITY,
-  ])('rejects invalid spacing %s', (minimumIntervalMs) => {
-    expect(() => new Throttler({ minimumIntervalMs })).toThrow(
-      'minimumIntervalMs'
-    );
-  });
+  it.each([-1, 0.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects invalid spacing %s',
+    (minimumIntervalMs) => {
+      expect(() => new Throttler({ minimumIntervalMs })).toThrow(
+        'minimumIntervalMs'
+      );
+    }
+  );
 });

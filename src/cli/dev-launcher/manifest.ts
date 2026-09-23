@@ -16,7 +16,7 @@ export const normalizeSelectedServiceIds = (
     }
   }
 
-  return manifest.serviceIdsInOrder.filter((serviceId) => {
-    return requestedServiceIds.has(serviceId);
-  });
+  return manifest.serviceIdsInOrder.filter((serviceId) =>
+    requestedServiceIds.has(serviceId)
+  );
 };

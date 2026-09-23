@@ -9,9 +9,8 @@ import {
 } from './selection-history';
 import type { LoadedDevLauncherManifest } from './types';
 
-const createTempDir = (): string => {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-dev-history-'));
-};
+const createTempDir = (): string =>
+  fs.mkdtempSync(path.join(os.tmpdir(), 'edge-kit-dev-history-'));
 
 const createManifest = (): LoadedDevLauncherManifest => ({
   actionIdsInOrder: [],
@@ -21,18 +20,18 @@ const createManifest = (): LoadedDevLauncherManifest => ({
   repoRoot: '/repo',
   serviceIdsInOrder: ['app', 'api', 'worker'],
   servicesById: {
-    app: {
-      label: 'App',
-      target: {
-        kind: 'root-script',
-        script: 'dev:app',
-      },
-    },
     api: {
       label: 'API',
       target: {
         kind: 'root-script',
         script: 'dev:api',
+      },
+    },
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev:app',
       },
     },
     worker: {

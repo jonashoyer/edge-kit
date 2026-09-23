@@ -18,14 +18,11 @@ export class PosthogAnalytics<T extends Record<string, Record<string, unknown>>>
     );
   }
 
-  public capture<TEvent extends keyof T>(
-    event: TEvent,
-    properties: T[TEvent]
-  ): void {
+  capture<TEvent extends keyof T>(event: TEvent, properties: T[TEvent]): void {
     posthog.capture(event as string, properties);
   }
 
-  public identify(
+  identify(
     newDistinctId?: string,
     userPropertiesToSet?: Properties,
     userPropertiesToSetOnce?: Properties,
@@ -41,7 +38,7 @@ export class PosthogAnalytics<T extends Record<string, Record<string, unknown>>>
     );
   }
 
-  public reset(): void {
+  reset(): void {
     posthog.reset();
   }
 }

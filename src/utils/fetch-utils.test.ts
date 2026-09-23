@@ -25,8 +25,8 @@ describe('fetchExt', () => {
     globalThis.fetch = fetchMock;
 
     const res = await fetchExt({
+      init: { body: { a: 1 }, method: 'POST' },
       url: 'https://example.com',
-      init: { method: 'POST', body: { a: 1 } },
     });
 
     expect(res.ok).toBe(true);
@@ -34,16 +34,16 @@ describe('fetchExt', () => {
   });
 
   it('returns parsed+validated JSON when expectJson.schema is provided', async () => {
-    const fetchMock = vi.fn(async () => {
-      return new Response(JSON.stringify({ ok: true }), { status: 200 });
-    });
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 })
+    );
 
     globalThis.fetch = fetchMock;
 
     const schema = z.object({ ok: z.boolean() });
     const { response, data } = await fetchExt({
-      url: 'https://example.com',
       expectJson: { schema },
+      url: 'https://example.com',
     });
 
     expect(response.ok).toBe(true);
@@ -51,51 +51,52 @@ describe('fetchExt', () => {
   });
 
   it('throws FETCH_INVALID_JSON for non-JSON bodies when expectJson is enabled', async () => {
-    const fetchMock = vi.fn(async () => {
-      return new Response('not-json', { status: 200 });
-    });
+    const fetchMock = vi.fn(
+      async () => new Response('not-json', { status: 200 })
+    );
 
     globalThis.fetch = fetchMock;
 
     const schema = z.object({ ok: z.boolean() });
 
     await expect(
-      fetchExt({ url: 'https://example.com', expectJson: { schema } })
+      fetchExt({ expectJson: { schema }, url: 'https://example.com' })
     ).rejects.toMatchObject({ code: 'FETCH_INVALID_JSON' });
   });
 
   it('throws FETCH_SCHEMA_VALIDATION when schema validation fails', async () => {
-    const fetchMock = vi.fn(async () => {
-      return new Response(JSON.stringify({ ok: 'nope' }), { status: 200 });
-    });
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ ok: 'nope' }), { status: 200 })
+    );
 
     globalThis.fetch = fetchMock;
 
     const schema = z.object({ ok: z.boolean() });
 
     await expect(
-      fetchExt({ url: 'https://example.com', expectJson: { schema } })
+      fetchExt({ expectJson: { schema }, url: 'https://example.com' })
     ).rejects.toMatchObject({ code: 'FETCH_SCHEMA_VALIDATION' });
   });
 
   it('throws FETCH_TIMEOUT when request exceeds timeout', async () => {
     vi.useFakeTimers();
 
-    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
-      return await new Promise<Response>((_resolve, reject) => {
-        init?.signal?.addEventListener('abort', () => {
-          const err = new Error('Aborted');
-          err.name = 'AbortError';
-          reject(err);
-        });
-      });
-    });
+    const fetchMock = vi.fn(
+      async (_url: string, init?: RequestInit) =>
+        await new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            const err = new Error('Aborted');
+            err.name = 'AbortError';
+            reject(err);
+          });
+        })
+    );
 
     // @ts-expect-error - mocked for test
     globalThis.fetch = fetchMock;
 
     try {
-      const promise = fetchExt({ url: 'https://example.com', timeout: 5 });
+      const promise = fetchExt({ timeout: 5, url: 'https://example.com' });
       const assertion = expect(promise).rejects.toMatchObject({
         code: 'FETCH_TIMEOUT',
       });
@@ -120,11 +121,11 @@ describe('fetchExt', () => {
 
     try {
       const promise = fetchExt({
-        url: 'https://example.com',
-        retries: 1,
-        retryDelay: 50,
         backoff: 'none',
         onRetry,
+        retries: 1,
+        retryDelay: 50,
+        url: 'https://example.com',
       });
 
       await vi.runAllTimersAsync();
@@ -134,8 +135,8 @@ describe('fetchExt', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(onRetry).toHaveBeenCalledWith(
         expect.objectContaining({
-          reason: 'error',
           delayMs: 50,
+          reason: 'error',
         })
       );
     } finally {
@@ -151,8 +152,8 @@ describe('fetchExt', () => {
       .fn()
       .mockResolvedValueOnce(
         new Response('rate-limited', {
-          status: 429,
           headers: { 'retry-after': '10' },
+          status: 429,
         })
       )
       .mockResolvedValueOnce(new Response('ok', { status: 200 }));
@@ -161,13 +162,13 @@ describe('fetchExt', () => {
 
     try {
       const promise = fetchExt({
-        url: 'https://example.com',
-        retries: 1,
-        retryOnHttpStatuses: [429],
-        retryDelay: 50,
         backoff: 'none',
         maxRetryWaitMs: 20,
         onRetry,
+        retries: 1,
+        retryDelay: 50,
+        retryOnHttpStatuses: [429],
+        url: 'https://example.com',
       });
 
       await vi.runAllTimersAsync();
@@ -177,9 +178,9 @@ describe('fetchExt', () => {
       expect(fetchMock).toHaveBeenCalledTimes(2);
       expect(onRetry).toHaveBeenCalledWith(
         expect.objectContaining({
+          delayMs: 20,
           reason: 'http_status',
           status: 429,
-          delayMs: 20,
         })
       );
     } finally {
@@ -200,9 +201,9 @@ describe('fetchExt', () => {
     globalThis.fetch = fetchMock;
 
     const res = await fetchExt({
-      url: 'https://example.com',
       idempotencyKey: true,
       init: { method: 'POST' },
+      url: 'https://example.com',
     });
 
     expect(res.ok).toBe(true);
@@ -219,8 +220,8 @@ describe('fetchExt', () => {
     globalThis.fetch = fetchMock;
 
     const res = await fetchExt({
-      url: 'https://example.com',
       init: { method: 'POST' },
+      url: 'https://example.com',
     });
 
     expect(res.ok).toBe(true);
@@ -237,25 +238,25 @@ describe('fetchExt', () => {
     globalThis.fetch = fetchMock;
 
     const res = await fetchExt({
-      url: 'https://example.com',
       idempotencyKey: false,
       init: { method: 'POST' },
+      url: 'https://example.com',
     });
 
     expect(res.ok).toBe(true);
   });
 
   it('throws FETCH_HTTP_ERROR when throwOnHttpError is enabled', async () => {
-    const fetchMock = vi.fn(async () => {
-      return new Response('nope', { status: 500, statusText: 'Nope' });
-    });
+    const fetchMock = vi.fn(
+      async () => new Response('nope', { status: 500, statusText: 'Nope' })
+    );
 
     globalThis.fetch = fetchMock;
 
     await expect(
       fetchExt({
-        url: 'https://example.com',
         throwOnHttpError: true,
+        url: 'https://example.com',
       })
     ).rejects.toMatchObject({ code: 'FETCH_HTTP_ERROR', status: 500 });
   });
@@ -275,14 +276,14 @@ describe('fetchExt', () => {
 
     try {
       const promise = fetchExt({
-        url: 'https://example.com',
-        retries: 1,
-        retryOnHttpStatuses: [429],
-        retryDelay: 100,
         backoff: 'none',
-        respectRetryAfter: false,
         jitter: true,
         onRetry,
+        respectRetryAfter: false,
+        retries: 1,
+        retryDelay: 100,
+        retryOnHttpStatuses: [429],
+        url: 'https://example.com',
       });
 
       await vi.runAllTimersAsync();
@@ -299,15 +300,13 @@ describe('fetchExt', () => {
   });
 
   it('supports expectText', async () => {
-    const fetchMock = vi.fn(async () => {
-      return new Response('hello', { status: 200 });
-    });
+    const fetchMock = vi.fn(async () => new Response('hello', { status: 200 }));
 
     globalThis.fetch = fetchMock;
 
     const { response, data } = await fetchExt({
-      url: 'https://example.com',
       expectText: true,
+      url: 'https://example.com',
     });
 
     expect(response.ok).toBe(true);
@@ -315,15 +314,15 @@ describe('fetchExt', () => {
   });
 
   it('supports expectBlob', async () => {
-    const fetchMock = vi.fn(async () => {
-      return new Response(new Blob(['abc']), { status: 200 });
-    });
+    const fetchMock = vi.fn(
+      async () => new Response(new Blob(['abc']), { status: 200 })
+    );
 
     globalThis.fetch = fetchMock;
 
     const { response, data } = await fetchExt({
-      url: 'https://example.com',
       expectBlob: true,
+      url: 'https://example.com',
     });
 
     expect(response.ok).toBe(true);

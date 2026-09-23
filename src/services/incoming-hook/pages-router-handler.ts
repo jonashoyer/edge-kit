@@ -18,8 +18,8 @@ type PagesApiRequest = IncomingMessage & {
 };
 
 type PagesApiResponse = ServerResponse & {
-  status(code: number): PagesApiResponse;
-  json(body: Record<string, unknown>): void;
+  status: (code: number) => PagesApiResponse;
+  json: (body: Record<string, unknown>) => void;
 };
 
 type WaitUntil = (promise: Promise<unknown>) => Promise<unknown> | undefined;
@@ -71,19 +71,19 @@ export const createPagesRouterIncomingHookHandler = <TPayload>(
       }
 
       const rawBody = await readNodeRequestBody(request);
-      const pathname = new URL(request.url ?? '/', 'http://localhost').pathname;
+      const { pathname } = new URL(request.url ?? '/', 'http://localhost');
       const incomingRequest: IncomingHookRequest = {
+        headers: normalizeHeaders(request.headers),
         method: request.method,
         pathname,
-        headers: normalizeHeaders(request.headers),
         rawBody,
       };
 
       const verified = await options.verifier.verify(incomingRequest);
       let waitUntil: WaitUntil | undefined;
       if (options.mode === 'waitUntil' && waitUntilImplementation) {
-        waitUntil = (promise: Promise<unknown>) => {
-          return waitUntilImplementation(
+        waitUntil = (promise: Promise<unknown>) =>
+          waitUntilImplementation(
             promise.catch((error) => {
               options.logger?.error('incoming-hook.waitUntil failure', {
                 error,
@@ -91,7 +91,6 @@ export const createPagesRouterIncomingHookHandler = <TPayload>(
               throw error;
             })
           );
-        };
       }
 
       const result = await options.handle(verified, { waitUntil });

@@ -3,34 +3,26 @@ import type { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 
 import type { AbstractKeyValueService } from '../../key-value/abstract-key-value';
-import { StripeB2BService } from '../b2b-service';
 import { StripeB2BKVStore } from '../kv-b2b-store';
+import { StripeSyncService } from '../sync-service';
 
 function getAuthenticatedAdmin(req: NextRequest) {
   const orgId = req.headers.get('x-org-id');
   const adminUserId = req.headers.get('x-user-id');
   if (!(orgId && adminUserId)) return null;
-  return { orgId, adminUserId };
+  return { adminUserId, orgId };
 }
 
 function getKeyValueService(): AbstractKeyValueService {
   throw new Error('Implement KV service');
 }
 
-function getStripeB2B(): StripeB2BService {
+function getBillingSyncClient() {
   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
     apiVersion: '2025-02-24.acacia',
   });
-  return new StripeB2BService(
-    new StripeB2BKVStore(getKeyValueService()),
-    stripe,
-    {
-      baseUrl: process.env.APP_URL || 'http://localhost:3000',
-      successPath: '/billing/success',
-      cancelPath: '/billing',
-      webhookSecret: process.env.STRIPE_WEBHOOK_SECRET!,
-    }
-  );
+  const store = new StripeB2BKVStore(getKeyValueService());
+  return { store, syncService: new StripeSyncService(store, stripe) };
 }
 
 export async function GET(req: NextRequest) {
@@ -38,10 +30,10 @@ export async function GET(req: NextRequest) {
   if (!auth) return redirect('/login');
 
   // Eagerly sync subscription data like in the playbook
-  const svc = getStripeB2B();
-  const customerId = await svc['store'].getStripeCustomerIdByOrg(auth.orgId);
+  const svc = getBillingSyncClient();
+  const customerId = await svc.store.getStripeCustomerIdByOrg(auth.orgId);
   if (customerId) {
-    await svc['syncService'].syncStripeData(customerId);
+    await svc.syncService.syncStripeData(customerId);
   }
   return redirect('/billing/dashboard?success=true');
 }

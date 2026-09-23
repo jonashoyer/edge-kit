@@ -77,19 +77,21 @@ export class Throttler {
       return;
     }
 
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Recheck the rolling window after each asynchronous sleep.
     while (true) {
       this.pruneOldRequests();
       if (this.requestTimes.length < this.requestsPerMinute) {
         return;
       }
 
-      const oldestRequest = this.requestTimes[0];
+      const [oldestRequest] = this.requestTimes;
       if (oldestRequest === undefined) {
         return;
       }
 
       const waitTime = oldestRequest + 60_000 - Date.now();
       if (waitTime > 0) {
+        // biome-ignore lint/performance/noAwaitInLoops: Wait until capacity is available before admitting the next queued request.
         await sleep(waitTime);
       }
     }

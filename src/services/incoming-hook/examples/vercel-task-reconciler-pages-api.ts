@@ -13,19 +13,17 @@ const kv = new InMemoryKeyValueService();
 const logger = new ConsoleLogger();
 const reconciler = new TaskReconciler({
   kv,
+  logger,
   mutex: new KvMutex<string>(kv, {
+    logger,
     prefix: '',
     ttlSeconds: 30,
-    logger,
   }),
-  logger,
 });
 
 export const config = incomingHookPagesRouterConfig;
 
 export default createPagesRouterIncomingHookHandler({
-  verifier: new VercelWebhookVerifier([process.env.VERCEL_WEBHOOK_SECRET!]),
-  logger,
   async handle(verified) {
     if (verified.event !== 'deployment.promoted') {
       return {
@@ -34,24 +32,26 @@ export default createPagesRouterIncomingHookHandler({
     }
 
     await runVerifiedHookWithTaskReconciler({
-      verified,
       reconciler,
       resolveReconcile(event) {
         return {
-          taskName: 'cache-rebuild',
           desiredRevision: `vercel:${event.deliveryId}`,
           async run() {
             await enqueueCacheRebuild();
           },
+          taskName: 'cache-rebuild',
         };
       },
+      verified,
     });
 
     return {
-      kind: 'processed',
       body: { received: true },
+      kind: 'processed',
     };
   },
+  logger,
+  verifier: new VercelWebhookVerifier([process.env.VERCEL_WEBHOOK_SECRET!]),
 });
 
 async function enqueueCacheRebuild() {

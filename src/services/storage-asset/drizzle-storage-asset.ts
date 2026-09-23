@@ -99,9 +99,7 @@ const normalizeTags = (tags: string[] | undefined): string[] => {
 
 const normalizeMetaObject = <TMeta extends object>(
   meta: TMeta | undefined
-): TMeta => {
-  return (meta ?? EMPTY_META) as TMeta;
-};
+): TMeta => (meta ?? EMPTY_META) as TMeta;
 
 const normalizeParentAssetId = (
   parentAssetId: string | null | undefined
@@ -115,9 +113,7 @@ const normalizeParentAssetId = (
 
 const normalizeOrder = (
   order: StorageAssetListOrder | undefined
-): StorageAssetListOrder => {
-  return order ?? 'desc';
-};
+): StorageAssetListOrder => order ?? 'desc';
 
 const clampLimit = (limit: number | undefined): number => {
   if (limit === undefined) {
@@ -233,70 +229,67 @@ export const createMySqlStorageAssetTable = <
   TMeta extends object = Record<string, unknown>,
 >(
   name = DEFAULT_TABLE_NAME
-): MySqlStorageAssetTable<TMeta> => {
-  return mysqlTable(name, {
+): MySqlStorageAssetTable<TMeta> =>
+  mysqlTable(name, {
+    createdAt: mysqlTimestamp('created_at', { fsp: 3, mode: 'date' }).notNull(),
     id: mysqlVarchar('id', { length: 191 }).notNull().primaryKey(),
-    objectKey: mysqlText('object_key').notNull(),
-    mimeType: mysqlVarchar('mime_type', { length: 255 }).notNull(),
-    source: mysqlVarchar('source', { length: 255 }).notNull(),
-    parentAssetId: mysqlVarchar('parent_asset_id', { length: 191 }),
-    orphanedAt: mysqlTimestamp('orphaned_at', { mode: 'date', fsp: 3 }),
-    tags: mysqlJson('tags').$type<string[]>().notNull(),
     meta: mysqlJson('meta').$type<TMeta>().notNull(),
-    createdAt: mysqlTimestamp('created_at', { mode: 'date', fsp: 3 }).notNull(),
-    updatedAt: mysqlTimestamp('updated_at', { mode: 'date', fsp: 3 }).notNull(),
+    mimeType: mysqlVarchar('mime_type', { length: 255 }).notNull(),
+    objectKey: mysqlText('object_key').notNull(),
+    orphanedAt: mysqlTimestamp('orphaned_at', { fsp: 3, mode: 'date' }),
+    parentAssetId: mysqlVarchar('parent_asset_id', { length: 191 }),
+    source: mysqlVarchar('source', { length: 255 }).notNull(),
+    tags: mysqlJson('tags').$type<string[]>().notNull(),
+    updatedAt: mysqlTimestamp('updated_at', { fsp: 3, mode: 'date' }).notNull(),
   }) as MySqlStorageAssetTable<TMeta>;
-};
 
 export const createPostgresStorageAssetTable = <
   TMeta extends object = Record<string, unknown>,
 >(
   name = DEFAULT_TABLE_NAME
-): PostgresStorageAssetTable<TMeta> => {
-  return pgTable(name, {
-    id: pgText('id').notNull().primaryKey(),
-    objectKey: pgText('object_key').notNull(),
-    mimeType: pgText('mime_type').notNull(),
-    source: pgText('source').notNull(),
-    parentAssetId: pgText('parent_asset_id'),
-    orphanedAt: pgTimestamp('orphaned_at', {
-      mode: 'date',
-      precision: 3,
-      withTimezone: true,
-    }),
-    tags: pgJson('tags').$type<string[]>().notNull(),
-    meta: pgJson('meta').$type<TMeta>().notNull(),
+): PostgresStorageAssetTable<TMeta> =>
+  pgTable(name, {
     createdAt: pgTimestamp('created_at', {
       mode: 'date',
       precision: 3,
       withTimezone: true,
     }).notNull(),
+    id: pgText('id').notNull().primaryKey(),
+    meta: pgJson('meta').$type<TMeta>().notNull(),
+    mimeType: pgText('mime_type').notNull(),
+    objectKey: pgText('object_key').notNull(),
+    orphanedAt: pgTimestamp('orphaned_at', {
+      mode: 'date',
+      precision: 3,
+      withTimezone: true,
+    }),
+    parentAssetId: pgText('parent_asset_id'),
+    source: pgText('source').notNull(),
+    tags: pgJson('tags').$type<string[]>().notNull(),
     updatedAt: pgTimestamp('updated_at', {
       mode: 'date',
       precision: 3,
       withTimezone: true,
     }).notNull(),
   }) as PostgresStorageAssetTable<TMeta>;
-};
 
 export const createSqliteStorageAssetTable = <
   TMeta extends object = Record<string, unknown>,
 >(
   name = DEFAULT_TABLE_NAME
-): SQLiteStorageAssetTable<TMeta> => {
-  return sqliteTable(name, {
-    id: text('id').notNull().primaryKey(),
-    objectKey: text('object_key').notNull(),
-    mimeType: text('mime_type').notNull(),
-    source: text('source').notNull(),
-    parentAssetId: text('parent_asset_id'),
-    orphanedAt: integer('orphaned_at', { mode: 'timestamp_ms' }),
-    tags: text('tags', { mode: 'json' }).$type<string[]>().notNull(),
-    meta: text('meta', { mode: 'json' }).$type<TMeta>().notNull(),
+): SQLiteStorageAssetTable<TMeta> =>
+  sqliteTable(name, {
     createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+    id: text('id').notNull().primaryKey(),
+    meta: text('meta', { mode: 'json' }).$type<TMeta>().notNull(),
+    mimeType: text('mime_type').notNull(),
+    objectKey: text('object_key').notNull(),
+    orphanedAt: integer('orphaned_at', { mode: 'timestamp_ms' }),
+    parentAssetId: text('parent_asset_id'),
+    source: text('source').notNull(),
+    tags: text('tags', { mode: 'json' }).$type<string[]>().notNull(),
     updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
   }) as SQLiteStorageAssetTable<TMeta>;
-};
 
 type StorageAssetRow<TMeta extends object> = {
   id: string;
@@ -342,15 +335,15 @@ class BaseDrizzleStorageAssetService<
     const { table } = this.internal;
 
     return {
-      id: table.id,
-      objectKey: table.objectKey,
-      mimeType: table.mimeType,
-      source: table.source,
-      parentAssetId: table.parentAssetId,
-      orphanedAt: table.orphanedAt,
-      tags: table.tags,
-      meta: table.meta,
       createdAt: table.createdAt,
+      id: table.id,
+      meta: table.meta,
+      mimeType: table.mimeType,
+      objectKey: table.objectKey,
+      orphanedAt: table.orphanedAt,
+      parentAssetId: table.parentAssetId,
+      source: table.source,
+      tags: table.tags,
       updatedAt: table.updatedAt,
     };
   }
@@ -358,10 +351,11 @@ class BaseDrizzleStorageAssetService<
   private toRecord(row: StorageAssetRow<TMeta>): StorageAssetRecord<TMeta> {
     return {
       ...row,
-      parentAssetId: row.parentAssetId ?? null,
-      orphanedAt: row.orphanedAt ?? null,
-      tags: row.tags ?? [],
       meta: normalizeMetaObject(row.meta),
+      orphanedAt: row.orphanedAt ?? null,
+      parentAssetId: row.parentAssetId ?? null,
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: Legacy database rows may have null tags.
+      tags: row.tags ?? [],
     };
   }
 
@@ -373,15 +367,15 @@ class BaseDrizzleStorageAssetService<
     const updatedAt = input.updatedAt ?? new Date();
 
     return {
-      id: assertNonEmptyString(input.id, 'id'),
-      objectKey: assertNonEmptyString(input.objectKey, 'objectKey'),
-      mimeType: assertNonEmptyString(input.mimeType, 'mimeType'),
-      source: assertNonEmptyString(input.source, 'source'),
-      parentAssetId: normalizeParentAssetId(input.parentAssetId),
-      orphanedAt: input.orphanedAt ?? existing?.orphanedAt ?? null,
-      tags: normalizeTags(input.tags),
-      meta: normalizeMetaObject(input.meta ?? existing?.meta),
       createdAt,
+      id: assertNonEmptyString(input.id, 'id'),
+      meta: normalizeMetaObject(input.meta ?? existing?.meta),
+      mimeType: assertNonEmptyString(input.mimeType, 'mimeType'),
+      objectKey: assertNonEmptyString(input.objectKey, 'objectKey'),
+      orphanedAt: input.orphanedAt ?? existing?.orphanedAt ?? null,
+      parentAssetId: normalizeParentAssetId(input.parentAssetId),
+      source: assertNonEmptyString(input.source, 'source'),
+      tags: normalizeTags(input.tags),
       updatedAt,
     };
   }
@@ -463,8 +457,6 @@ class BaseDrizzleStorageAssetService<
     if (conditions.length > 1) {
       return and(...conditions);
     }
-
-    return;
   }
 
   protected async persist(
@@ -631,6 +623,7 @@ class BaseDrizzleStorageAssetService<
       }
 
       visited.add(currentId);
+      // biome-ignore lint/performance/noAwaitInLoops: Each lookup needs the parent ID returned by the previous lookup.
       const asset = await this.get(currentId);
 
       if (!asset) {
@@ -670,14 +663,14 @@ class MySqlDrizzleStorageAssetService<
       .values(row)
       .onDuplicateKeyUpdate({
         set: {
-          objectKey: row.objectKey,
-          mimeType: row.mimeType,
-          source: row.source,
-          parentAssetId: row.parentAssetId,
-          orphanedAt: row.orphanedAt,
-          tags: row.tags,
-          meta: row.meta,
           createdAt: row.createdAt,
+          meta: row.meta,
+          mimeType: row.mimeType,
+          objectKey: row.objectKey,
+          orphanedAt: row.orphanedAt,
+          parentAssetId: row.parentAssetId,
+          source: row.source,
+          tags: row.tags,
           updatedAt: row.updatedAt,
         },
       })
@@ -701,18 +694,18 @@ class PostgresDrizzleStorageAssetService<
       .insert(this.table)
       .values(row)
       .onConflictDoUpdate({
-        target: this.table.id,
         set: {
-          objectKey: row.objectKey,
-          mimeType: row.mimeType,
-          source: row.source,
-          parentAssetId: row.parentAssetId,
-          orphanedAt: row.orphanedAt,
-          tags: row.tags,
-          meta: row.meta,
           createdAt: row.createdAt,
+          meta: row.meta,
+          mimeType: row.mimeType,
+          objectKey: row.objectKey,
+          orphanedAt: row.orphanedAt,
+          parentAssetId: row.parentAssetId,
+          source: row.source,
+          tags: row.tags,
           updatedAt: row.updatedAt,
         },
+        target: this.table.id,
       })
       .execute();
 
@@ -734,18 +727,18 @@ class SqliteDrizzleStorageAssetService<
       .insert(this.table)
       .values(row)
       .onConflictDoUpdate({
-        target: this.table.id,
         set: {
-          objectKey: row.objectKey,
-          mimeType: row.mimeType,
-          source: row.source,
-          parentAssetId: row.parentAssetId,
-          orphanedAt: row.orphanedAt,
-          tags: row.tags,
-          meta: row.meta,
           createdAt: row.createdAt,
+          meta: row.meta,
+          mimeType: row.mimeType,
+          objectKey: row.objectKey,
+          orphanedAt: row.orphanedAt,
+          parentAssetId: row.parentAssetId,
+          source: row.source,
+          tags: row.tags,
           updatedAt: row.updatedAt,
         },
+        target: this.table.id,
       })
       .run();
 

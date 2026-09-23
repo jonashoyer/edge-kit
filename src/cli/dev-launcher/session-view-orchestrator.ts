@@ -85,8 +85,8 @@ export const buildStartupChoices = (
 
 export const buildServiceChoices = (
   manifest: LoadedDevLauncherManifest
-): DevLauncherPromptMultiSelectChoice[] => {
-  return manifest.serviceIdsInOrder.map((serviceId) => {
+): DevLauncherPromptMultiSelectChoice[] =>
+  manifest.serviceIdsInOrder.map((serviceId) => {
     const service = manifest.servicesById[serviceId];
 
     return {
@@ -95,25 +95,22 @@ export const buildServiceChoices = (
       value: serviceId,
     };
   });
-};
 
 export const getStartupOptions = (
   manifest: LoadedDevLauncherManifest,
   recentSelections: string[][]
-): SessionStartupOption[] => {
-  return [
-    ...recentSelections.map((serviceIds) => ({
-      kind: 'recent' as const,
-      label: getServiceListLabel(manifest, serviceIds),
-      serviceIds,
-    })),
-    {
-      kind: 'custom' as const,
-      label: 'Custom selection',
-      serviceIds: [] as string[],
-    },
-  ];
-};
+): SessionStartupOption[] => [
+  ...recentSelections.map((serviceIds) => ({
+    kind: 'recent' as const,
+    label: getServiceListLabel(manifest, serviceIds),
+    serviceIds,
+  })),
+  {
+    kind: 'custom' as const,
+    label: 'Custom selection',
+    serviceIds: [] as string[],
+  },
+];
 
 export const resolveSessionStartupSelection = (
   manifest: LoadedDevLauncherManifest,
@@ -207,9 +204,9 @@ export const promptForServiceSelection = async (
     name: 'selection',
     type: 'select',
   });
-  const selection = presetResponse.selection;
+  const { selection } = presetResponse;
 
-  if (selection == null) {
+  if (selection === null) {
     return null;
   }
 

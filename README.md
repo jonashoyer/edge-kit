@@ -28,9 +28,12 @@ importable runtime package.
 - Use the pnpm version pinned in `package.json`.
 
 Run `pnpm type-check` for library and CLI code, and `pnpm type-check:tests`
-for tests and Vitest configuration. The separate test type-check currently
-reports errors in existing test fixtures and mocks. `pnpm test:run` runs the test suite;
+for tests and Vitest configuration. `pnpm test:run` runs the test suite;
 `pnpm test:coverage` includes V8 coverage.
+
+The repository permits the `better-sqlite3` native build script. After switching
+Node major versions, run `pnpm rebuild better-sqlite3` before the test suite to
+rebuild the binding for the active runtime.
 
 The repository uses TypeScript with bundler module resolution for its tsx and
 bundled workflows. Copied modules should use the consuming project's runtime

@@ -18,11 +18,11 @@ export class AxiomPinoLogger extends AbstractLogger {
     this.logger = pino(
       { level: 'info' },
       pino.transport({
-        target: '@axiomhq/pino',
         options: {
           dataset: options.dataset,
           token: options.token,
         },
+        target: '@axiomhq/pino',
       })
     );
   }

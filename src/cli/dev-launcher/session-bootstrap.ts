@@ -10,7 +10,8 @@ const BOOTSTRAP_TIMEOUT_MS = 15_000;
 const BOOTSTRAP_POLL_INTERVAL_MS = 250;
 
 interface SpawnResultLike {
-  on: (event: 'close' | 'error', listener: (...args: any[]) => void) => void;
+  on: ((event: 'close', listener: (code: number | null) => void) => void) &
+    ((event: 'error', listener: (error: Error) => void) => void);
 }
 
 export interface DevLauncherBootstrapRuntime
@@ -31,18 +32,14 @@ export const defaultDevLauncherBootstrapRuntime: DevLauncherBootstrapRuntime = {
   spawn: (command, args, options) => spawn(command, args, options),
 };
 
-const shellQuote = (value: string): string => {
-  return `'${value.split("'").join(`'\\''`)}'`;
-};
+const shellQuote = (value: string): string =>
+  `'${value.split("'").join(`'\\''`)}'`;
 
-const createBootstrapCommand = (
-  manifest: LoadedDevLauncherManifest
-): string => {
-  return [
+const createBootstrapCommand = (manifest: LoadedDevLauncherManifest): string =>
+  [
     `cd ${shellQuote(manifest.repoRoot)}`,
     `pnpm cli dev host --headless --config ${shellQuote(manifest.configPath)}`,
   ].join(' && ');
-};
 
 export const waitForReachableDevLauncherSession = async (
   manifest: LoadedDevLauncherManifest,
@@ -52,6 +49,7 @@ export const waitForReachableDevLauncherSession = async (
   const timeoutAt = Date.now() + timeoutMs;
 
   while (Date.now() < timeoutAt) {
+    // biome-ignore lint/performance/noAwaitInLoops: Poll until the newly launched session becomes reachable.
     const metadata = await resolveReachableDevLauncherSession(
       manifest,
       runtime
@@ -89,7 +87,7 @@ export const bootstrapDevLauncherSessionInTerminal = async (
       stdio: 'ignore',
     });
 
-    child.on('close', (code: number) => {
+    child.on('close', (code: number | null) => {
       if (code === 0) {
         resolve();
         return;

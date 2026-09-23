@@ -10,9 +10,10 @@ const MASTER_KEY = new TextEncoder().encode('edge-kit-master-key').buffer;
 const OTHER_MASTER_KEY = new TextEncoder().encode('other-master-key').buffer;
 
 const tamperString = (value: string) => {
-  const lastChar = value.at(-1);
-  const replacement = lastChar === 'A' ? 'B' : 'A';
-  return `${value.slice(0, -1)}${replacement}`;
+  // Alter a full six-bit group, not unused padding bits in the final character.
+  const saltStart = value.lastIndexOf(':') + 1;
+  const replacement = value.at(saltStart) === 'A' ? 'B' : 'A';
+  return `${value.slice(0, saltStart)}${replacement}${value.slice(saltStart + 1)}`;
 };
 
 describe('EncryptionService', () => {

@@ -21,16 +21,16 @@ export function lazy<T extends Record<string, unknown>>(
       cache[key] = instance;
       return instance;
     },
+    getOwnPropertyDescriptor(_target, prop: string | symbol) {
+      if (typeof prop !== 'string') return;
+      if (!((prop as keyof T) in factories)) return;
+      return { configurable: true, enumerable: true };
+    },
     has(_target, prop: string | symbol) {
       return typeof prop === 'string' && (prop as keyof T) in factories;
     },
     ownKeys() {
       return Object.keys(factories);
-    },
-    getOwnPropertyDescriptor(_target, prop: string | symbol) {
-      if (typeof prop !== 'string') return;
-      if (!((prop as keyof T) in factories)) return;
-      return { configurable: true, enumerable: true };
     },
   });
 }

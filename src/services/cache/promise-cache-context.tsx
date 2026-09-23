@@ -101,7 +101,7 @@ export function PromiseCacheProvider({ children }: PromiseCacheProviderProps) {
 
   const set = React.useCallback(<T,>(key: string, value: T, ttl?: number) => {
     const expiresAt = ttl ? Date.now() + ttl : null;
-    stateRef.current.cache.set(key, { value, expiresAt });
+    stateRef.current.cache.set(key, { expiresAt, value });
   }, []);
 
   const deleteEntry = React.useCallback((key: string) => {
@@ -191,7 +191,7 @@ export function PromiseCacheProvider({ children }: PromiseCacheProviderProps) {
         const rawResult = await promise;
         const { actualValue, expiresAt } = processResult<T>(rawResult, ttl);
 
-        stateRef.current.cache.set(key, { value: actualValue, expiresAt });
+        stateRef.current.cache.set(key, { expiresAt, value: actualValue });
         return actualValue;
       } finally {
         stateRef.current.pendingRequests.delete(key);
@@ -201,12 +201,12 @@ export function PromiseCacheProvider({ children }: PromiseCacheProviderProps) {
   );
 
   const value: CacheContextValue = {
-    get,
-    set,
-    delete: deleteEntry,
-    clear,
-    has,
     cachedPromise,
+    clear,
+    delete: deleteEntry,
+    get,
+    has,
+    set,
   };
 
   return (

@@ -15,14 +15,15 @@ export function seedRandomNumberGenerator(seedString: string) {
 
 function xmur3(str: string) {
   let h = 1_779_033_703 ^ str.length;
-  for (let i = 0; i < str.length; i++) {
+  for (let i = 0; i < str.length; i += 1) {
     h = Math.imul(h ^ str.charCodeAt(i), 3_432_918_353);
     h = (h << 13) | (h >>> 19);
   }
   return () => {
     h = Math.imul(h ^ (h >>> 16), 2_246_822_507);
     h = Math.imul(h ^ (h >>> 13), 3_266_489_909);
-    return (h ^= h >>> 16) >>> 0;
+    h ^= h >>> 16;
+    return h >>> 0;
   };
 }
 
@@ -48,13 +49,12 @@ export const randomizeArray = <T>(
   rand: RandomNumberGenerator
 ): T[] => {
   const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
     const j = Math.floor(rand() * (i + 1));
     [arr[i], arr[j]] = [arr[j]!, arr[i]!];
   }
   return arr;
 };
 
-export const pickRandom = <T>(array: T[], rand: RandomNumberGenerator): T => {
-  return array[Math.floor(rand() * array.length)]!;
-};
+export const pickRandom = <T>(array: T[], rand: RandomNumberGenerator): T =>
+  array[Math.floor(rand() * array.length)]!;

@@ -1,5 +1,5 @@
-import { EventEmitter } from 'node:events';
-import type { IncomingMessage, ServerResponse } from 'node:http';
+import { IncomingMessage, ServerResponse } from 'node:http';
+import { Socket } from 'node:net';
 
 import { describe, expect, it, vi } from 'vitest';
 import { hmacHex } from '../../utils/crypto-utils';
@@ -20,28 +20,23 @@ import {
   SignedServiceRequestVerifier,
 } from './signed-service-request-verifier';
 
-class FakeIncomingMessage extends EventEmitter {
-  method = 'POST';
-  url = '/api/internal/service-ingress';
-  headers: Record<string, string> = {};
-  private readonly chunks: string[];
-
+class FakeIncomingMessage extends IncomingMessage {
   constructor(body: string, headers: Record<string, string> = {}) {
-    super();
+    super(new Socket());
+    this.method = 'POST';
+    this.url = '/api/internal/service-ingress';
     this.headers = headers;
-    this.chunks = [body];
-  }
-
-  async *[Symbol.asyncIterator]() {
-    for (const chunk of this.chunks) {
-      yield chunk;
-    }
+    this.push(Buffer.from(body));
+    this.push(null);
   }
 }
 
-class FakeResponse {
-  statusCode = 200;
+class FakeResponse extends ServerResponse {
   jsonBody: Record<string, unknown> | null = null;
+
+  constructor() {
+    super(new IncomingMessage(new Socket()));
+  }
 
   status(code: number) {
     this.statusCode = code;
@@ -71,13 +66,13 @@ describe('service-ingress', () => {
     });
 
     const verified = await verifier.verify({
-      method: 'POST',
-      pathname: '/api/internal/service-ingress',
       headers: {
         [SERVICE_TIMESTAMP_HEADER]: timestamp,
         [SERVICE_SIGNATURE_HEADER]: `sha256=${signature}`,
         [SERVICE_INGRESS_HEADER]: 'search-sync',
       },
+      method: 'POST',
+      pathname: '/api/internal/service-ingress',
       rawBody,
     });
 
@@ -106,13 +101,13 @@ describe('service-ingress', () => {
 
     await expect(
       verifier.verify({
-        method: 'POST',
-        pathname: '/api/internal/service-ingress',
         headers: {
           [SERVICE_TIMESTAMP_HEADER]: timestamp,
           [SERVICE_SIGNATURE_HEADER]: `sha256=${signature}`,
           [SERVICE_INGRESS_HEADER]: 'search-sync',
         },
+        method: 'POST',
+        pathname: '/api/internal/service-ingress',
         rawBody: JSON.stringify({ revision: 'docs-index-v4' }),
       })
     ).rejects.toThrow('Invalid service request');
@@ -129,37 +124,37 @@ describe('service-ingress', () => {
       timestamp: 1_700_000_000_000,
     });
     const verifier = new SignedServiceRequestVerifier<{ revision: string }>({
-      secrets: ['service-secret'],
       maxDriftMs: Number.MAX_SAFE_INTEGER,
+      secrets: ['service-secret'],
     });
 
     const requests = [
       {
+        headers: signedHeaders,
         method: 'PUT',
         pathname: '/api/internal/service-ingress',
         rawBody,
-        headers: signedHeaders,
       },
       {
+        headers: signedHeaders,
         method: 'POST',
         pathname: '/api/internal/service-ingress/other',
         rawBody,
-        headers: signedHeaders,
       },
       {
-        method: 'POST',
-        pathname: '/api/internal/service-ingress',
-        rawBody,
         headers: {
           ...signedHeaders,
           [SERVICE_TIMESTAMP_HEADER]: '1700000000001',
         },
+        method: 'POST',
+        pathname: '/api/internal/service-ingress',
+        rawBody,
       },
       {
+        headers: signedHeaders,
         method: 'POST',
         pathname: '/api/internal/service-ingress',
         rawBody: JSON.stringify({ revision: 'docs-index-v4' }),
-        headers: signedHeaders,
       },
     ] as const;
 
@@ -178,12 +173,12 @@ describe('service-ingress', () => {
     const handler = createServiceIngressHandler({
       ingresses: [
         defineServiceIngress<{ revision: string }>({
-          name: 'search-sync',
           execute: searchSync,
+          name: 'search-sync',
         }),
         defineServiceIngress<{ scope: string }>({
-          name: 'cache-rebuild',
           execute: cacheRebuild,
+          name: 'cache-rebuild',
         }),
       ],
       secrets: ['service-secret'],
@@ -194,13 +189,13 @@ describe('service-ingress', () => {
     });
 
     const response = await sendServiceIngress({
-      url: 'https://search.example.com/api/internal/service-ingress',
-      secret: 'service-secret',
+      fetch: fetchMock,
       ingress: defineServiceIngress<{ revision: string }>({
         name: 'search-sync',
       }),
       params: { revision: 'docs-index-v4' },
-      fetch: fetchMock,
+      secret: 'service-secret',
+      url: 'https://search.example.com/api/internal/service-ingress',
     });
 
     expect(response.status).toBe(200);
@@ -228,12 +223,12 @@ describe('service-ingress', () => {
 
     const response = await handler(
       new Request('https://search.example.com/api/internal/service-ingress', {
-        method: 'POST',
+        body: rawBody,
         headers: {
           'content-type': 'application/json',
           ...signedHeaders,
         },
-        body: rawBody,
+        method: 'POST',
       })
     );
 
@@ -276,12 +271,12 @@ describe('service-ingress', () => {
 
     const response = await handler(
       new Request('https://search.example.com/api/internal/service-ingress', {
-        method: 'POST',
+        body: rawBody,
         headers: {
           'content-type': 'application/json',
           ...signedHeaders,
         },
-        body: rawBody,
+        method: 'POST',
       })
     );
 
@@ -298,8 +293,8 @@ describe('service-ingress', () => {
     const handler = createPagesRouterServiceIngressHandler({
       ingresses: [
         defineServiceIngress<{ revision: string }>({
-          name: 'search-sync',
           execute: vi.fn(),
+          name: 'search-sync',
         }),
       ],
       secrets: ['service-secret'],
@@ -312,28 +307,15 @@ describe('service-ingress', () => {
       rawBody,
       secret: 'service-secret',
     });
-    const request = new FakeIncomingMessage(rawBody, signedHeaders) as
-      | (IncomingMessage & {
-          method?: string;
-          url?: string;
-          headers: Record<string, string>;
-        })
-      | undefined;
-
-    if (!request) {
-      throw new Error('Expected request');
-    }
+    const request = new FakeIncomingMessage(rawBody, signedHeaders);
 
     request.url = '/api/internal/service-ingress?source=workflow';
-    const response = new FakeResponse() as unknown as ServerResponse & {
-      status(code: number): FakeResponse;
-      json(body: Record<string, unknown>): void;
-    };
+    const response = new FakeResponse();
 
     await handler(request, response);
 
-    expect((response as unknown as FakeResponse).statusCode).toBe(200);
-    expect((response as unknown as FakeResponse).jsonBody).toEqual({
+    expect(response.statusCode).toBe(200);
+    expect(response.jsonBody).toEqual({
       received: true,
     });
   });
@@ -342,44 +324,35 @@ describe('service-ingress', () => {
     const execute = vi.fn();
 
     const result = await dispatchServiceIngress({
-      verified: {
-        provider: 'service',
-        event: 'search-sync',
-        deliveryId: null,
-        payload: { revision: 'docs-index-v4' },
-        rawBody: '{"revision":"docs-index-v4"}',
-        headers: {},
-      },
       ingresses: [
         defineServiceIngress<{ revision: string }>({
-          name: 'search-sync',
           execute,
+          name: 'search-sync',
         }),
       ],
+      verified: {
+        deliveryId: null,
+        event: 'search-sync',
+        headers: {},
+        payload: { revision: 'docs-index-v4' },
+        provider: 'service',
+        rawBody: '{"revision":"docs-index-v4"}',
+      },
     });
 
     expect(result).toEqual({
-      kind: 'processed',
       body: {
         received: true,
       },
+      kind: 'processed',
     });
     expect(execute).toHaveBeenCalledWith({ revision: 'docs-index-v4' });
   });
 
   it('returns an ingress-specific response body when execute provides one', async () => {
     const result = await dispatchServiceIngress({
-      verified: {
-        provider: 'service',
-        event: 'task-reconciler',
-        deliveryId: null,
-        payload: { mode: 'check' },
-        rawBody: '{"mode":"check"}',
-        headers: {},
-      },
       ingresses: [
         defineServiceIngress<{ mode: string }>({
-          name: 'task-reconciler',
           async execute() {
             return {
               mode: 'check',
@@ -388,18 +361,27 @@ describe('service-ingress', () => {
               },
             };
           },
+          name: 'task-reconciler',
         }),
       ],
+      verified: {
+        deliveryId: null,
+        event: 'task-reconciler',
+        headers: {},
+        payload: { mode: 'check' },
+        provider: 'service',
+        rawBody: '{"mode":"check"}',
+      },
     });
 
     expect(result).toEqual({
-      kind: 'processed',
       body: {
         mode: 'check',
         summary: {
           checked: 1,
         },
       },
+      kind: 'processed',
     });
   });
 });

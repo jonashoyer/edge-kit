@@ -39,18 +39,18 @@ const createManifest = (): LoadedDevLauncherManifest => ({
   repoRoot: '/repo',
   serviceIdsInOrder: ['app', 'api'],
   servicesById: {
-    app: {
-      label: 'App',
-      target: {
-        kind: 'root-script',
-        script: 'dev:app',
-      },
-    },
     api: {
       label: 'API',
       target: {
         kind: 'root-script',
         script: 'dev:api',
+      },
+    },
+    app: {
+      label: 'App',
+      target: {
+        kind: 'root-script',
+        script: 'dev:app',
       },
     },
   },
@@ -252,6 +252,7 @@ describe('DevLauncherProcessManager', () => {
     await manager.startService('app');
     const stopPromise = manager.stopAll();
     while (timers.length === 0) {
+      // biome-ignore lint/performance/noAwaitInLoops: Sequential test input and polling must observe each preceding state transition.
       await Promise.resolve();
     }
     timers[0]?.();

@@ -133,8 +133,8 @@ export interface DevLauncherCommandRuntime
   stdout: Pick<NodeJS.WriteStream, 'write'>;
 }
 
-const connectSocket = async (socketPath: string): Promise<boolean> => {
-  return await new Promise((resolve) => {
+const connectSocket = async (socketPath: string): Promise<boolean> =>
+  await new Promise((resolve) => {
     const socket = createConnection(socketPath);
 
     const finish = (connected: boolean): void => {
@@ -150,7 +150,6 @@ const connectSocket = async (socketPath: string): Promise<boolean> => {
       finish(false);
     });
   });
-};
 
 const baseSessionStateRuntime: DevLauncherSessionStateRuntime = {
   connectSocket,
@@ -188,15 +187,12 @@ const defaultRuntime: DevLauncherCommandRuntime = {
     baseClientRuntime,
     baseBootstrapRuntime
   ),
-  createSessionServer: (manifest, mode) => {
-    return new DevLauncherSessionServer(manifest, mode);
-  },
-  getPreflightSuggestions: async (manifest, actionsConfig) => {
-    return await getDevPreflightActionSuggestions(manifest, actionsConfig);
-  },
-  isInteractiveTuiSupported: () => {
-    return Boolean(process.stdin.isTTY && process.stdout.isTTY);
-  },
+  createSessionServer: (manifest, mode) =>
+    new DevLauncherSessionServer(manifest, mode),
+  getPreflightSuggestions: async (manifest, actionsConfig) =>
+    await getDevPreflightActionSuggestions(manifest, actionsConfig),
+  isInteractiveTuiSupported: () =>
+    Boolean(process.stdin.isTTY && process.stdout.isTTY),
   loadManifest: async (options) => await loadDevLauncherConfig(options),
   runPlainSession: async (manifest, controller, initialServiceIds, options) => {
     const plainRuntime: PlainDevSessionRuntime = {
@@ -215,30 +211,24 @@ const defaultRuntime: DevLauncherCommandRuntime = {
     );
   },
   sessionStateRuntime: baseSessionStateRuntime,
-  startTuiSession: async (manifest, controller, initialServiceIds, options) => {
-    return await startDevLauncherTuiSession(
+  startTuiSession: async (manifest, controller, initialServiceIds, options) =>
+    await startDevLauncherTuiSession(
       manifest,
       {
         createController: () => controller,
-        listActions: async (loadedManifest) => {
-          return await listDevActions(loadedManifest, loadedManifest);
-        },
+        listActions: async (loadedManifest) =>
+          await listDevActions(loadedManifest, loadedManifest),
         openExternalUrl: async (url) => {
           await openExternalUrl(url);
         },
-        runDevAction: async (loadedManifest, actionId, options) => {
-          return await executeDevActionWithSession(
-            loadedManifest,
-            loadedManifest,
-            {
-              actionId,
-              controller: options?.controller,
-              hooks: {
-                refreshActions: options?.refreshActions,
-              },
-            }
-          );
-        },
+        runDevAction: async (loadedManifest, actionId, options) =>
+          await executeDevActionWithSession(loadedManifest, loadedManifest, {
+            actionId,
+            controller: options?.controller,
+            hooks: {
+              refreshActions: options?.refreshActions,
+            },
+          }),
         stderr: process.stderr,
         stdin: process.stdin,
         stdout: process.stdout,
@@ -252,18 +242,16 @@ const defaultRuntime: DevLauncherCommandRuntime = {
             }
           : undefined,
       }
-    );
-  },
+    ),
   stderr: process.stderr,
   stdout: process.stdout,
 };
 
-const parseServiceIdsOption = (servicesOption: string): string[] => {
-  return servicesOption
+const parseServiceIdsOption = (servicesOption: string): string[] =>
+  servicesOption
     .split(',')
     .map((value) => value.trim())
     .filter((value) => value.length > 0);
-};
 
 const parseOptionalInteger = (
   value: string | undefined
@@ -299,9 +287,8 @@ const writeStructuredOutput = (
 
 const resolveCommandOutputFormat = (
   options: DevLauncherStructuredOutputCommandOptions
-): DevLauncherCommandOutputFormat => {
-  return resolveDevLauncherCommandOutputFormat(options);
-};
+): DevLauncherCommandOutputFormat =>
+  resolveDevLauncherCommandOutputFormat(options);
 
 const writeCommandError = (
   runtime: Pick<DevLauncherCommandRuntime, 'stderr' | 'stdout'>,
@@ -313,11 +300,9 @@ const writeCommandError = (
   let details: Record<string, unknown> | undefined;
 
   if (error instanceof DevLauncherSessionClientError) {
-    errorCode = error.errorCode;
-    details = error.details;
+    ({ errorCode, details } = error);
   } else if (error instanceof DevLauncherCommandError) {
-    errorCode = error.code;
-    details = error.details;
+    ({ code: errorCode, details } = error);
   }
 
   if (format === 'toon') {
@@ -343,9 +328,7 @@ const writeCommandError = (
 const createSessionAccess = (
   manifest: LoadedDevLauncherManifest,
   runtime: DevLauncherCommandRuntime
-): DevLauncherSessionAccess => {
-  return new DevLauncherSessionAccess(manifest, runtime);
-};
+): DevLauncherSessionAccess => new DevLauncherSessionAccess(manifest, runtime);
 
 const runAttachedSessionView = async (
   manifest: LoadedDevLauncherManifest,
@@ -582,7 +565,14 @@ export const runDevLauncherStatusCommand = async (
     const { summary } = await createSessionAccess(manifest, runtime).resolve(
       'read_only'
     );
-    if (outputFormat !== 'text') {
+    if (outputFormat === 'text') {
+      runtime.stdout.write(
+        `Session ${summary.session.metadata.sessionId} (${summary.session.metadata.mode})\n`
+      );
+      runtime.stdout.write(
+        `Managed services: ${summary.session.snapshot.managedServiceIds.join(', ') || 'none'}\n`
+      );
+    } else {
       writeStructuredOutput(
         runtime,
         {
@@ -590,13 +580,6 @@ export const runDevLauncherStatusCommand = async (
           session: summary.session,
         },
         outputFormat
-      );
-    } else {
-      runtime.stdout.write(
-        `Session ${summary.session.metadata.sessionId} (${summary.session.metadata.mode})\n`
-      );
-      runtime.stdout.write(
-        `Managed services: ${summary.session.snapshot.managedServiceIds.join(', ') || 'none'}\n`
       );
     }
     return 0;
@@ -634,7 +617,11 @@ const runMutatingServiceCommand = async (
       actionLabel = 'Restarted';
     }
 
-    if (outputFormat !== 'text') {
+    if (outputFormat === 'text') {
+      runtime.stdout.write(
+        `${actionLabel} ${manifest.servicesById[serviceId]?.label ?? serviceId}.\n`
+      );
+    } else {
       writeStructuredOutput(
         runtime,
         {
@@ -642,10 +629,6 @@ const runMutatingServiceCommand = async (
           session: summary.session,
         },
         outputFormat
-      );
-    } else {
-      runtime.stdout.write(
-        `${actionLabel} ${manifest.servicesById[serviceId]?.label ?? serviceId}.\n`
       );
     }
     return 0;
@@ -658,30 +641,22 @@ export const runDevLauncherServiceStartCommand = async (
   serviceId: string,
   options: DevLauncherStatusCommandOptions = {},
   runtime: DevLauncherCommandRuntime = defaultRuntime
-): Promise<number> => {
-  return await runMutatingServiceCommand('start', serviceId, options, runtime);
-};
+): Promise<number> =>
+  await runMutatingServiceCommand('start', serviceId, options, runtime);
 
 export const runDevLauncherServiceStopCommand = async (
   serviceId: string,
   options: DevLauncherStatusCommandOptions = {},
   runtime: DevLauncherCommandRuntime = defaultRuntime
-): Promise<number> => {
-  return await runMutatingServiceCommand('stop', serviceId, options, runtime);
-};
+): Promise<number> =>
+  await runMutatingServiceCommand('stop', serviceId, options, runtime);
 
 export const runDevLauncherServiceRestartCommand = async (
   serviceId: string,
   options: DevLauncherStatusCommandOptions = {},
   runtime: DevLauncherCommandRuntime = defaultRuntime
-): Promise<number> => {
-  return await runMutatingServiceCommand(
-    'restart',
-    serviceId,
-    options,
-    runtime
-  );
-};
+): Promise<number> =>
+  await runMutatingServiceCommand('restart', serviceId, options, runtime);
 
 export const runDevLauncherServicesApplyCommand = async (
   options: DevLauncherServicesApplyCommandOptions,
@@ -703,7 +678,11 @@ export const runDevLauncherServicesApplyCommand = async (
       )
     );
 
-    if (outputFormat !== 'text') {
+    if (outputFormat === 'text') {
+      runtime.stdout.write(
+        `Applied service selection: ${summary.session.snapshot.managedServiceIds.join(', ') || 'none'}.\n`
+      );
+    } else {
       writeStructuredOutput(
         runtime,
         {
@@ -711,10 +690,6 @@ export const runDevLauncherServicesApplyCommand = async (
           session: summary.session,
         },
         outputFormat
-      );
-    } else {
-      runtime.stdout.write(
-        `Applied service selection: ${summary.session.snapshot.managedServiceIds.join(', ') || 'none'}.\n`
       );
     }
     return 0;
@@ -754,7 +729,11 @@ export const runDevLauncherLogsCommand = async (
         limit,
         serviceId,
       });
-      if (outputFormat !== 'text') {
+      if (outputFormat === 'text') {
+        for (const entry of result.entries) {
+          runtime.stdout.write(`${formatLogLine(manifest, entry)}\n`);
+        }
+      } else {
         writeStructuredOutput(
           runtime,
           {
@@ -765,15 +744,13 @@ export const runDevLauncherLogsCommand = async (
           },
           outputFormat
         );
-      } else {
-        for (const entry of result.entries) {
-          runtime.stdout.write(`${formatLogLine(manifest, entry)}\n`);
-        }
       }
       return 0;
     }
 
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Follow mode streams logs until interrupted or disconnected.
     while (true) {
+      // biome-ignore lint/performance/noAwaitInLoops: Each request uses the previous response sequence to avoid repeated logs.
       const result = await client.readLogs({
         afterSequence,
         limit,
@@ -805,7 +782,9 @@ export const runDevLauncherSessionStopCommand = async (
       configPath: options.config,
     });
     await createSessionAccess(manifest, runtime).stop();
-    if (outputFormat !== 'text') {
+    if (outputFormat === 'text') {
+      runtime.stdout.write('Stopped the dev launcher session.\n');
+    } else {
       writeStructuredOutput(
         runtime,
         {
@@ -814,8 +793,6 @@ export const runDevLauncherSessionStopCommand = async (
         },
         outputFormat
       );
-    } else {
-      runtime.stdout.write('Stopped the dev launcher session.\n');
     }
     return 0;
   } catch (error) {

@@ -8,63 +8,63 @@ export type CommandStatus =
   | 'expired';
 
 export interface Progress {
+  message: string;
   step: number;
   total: number;
-  message: string;
 }
 
 export interface CommandState<
   TPayload = unknown,
   TRenderState extends Record<string, unknown> = Record<string, unknown>,
 > {
-  id: string;
-  commandName: string;
-  userId: string;
   channelId: string;
-  status: CommandStatus;
-  payload: TPayload;
+  commandName: string;
+
+  createdAt: number;
+  error?: string;
+  id: string;
 
   message?: {
     channelId: string;
     ts: string;
     threadTs?: string;
   };
+  payload: TPayload;
+  progress?: Progress;
 
   renderState?: TRenderState;
-  progress?: Progress;
   result?: unknown;
-  error?: string;
-
-  createdAt: number;
+  status: CommandStatus;
   updatedAt: number;
+  userId: string;
 }
 
 export interface CommandContext<
   TPayload = unknown,
   TRenderState extends Record<string, unknown> = Record<string, unknown>,
 > {
-  state: CommandState<TPayload, TRenderState>;
-  updateProgress: (progress: Progress) => Promise<void>;
-  setRenderState: (renderState: TRenderState) => Promise<void>;
   complete: (result: unknown) => Promise<void>;
   fail: (error: string) => Promise<void>;
+  setRenderState: (renderState: TRenderState) => Promise<void>;
+  state: CommandState<TPayload, TRenderState>;
+  updateProgress: (progress: Progress) => Promise<void>;
 }
 
 export interface InteractionContext<
   TPayload = unknown,
   TRenderState extends Record<string, unknown> = Record<string, unknown>,
 > {
-  state: CommandState<TPayload, TRenderState>;
-  update: (blocks: unknown[]) => Promise<void>;
+  setRenderState: (renderState: TRenderState) => Promise<void>;
   setState: (
     patch: Partial<CommandState<TPayload, TRenderState>>
   ) => Promise<void>;
-  setRenderState: (renderState: TRenderState) => Promise<void>;
+  state: CommandState<TPayload, TRenderState>;
+  update: (blocks: unknown[]) => Promise<void>;
 }
 
 export interface CommandInteraction {
-  commandId: string;
   actionId: string;
+  commandId: string;
   userId: string;
   value?: string;
 }
@@ -74,10 +74,7 @@ export interface CommandDefinition<
   TResult = unknown,
   TRenderState extends Record<string, unknown> = Record<string, unknown>,
 > {
-  name: string;
-
   execute: (ctx: CommandContext<TPayload, TRenderState>) => Promise<TResult>;
-  render: (state: CommandState<TPayload, TRenderState>) => unknown[];
 
   interactions?: Record<
     string,
@@ -86,6 +83,7 @@ export interface CommandDefinition<
       ctx: InteractionContext<TPayload, TRenderState>
     ) => Promise<void>
   >;
+  name: string;
 
   onComplete?: (
     ctx: CommandContext<TPayload, TRenderState>,
@@ -95,15 +93,16 @@ export interface CommandDefinition<
     ctx: CommandContext<TPayload, TRenderState>,
     error: Error
   ) => Promise<void>;
+  render: (state: CommandState<TPayload, TRenderState>) => unknown[];
 
   ttlSeconds?: number;
 }
 
 export interface CommandEnvelope<TPayload = unknown> {
-  platform: 'slack';
+  channelId: string;
   commandName: string;
   payload: TPayload;
-  userId: string;
-  channelId: string;
+  platform: 'slack';
   requestId?: string;
+  userId: string;
 }

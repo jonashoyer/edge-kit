@@ -58,19 +58,18 @@ const S3_DELETE_BATCH_SIZE = 1000;
 const createCompatiblePresignedPost = async (
   client: S3Client,
   options: Parameters<typeof createPresignedPost>[1]
-) => {
-  return await createPresignedPost(
+) =>
+  await createPresignedPost(
     client as unknown as Parameters<typeof createPresignedPost>[0],
     options
   );
-};
 
 export interface S3StorageCredentialsOptions extends StorageOptions {
-  bucket: string;
   accessKeyId: string;
-  secretAccessKey: string;
+  bucket: string;
   forcePathStyle?: boolean;
   maxAttempts?: number;
+  secretAccessKey: string;
   versioning?: StorageVersioningMode;
 }
 
@@ -270,14 +269,14 @@ export class S3Storage extends AbstractStorage {
     this.client = isClientOwnedS3StorageOptions(options)
       ? options.client
       : new S3Client({
-          endpoint: options.endpoint,
-          region: options.region,
-          forcePathStyle: options.forcePathStyle,
-          maxAttempts: options.maxAttempts,
           credentials: {
             accessKeyId: options.accessKeyId,
             secretAccessKey: options.secretAccessKey,
           },
+          endpoint: options.endpoint,
+          forcePathStyle: options.forcePathStyle,
+          maxAttempts: options.maxAttempts,
+          region: options.region,
         });
     this.explorer = {
       list: async (prefix?: string) => {
@@ -285,11 +284,12 @@ export class S3Storage extends AbstractStorage {
         let continuationToken: string | undefined;
 
         do {
+          // biome-ignore lint/performance/noAwaitInLoops: Each page or multipart chunk depends on the preceding response and bounds memory usage.
           const page = await this.explorer.listPage(prefix, {
             continuationToken,
           });
           keys.push(...page.keys);
-          continuationToken = page.continuationToken;
+          ({ continuationToken } = page);
         } while (continuationToken);
 
         return keys;
@@ -301,65 +301,64 @@ export class S3Storage extends AbstractStorage {
         const response = await this.client.send(
           new ListObjectsV2Command({
             Bucket: this.bucket,
-            Prefix: prefix,
-            MaxKeys: pageOptions?.maxKeys,
             ContinuationToken: pageOptions?.continuationToken,
+            MaxKeys: pageOptions?.maxKeys,
+            Prefix: prefix,
           })
         );
 
         return {
+          continuationToken: response.NextContinuationToken,
           keys:
             response.Contents?.map((object) => object.Key).filter(
               (key): key is string => typeof key === 'string'
             ) ?? [],
-          continuationToken: response.NextContinuationToken,
         };
       },
     };
     this.immutable = this.versioning
       ? {
-          versioning: this.versioning,
-          head: async <TMeta = never>(
-            key: string,
-            readOptions?: StorageReadObjectOptions
-          ) => {
-            return await this.headObject<TMeta>(key, readOptions);
-          },
-          read: async (
-            ref: StorageObjectReference,
-            readOptions?: StorageReadObjectOptions
-          ) => {
-            return await this.readObject(ref, readOptions);
-          },
           createObject: async <TMeta = never>(
             key: string,
             data: StorageBody,
             createOptions?: StorageCreateObjectOptions
-          ) => {
-            return await this.createObject<TMeta>(key, data, createOptions);
-          },
+          ) => await this.createObject<TMeta>(key, data, createOptions),
           createReadPresignedUrl: async (
             ref: StorageObjectReference,
             readOptions?: StorageReadPresignedUrlOptions
-          ) => {
-            return await this.createPinnedReadPresignedUrl(ref, readOptions);
-          },
+          ) => await this.createPinnedReadPresignedUrl(ref, readOptions),
           delete: async (
             key: string,
             deleteOptions?: StorageDeleteObjectOptions
           ) => {
             await this.deleteObject(key, deleteOptions);
           },
+          head: async <TMeta = never>(
+            key: string,
+            readOptions?: StorageReadObjectOptions
+          ) => await this.headObject<TMeta>(key, readOptions),
+          read: async (
+            ref: StorageObjectReference,
+            readOptions?: StorageReadObjectOptions
+          ) => await this.readObject(ref, readOptions),
+          versioning: this.versioning,
         }
       : undefined;
     this.multipart = {
+      abort: async (upload: StorageMultipartUploadSession) => {
+        await this.abortMultipartUpload(upload);
+      },
+      complete: async <TMeta = never>(
+        upload: StorageMultipartUploadDescriptor,
+        options?: StorageMultipartCompleteOptions
+      ) => await this.completeMultipartUpload<TMeta>(upload, options),
       create: async (key: string, options?: StorageMultipartUploadOptions) => {
         await this.assertSingleWriteAttempt();
         const response = await this.client.send(
           new CreateMultipartUploadCommand({
             Bucket: this.bucket,
-            Key: key,
             ContentType: options?.contentType,
+            Key: key,
             Metadata: storageMetadataToStrings(options?.metadata),
           })
         );
@@ -376,32 +375,15 @@ export class S3Storage extends AbstractStorage {
           uploadId: response.UploadId,
         };
       },
-      find: async (key: string) => {
-        return await this.findMultipartUploads(key);
-      },
-      listParts: async (upload: StorageMultipartUploadSession) => {
-        return await this.listMultipartParts(upload);
-      },
       createPartPresignedUrl: async (
         upload: StorageMultipartUploadDescriptor,
         partNumber: number,
         options?: StorageMultipartPartUrlOptions
-      ) => {
-        return await this.createMultipartPartPresignedUrl(
-          upload,
-          partNumber,
-          options
-        );
-      },
-      complete: async <TMeta = never>(
-        upload: StorageMultipartUploadDescriptor,
-        options?: StorageMultipartCompleteOptions
-      ) => {
-        return await this.completeMultipartUpload<TMeta>(upload, options);
-      },
-      abort: async (upload: StorageMultipartUploadSession) => {
-        await this.abortMultipartUpload(upload);
-      },
+      ) =>
+        await this.createMultipartPartPresignedUrl(upload, partNumber, options),
+      find: async (key: string) => await this.findMultipartUploads(key),
+      listParts: async (upload: StorageMultipartUploadSession) =>
+        await this.listMultipartParts(upload),
     };
   }
 
@@ -412,10 +394,10 @@ export class S3Storage extends AbstractStorage {
   ): Promise<void> {
     await this.client.send(
       new PutObjectCommand({
-        Bucket: this.bucket,
-        Key: key,
         Body: normalizeBody(data),
+        Bucket: this.bucket,
         ContentType: opts?.contentType,
+        Key: key,
         Metadata: storageMetadataToStrings(opts?.metadata),
       })
     );
@@ -485,8 +467,8 @@ export class S3Storage extends AbstractStorage {
     });
 
     return {
-      url,
       expiresAt: Date.now() + this.presignedTtlMs,
+      url,
     };
   }
 
@@ -500,8 +482,8 @@ export class S3Storage extends AbstractStorage {
     if (this.isBackblazeEndpoint()) {
       const command = new PutObjectCommand({
         Bucket: this.bucket,
-        Key: key,
         ContentType: opts.contentType,
+        Key: key,
       });
 
       const url = await getSignedUrl(this.client, command, {
@@ -509,9 +491,9 @@ export class S3Storage extends AbstractStorage {
       });
 
       return {
-        url,
-        method: 'PUT' as const,
         expiresAt: Date.now() + this.presignedTtlMs,
+        method: 'PUT' as const,
+        url,
       };
     }
 
@@ -528,20 +510,20 @@ export class S3Storage extends AbstractStorage {
 
     const { url, fields } = await createCompatiblePresignedPost(this.client, {
       Bucket: this.bucket,
-      Key: key,
       Conditions: conditions,
+      Expires: this.presignedTtlSeconds,
       Fields: {
         'Content-Type': opts.contentType,
         key,
       },
-      Expires: this.presignedTtlSeconds,
+      Key: key,
     });
 
     return {
-      url,
+      expiresAt: Date.now() + this.presignedTtlMs,
       fields,
       method: 'POST' as const,
-      expiresAt: Date.now() + this.presignedTtlMs,
+      url,
     };
   }
 
@@ -571,12 +553,12 @@ export class S3Storage extends AbstractStorage {
     try {
       await this.client.send(
         new PutObjectCommand({
-          Bucket: this.bucket,
-          Key: key,
           Body: normalizeBody(data),
+          Bucket: this.bucket,
           ContentType: options?.contentType,
-          Metadata: storageMetadataToStrings(options?.metadata),
           IfNoneMatch: '*',
+          Key: key,
+          Metadata: storageMetadataToStrings(options?.metadata),
           ...toPutChecksumOptions(options?.checksum),
         })
       );
@@ -595,8 +577,8 @@ export class S3Storage extends AbstractStorage {
     }
 
     return {
-      status,
       object,
+      status,
     };
   }
 
@@ -611,16 +593,16 @@ export class S3Storage extends AbstractStorage {
     const command = new GetObjectCommand({
       Bucket: this.bucket,
       Key: ref.key,
-      VersionId: versionId,
       ResponseCacheControl: 'private, no-store',
+      VersionId: versionId,
     });
     const url = await getSignedUrl(this.client, command, {
       expiresIn: expiresInSeconds,
     });
 
     return {
-      url,
       expiresAt: Date.now() + expiresInSeconds * 1000,
+      url,
     };
   }
 
@@ -717,11 +699,12 @@ export class S3Storage extends AbstractStorage {
     let versionIdMarker: string | undefined;
 
     do {
+      // biome-ignore lint/performance/noAwaitInLoops: Each page or multipart chunk depends on the preceding response and bounds memory usage.
       const page = await this.client.send(
         new ListObjectVersionsCommand({
           Bucket: this.bucket,
-          Prefix: key,
           KeyMarker: keyMarker,
+          Prefix: key,
           VersionIdMarker: versionIdMarker,
         })
       );
@@ -775,6 +758,7 @@ export class S3Storage extends AbstractStorage {
       offset += S3_DELETE_BATCH_SIZE
     ) {
       const batch = objects.slice(offset, offset + S3_DELETE_BATCH_SIZE);
+      // biome-ignore lint/performance/noAwaitInLoops: Each page or multipart chunk depends on the preceding response and bounds memory usage.
       const response = await this.client.send(
         new DeleteObjectsCommand({
           Bucket: this.bucket,
@@ -786,10 +770,10 @@ export class S3Storage extends AbstractStorage {
 
       for (const error of response.Errors ?? []) {
         errors.push({
-          key: error.Key ?? key,
-          versionId: error.VersionId,
           code: error.Code,
+          key: error.Key ?? key,
           message: error.Message ?? 'Storage did not delete every object',
+          versionId: error.VersionId,
         });
       }
     }
@@ -805,11 +789,12 @@ export class S3Storage extends AbstractStorage {
     let uploadIdMarker: string | undefined;
 
     do {
+      // biome-ignore lint/performance/noAwaitInLoops: Each page or multipart chunk depends on the preceding response and bounds memory usage.
       const page = await this.client.send(
         new ListMultipartUploadsCommand({
           Bucket: this.bucket,
-          Prefix: key,
           KeyMarker: keyMarker,
+          Prefix: key,
           UploadIdMarker: uploadIdMarker,
         })
       );
@@ -849,12 +834,13 @@ export class S3Storage extends AbstractStorage {
     let partNumberMarker: string | undefined;
 
     do {
+      // biome-ignore lint/performance/noAwaitInLoops: Each page or multipart chunk depends on the preceding response and bounds memory usage.
       const page = await this.client.send(
         new ListPartsCommand({
           Bucket: this.bucket,
           Key: upload.key,
-          UploadId: upload.uploadId,
           PartNumberMarker: partNumberMarker,
+          UploadId: upload.uploadId,
         })
       );
 
@@ -873,8 +859,8 @@ export class S3Storage extends AbstractStorage {
         }
 
         parts.push({
-          partNumber: part.PartNumber,
           etag: part.ETag,
+          partNumber: part.PartNumber,
           sizeBytes: part.Size,
         });
       }
@@ -932,10 +918,10 @@ export class S3Storage extends AbstractStorage {
       this.client,
       new UploadPartCommand({
         Bucket: this.bucket,
-        Key: upload.key,
-        UploadId: upload.uploadId,
-        PartNumber: partNumber,
         ContentLength: lengthBytes,
+        Key: upload.key,
+        PartNumber: partNumber,
+        UploadId: upload.uploadId,
       }),
       {
         expiresIn: this.multipartPresignedTtlSeconds,
@@ -950,16 +936,16 @@ export class S3Storage extends AbstractStorage {
     }
 
     return {
-      key: upload.key,
-      uploadId: upload.uploadId,
-      partNumber,
-      method: 'PUT',
-      url,
-      headers,
       expiresAt: Date.now() + this.multipartPresignedTtlMs,
-      offsetBytes,
+      headers,
+      key: upload.key,
       lengthBytes,
       maxBytes: lengthBytes,
+      method: 'PUT',
+      offsetBytes,
+      partNumber,
+      uploadId: upload.uploadId,
+      url,
     };
   }
 
@@ -1005,13 +991,13 @@ export class S3Storage extends AbstractStorage {
       new CompleteMultipartUploadCommand({
         Bucket: this.bucket,
         Key: upload.key,
-        UploadId: upload.uploadId,
         MultipartUpload: {
           Parts: parts.map((part) => ({
-            PartNumber: part.partNumber,
             ETag: part.etag,
+            PartNumber: part.partNumber,
           })),
         },
+        UploadId: upload.uploadId,
       })
     );
     const object = await this.requireHeadObject<TMeta>(upload.key, {
@@ -1101,14 +1087,14 @@ export class S3Storage extends AbstractStorage {
     }
 
     return {
-      key,
+      checksum: toChecksum(head),
       contentLength,
       contentType: head.ContentType,
       etag: head.ETag,
-      versionId,
-      checksum: toChecksum(head),
+      key,
       lastModified: head.LastModified?.getTime(),
       meta: (head.Metadata ?? undefined) as TMeta,
+      versionId,
     };
   }
 

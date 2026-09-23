@@ -84,18 +84,18 @@ export class ErrorEscalationService {
     const { name, severity, groupId, rules } = config;
     const meta = this.toMeta(error);
     return await this.applyRules({
-      name,
-      severity,
-      groupId,
-      rules,
-      meta,
       config,
+      groupId,
+      meta,
+      name,
+      rules,
+      severity,
     });
   }
 
   private toMeta(error: unknown): ErrorMetadata {
     const se = serializeError(error);
-    return { name: se.name, message: se.message, stack: se.stack };
+    return { message: se.message, name: se.name, stack: se.stack };
   }
 
   private async applyRules(args: {
@@ -113,8 +113,8 @@ export class ErrorEscalationService {
         switch (rule.type) {
           case 'always': {
             const condition = await this.handleAlways({
-              name,
               groupId,
+              name,
               rule,
               ruleIndex: idx,
             });
@@ -122,8 +122,8 @@ export class ErrorEscalationService {
           }
           case 'threshold': {
             const condition = await this.handleThreshold({
-              name,
               groupId,
+              name,
               rule,
               ruleIndex: idx,
             });
@@ -145,18 +145,18 @@ export class ErrorEscalationService {
 
     try {
       await this.notify({
-        name,
-        severity,
-        groupId,
-        rules: triggeredRules,
-        meta,
         config,
+        groupId,
+        meta,
+        name,
+        rules: triggeredRules,
+        severity,
       });
     } catch (e) {
       this.logger?.error('Error escalation capture rule failure', {
-        name,
+        error: e instanceof Error ? e.message : String(e),
         groupId,
-        error: (e as Error)?.message ?? String(e),
+        name,
       });
     }
     return true;
@@ -170,10 +170,10 @@ export class ErrorEscalationService {
   }): Promise<boolean> {
     const { name, groupId, rule, ruleIndex } = args;
     const k = ruleKey({
-      prefix: this.prefix,
-      name,
-      ruleIndex,
       groupId,
+      name,
+      prefix: this.prefix,
+      ruleIndex,
       type: 'threshold',
     });
     const count = await this.kv.increment(k, 1);
@@ -206,10 +206,10 @@ export class ErrorEscalationService {
       return true;
     }
     const ck = ruleKey({
-      prefix: this.prefix,
-      name,
-      ruleIndex,
       groupId,
+      name,
+      prefix: this.prefix,
+      ruleIndex,
       type: 'always',
     });
     const exists = await this.kv.exists(ck);

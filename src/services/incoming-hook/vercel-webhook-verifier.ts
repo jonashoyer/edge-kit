@@ -37,14 +37,15 @@ export class VercelWebhookVerifier
       parseSignatureHeader(signatureHeader, 'sha1=') ?? signatureHeader;
 
     const matched = await Promise.all(
-      this.secrets.map(async (secret) => {
-        return await verifyHmacHex({
-          value: request.rawBody,
-          secret,
-          algorithm: 'sha1',
-          expectedHex,
-        });
-      })
+      this.secrets.map(
+        async (secret) =>
+          await verifyHmacHex({
+            algorithm: 'sha1',
+            expectedHex,
+            secret,
+            value: request.rawBody,
+          })
+      )
     );
 
     if (!matched.some(Boolean)) {
@@ -54,8 +55,10 @@ export class VercelWebhookVerifier
     let payload: VercelWebhookPayload;
     try {
       payload = JSON.parse(request.rawBody) as VercelWebhookPayload;
-    } catch {
-      throw new IncomingHookPayloadError('Invalid Vercel webhook JSON');
+    } catch (error) {
+      throw new IncomingHookPayloadError('Invalid Vercel webhook JSON', {
+        cause: error,
+      });
     }
 
     if (typeof payload.type !== 'string') {
@@ -63,12 +66,12 @@ export class VercelWebhookVerifier
     }
 
     return {
-      provider: 'vercel',
-      event: payload.type,
       deliveryId: typeof payload.id === 'string' ? payload.id : null,
-      payload,
-      rawBody: request.rawBody,
+      event: payload.type,
       headers: request.headers,
+      payload,
+      provider: 'vercel',
+      rawBody: request.rawBody,
     };
   }
 }

@@ -28,8 +28,8 @@ export type GeminiDeepResearchAgentId =
   (typeof SUPPORTED_GEMINI_DEEP_RESEARCH_AGENT_IDS)[number];
 
 export interface GeminiDeepResearchServiceOptions {
-  apiKey: string;
   agent?: GeminiDeepResearchAgentId;
+  apiKey: string;
   baseUrl?: string;
   pollIntervalMs?: number;
   requestTimeoutMs?: number;
@@ -64,39 +64,39 @@ const transientHttpStatuses = [408, 409, 425, 429, 500, 502, 503, 504];
 const providerErrorSchema = z
   .object({
     code: z.string().optional(),
-    message: z.string().optional(),
     details: z.record(z.string(), z.unknown()).optional(),
+    message: z.string().optional(),
   })
   .passthrough();
 
 const geminiOutputSchema = z
   .object({
-    type: z.string().optional(),
-    id: z.string().optional(),
-    text: z.string().optional(),
-    data: z.string().optional(),
-    url: z.string().optional(),
-    uri: z.string().optional(),
-    title: z.string().optional(),
-    source_type: z.string().optional(),
-    mime_type: z.string().optional(),
-    media_type: z.string().optional(),
     content: z
       .object({
         text: z.string().optional(),
       })
       .passthrough()
       .optional(),
+    data: z.string().optional(),
+    id: z.string().optional(),
+    media_type: z.string().optional(),
+    mime_type: z.string().optional(),
+    source_type: z.string().optional(),
+    text: z.string().optional(),
+    title: z.string().optional(),
+    type: z.string().optional(),
+    uri: z.string().optional(),
+    url: z.string().optional(),
   })
   .passthrough();
 
 const geminiInteractionSchema = z
   .object({
-    id: z.string(),
-    status: z.string().default('in_progress'),
     agent: z.string().optional(),
-    outputs: z.array(geminiOutputSchema).default([]),
     error: providerErrorSchema.optional(),
+    id: z.string(),
+    outputs: z.array(geminiOutputSchema).default([]),
+    status: z.string().default('in_progress'),
   })
   .passthrough();
 
@@ -139,8 +139,8 @@ const isSupportedAgent = (agent: string): agent is GeminiDeepResearchAgentId =>
 const toGeminiInputPart = (part: DeepResearchInputPart): GeminiInputPart => {
   if (part.type === 'text') {
     return {
-      type: 'text',
       text: part.text,
+      type: 'text',
     };
   }
 
@@ -155,9 +155,9 @@ const toGeminiInputPart = (part: DeepResearchInputPart): GeminiInputPart => {
 
   const document = part as DeepResearchDocumentInputPart;
   return {
+    mime_type: document.mimeType,
     type: 'document',
     uri: document.uri,
-    mime_type: document.mimeType,
   };
 };
 
@@ -184,8 +184,8 @@ const toGeminiTool = (tool: DeepResearchTool): GeminiTool => {
 
   if (tool.type === 'file_search') {
     return {
-      type: 'file_search',
       file_search_store_names: tool.fileSearchStoreNames,
+      type: 'file_search',
     };
   }
 
@@ -226,8 +226,8 @@ const toSourcePart = (output: GeminiOutput): DeepResearchOutputPart | null => {
   const url = output.url ?? output.uri;
   if (url) {
     return {
-      type: 'source-url',
       sourceId: output.id ?? url,
+      type: 'source-url',
       url,
       ...(output.title ? { title: output.title } : {}),
       providerMetadata: toProviderPartMetadata(output),
@@ -236,11 +236,11 @@ const toSourcePart = (output: GeminiOutput): DeepResearchOutputPart | null => {
 
   if (output.id && output.title) {
     return {
-      type: 'source-document',
-      sourceId: output.id,
       mediaType: output.media_type ?? output.mime_type ?? 'text/plain',
-      title: output.title,
       providerMetadata: toProviderPartMetadata(output),
+      sourceId: output.id,
+      title: output.title,
+      type: 'source-document',
     } as unknown as DeepResearchOutputPart;
   }
 
@@ -250,9 +250,9 @@ const toSourcePart = (output: GeminiOutput): DeepResearchOutputPart | null => {
 const toOutputPart = (output: GeminiOutput): DeepResearchOutputPart => {
   if (output.type === 'text' && output.text !== undefined) {
     return {
-      type: 'text',
-      text: output.text,
       providerMetadata: toProviderPartMetadata(output),
+      text: output.text,
+      type: 'text',
     } as DeepResearchOutputPart;
   }
 
@@ -263,19 +263,19 @@ const toOutputPart = (output: GeminiOutput): DeepResearchOutputPart => {
       output.uri ?? output.url ?? toDataUrl(output.data ?? '', mediaType);
 
     return {
-      type: 'file',
       mediaType,
-      url,
       providerMetadata: toProviderPartMetadata(output),
+      type: 'file',
+      url,
     } as DeepResearchOutputPart;
   }
 
   if (output.type === 'thought_summary') {
     return {
-      type: 'reasoning',
-      text: output.text ?? output.content?.text ?? '',
-      state: 'done',
       providerMetadata: toProviderPartMetadata(output),
+      state: 'done',
+      text: output.text ?? output.content?.text ?? '',
+      type: 'reasoning',
     } as DeepResearchOutputPart;
   }
 
@@ -293,9 +293,9 @@ const toOutputPart = (output: GeminiOutput): DeepResearchOutputPart => {
   }
 
   return {
-    type: 'data-deep-research-output',
-    id: output.id,
     data: output,
+    id: output.id,
+    type: 'data-deep-research-output',
   } as DeepResearchOutputPart;
 };
 
@@ -318,7 +318,6 @@ const toMessage = (
 
   return {
     id: interaction.id,
-    role: 'assistant',
     metadata: {
       interactionId: interaction.id,
       provider,
@@ -327,6 +326,7 @@ const toMessage = (
       ...(Object.keys(providerMetadata).length > 0 ? { providerMetadata } : {}),
     },
     parts,
+    role: 'assistant',
   };
 };
 
@@ -339,8 +339,8 @@ const toInteraction = (
 
   return {
     id: interaction.id,
-    status: interaction.status,
     provider,
+    status: interaction.status,
     ...(interaction.agent ? { agent: interaction.agent } : {}),
     message,
     ...(getText(message.parts) ? { text: getText(message.parts) } : {}),
@@ -390,8 +390,8 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
     input: DeepResearchGetInput
   ): Promise<DeepResearchInteraction> {
     return await this.requestInteraction({
-      path: `/interactions/${encodeURIComponent(input.id)}`,
       method: 'GET',
+      path: `/interactions/${encodeURIComponent(input.id)}`,
     });
   }
 
@@ -399,15 +399,15 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
     input: DeepResearchWaitInput
   ): Promise<DeepResearchInteraction> {
     const startedAt = Date.now();
-    const timeoutMs = input.timeoutMs;
+    const { timeoutMs } = input;
     const pollIntervalMs = input.pollIntervalMs ?? this.pollIntervalMs;
 
     const poll = async (): Promise<DeepResearchInteraction> => {
       if (input.abortSignal?.aborted) {
         throw new DeepResearchError({
           code: 'ABORTED',
-          message: 'Deep research wait was aborted',
           interactionId: input.id,
+          message: 'Deep research wait was aborted',
         });
       }
 
@@ -420,10 +420,10 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
       if (isFailedStatus(interaction.status)) {
         throw new DeepResearchError({
           code: 'FAILED',
+          interactionId: input.id,
           message:
             interaction.error?.message ??
             `Deep research interaction ${input.id} ended with status ${interaction.status}`,
-          interactionId: input.id,
           providerError: interaction.error,
         });
       }
@@ -435,8 +435,8 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
       if (timeoutMs !== undefined && Date.now() - startedAt >= timeoutMs) {
         throw new DeepResearchError({
           code: 'TIMEOUT',
-          message: `Deep research interaction ${input.id} did not complete within ${timeoutMs}ms`,
           interactionId: input.id,
+          message: `Deep research interaction ${input.id} did not complete within ${timeoutMs}ms`,
         });
       }
 
@@ -458,9 +458,9 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
   ): Promise<DeepResearchInteraction> {
     const agent = this.resolveAgent(input.agentMode);
     const body: Record<string, unknown> = {
-      input: toGeminiInput(input.input),
       agent,
       background: true,
+      input: toGeminiInput(input.input),
       store: true,
       ...input.providerOptions,
     };
@@ -474,9 +474,11 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
         ...(input.agentConfig.visualization
           ? { visualization: input.agentConfig.visualization }
           : {}),
-        ...(input.agentConfig.collaborativePlanning !== undefined
-          ? { collaborative_planning: input.agentConfig.collaborativePlanning }
-          : {}),
+        ...(input.agentConfig.collaborativePlanning === undefined
+          ? {}
+          : {
+              collaborative_planning: input.agentConfig.collaborativePlanning,
+            }),
       };
     }
 
@@ -489,9 +491,9 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
     }
 
     return await this.requestInteraction({
-      path: '/interactions',
-      method: 'POST',
       body,
+      method: 'POST',
+      path: '/interactions',
     });
   }
 
@@ -520,30 +522,30 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
 
     try {
       const { response, data } = await fetchExt({
-        url,
-        init: {
-          method: args.method,
-          headers: {
-            'x-goog-api-key': this.apiKey,
-          },
-          ...(args.body ? { body: args.body } : {}),
-        },
         expectJson: {
           schema: geminiInteractionSchema,
         },
+        init: {
+          headers: {
+            'x-goog-api-key': this.apiKey,
+          },
+          method: args.method,
+          ...(args.body ? { body: args.body } : {}),
+        },
+        respectRetryAfter: true,
         retries: this.retries,
         retryDelay: this.retryDelayMs,
         retryOnHttpStatuses: transientHttpStatuses,
-        respectRetryAfter: true,
         throwOnHttpError: false,
         timeout: this.requestTimeoutMs,
+        url,
       });
 
       if (!response.ok) {
         throw new DeepResearchError({
           code: 'PROVIDER_ERROR',
-          message: `Gemini Deep Research request failed with HTTP ${response.status}`,
           interactionId: data.id,
+          message: `Gemini Deep Research request failed with HTTP ${response.status}`,
           providerError: toProviderError(data.error),
         });
       }
@@ -554,7 +556,9 @@ export class GeminiDeepResearchService extends AbstractDeepResearchService {
         throw error;
       }
 
+      // biome-ignore lint/style/useErrorCause: DeepResearchError forwards cause from its options object to CustomError.
       throw new DeepResearchError({
+        cause: error,
         code: 'PROVIDER_ERROR',
         message:
           error instanceof Error

@@ -6,10 +6,10 @@ import type { StripeSyncService } from './sync-service';
 import type { StripeSubscription } from './types';
 
 export class StripeSubscriptionService {
-  private store: AbstractStripeStore;
-  private syncService: StripeSyncService;
-  private stripe: Stripe;
-  private logger: AbstractLogger | undefined;
+  private readonly store: AbstractStripeStore;
+  private readonly syncService: StripeSyncService;
+  private readonly stripe: Stripe;
+  private readonly logger: AbstractLogger | undefined;
 
   constructor(
     store: AbstractStripeStore,
@@ -32,7 +32,7 @@ export class StripeSubscriptionService {
     try {
       return await this.store.getUserSubscriptionData(userId);
     } catch (error) {
-      this.logger?.error('Failed to get user subscription', { userId, error });
+      this.logger?.error('Failed to get user subscription', { error, userId });
       throw error;
     }
   }
@@ -53,7 +53,7 @@ export class StripeSubscriptionService {
     }
 
     // Consider active statuses
-    const activeStatuses: Array<StripeSubscription['status']> = [
+    const activeStatuses: StripeSubscription['status'][] = [
       'active',
       'trialing',
     ];
@@ -97,13 +97,13 @@ export class StripeSubscriptionService {
       await this.syncService.syncStripeData(stripeCustomerId);
 
       this.logger?.info('Subscription canceled at period end', {
-        userId,
         subscriptionId: subscriptionData.subscriptionId,
+        userId,
       });
 
       return true;
     } catch (error) {
-      this.logger?.error('Failed to cancel subscription', { userId, error });
+      this.logger?.error('Failed to cancel subscription', { error, userId });
       throw error;
     }
   }
@@ -145,13 +145,13 @@ export class StripeSubscriptionService {
       await this.syncService.syncStripeData(stripeCustomerId);
 
       this.logger?.info('Subscription resumed', {
-        userId,
         subscriptionId: subscriptionData.subscriptionId,
+        userId,
       });
 
       return true;
     } catch (error) {
-      this.logger?.error('Failed to resume subscription', { userId, error });
+      this.logger?.error('Failed to resume subscription', { error, userId });
       throw error;
     }
   }
@@ -177,8 +177,8 @@ export class StripeSubscriptionService {
       return session.url;
     } catch (error) {
       this.logger?.error('Failed to create customer portal session', {
-        userId,
         error,
+        userId,
       });
       throw error;
     }

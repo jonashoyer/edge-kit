@@ -8,9 +8,10 @@ import {
   type GitCommitReportRuntime,
 } from './report';
 
-const collectOptionValues = (value: string, previous?: string[]) => {
-  return [...(previous ?? []), value];
-};
+const collectOptionValues = (value: string, previous?: string[]) => [
+  ...(previous ?? []),
+  value,
+];
 
 export interface GitCommitReportCommandOptions {
   author?: string[];
@@ -35,9 +36,7 @@ const defaultRuntime: GitCommitReportCommandRuntime = {
   stdout: process.stdout,
 };
 
-const normalizeAuthorOption = (author: string[] | undefined) => {
-  return author ?? [];
-};
+const normalizeAuthorOption = (author: string[] | undefined) => author ?? [];
 
 /**
  * Runs the git commit report command and writes TOON or formatted text.

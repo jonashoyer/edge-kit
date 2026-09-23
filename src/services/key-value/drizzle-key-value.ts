@@ -70,7 +70,6 @@ class BaseDrizzleKeyValueService<
 > extends AbstractKeyValueService {
   protected readonly _db: TDb;
   protected readonly _table: TTable;
-  private readonly expireDiscoveryDeletion = false;
   private readonly _internal: {
     db: AnyMySqlDatabase;
     table: MySqlKeyValueTable;
@@ -90,9 +89,9 @@ class BaseDrizzleKeyValueService<
     const { db, table } = this._internal;
     const rows = await db
       .select({
+        expiresAt: table.expiresAt,
         key: table.key,
         value: table.value,
-        expiresAt: table.expiresAt,
       })
       .from(table)
       .where(eq(table.key, key))
@@ -104,9 +103,9 @@ class BaseDrizzleKeyValueService<
     const { db, table } = this._internal;
     const rows = await db
       .select({
+        expiresAt: table.expiresAt,
         key: table.key,
         value: table.value,
-        expiresAt: table.expiresAt,
       })
       .from(table)
       .where(inArray(table.key, keys))
@@ -138,9 +137,6 @@ class BaseDrizzleKeyValueService<
     }
 
     if (result.expiresAt && result.expiresAt < now) {
-      if (this.expireDiscoveryDeletion) {
-        await this.delete(key);
-      }
       return null;
     }
 
@@ -151,16 +147,6 @@ class BaseDrizzleKeyValueService<
     const now = Math.floor(Date.now() / MS_TO_SECONDS);
 
     const results = await this._getMany(keys);
-
-    if (this.expireDiscoveryDeletion) {
-      const deleteItems = results.filter(
-        (result) => result.expiresAt && result.expiresAt < now
-      );
-
-      if (deleteItems.length > 0) {
-        await this._deleteManyByKeys(deleteItems.map((d) => d.key));
-      }
-    }
 
     return results.map((result) => {
       if (result.expiresAt && result.expiresAt < now) {
@@ -192,9 +178,6 @@ class BaseDrizzleKeyValueService<
     }
 
     if (result.expiresAt && result.expiresAt < now) {
-      if (this.expireDiscoveryDeletion) {
-        await this.delete(key);
-      }
       return false;
     }
 
@@ -288,14 +271,14 @@ class MySqlKeyValueService extends BaseDrizzleKeyValueService<
     await this._db
       .insert(this._table)
       .values({
+        expiresAt,
         key,
         value,
-        expiresAt,
       })
       .onDuplicateKeyUpdate({
         set: {
-          value,
           expiresAt,
+          value,
         },
       })
       .execute();
@@ -315,15 +298,15 @@ class MySqlKeyValueService extends BaseDrizzleKeyValueService<
       .insert(this._table)
       .values(
         keyValues.map(([key, value]) => ({
+          expiresAt,
           key,
           value,
-          expiresAt,
         }))
       )
       .onDuplicateKeyUpdate({
         set: {
-          value: sql`VALUES(${this._table.value})`,
           expiresAt: sql`VALUES(${this._table.expiresAt})`,
+          value: sql`VALUES(${this._table.value})`,
         },
       })
       .execute();
@@ -343,16 +326,16 @@ class PostgresKeyValueService extends BaseDrizzleKeyValueService<
     await this._db
       .insert(this._table)
       .values({
+        expiresAt,
         key,
         value,
-        expiresAt,
       })
       .onConflictDoUpdate({
-        target: this._table.key,
         set: {
-          value,
           expiresAt,
+          value,
         },
+        target: this._table.key,
       })
       .execute();
   }
@@ -368,17 +351,17 @@ class PostgresKeyValueService extends BaseDrizzleKeyValueService<
       .insert(this._table)
       .values(
         keyValues.map(([key, value]) => ({
+          expiresAt,
           key,
           value,
-          expiresAt,
         }))
       )
       .onConflictDoUpdate({
-        target: this._table.key,
         set: {
-          value: sql`excluded.value`,
           expiresAt: sql`excluded.expiresAt`,
+          value: sql`excluded.value`,
         },
+        target: this._table.key,
       })
       .execute();
   }
@@ -396,16 +379,16 @@ class SQLiteKeyValueService extends BaseDrizzleKeyValueService<
     await this._db
       .insert(this._table)
       .values({
+        expiresAt,
         key,
         value,
-        expiresAt,
       })
       .onConflictDoUpdate({
-        target: this._table.key,
         set: {
-          value,
           expiresAt,
+          value,
         },
+        target: this._table.key,
       })
       .run();
   }
@@ -421,17 +404,17 @@ class SQLiteKeyValueService extends BaseDrizzleKeyValueService<
       .insert(this._table)
       .values(
         keyValues.map(([key, value]) => ({
+          expiresAt,
           key,
           value,
-          expiresAt,
         }))
       )
       .onConflictDoUpdate({
-        target: this._table.key,
         set: {
-          value: sql`excluded.value`,
           expiresAt: sql`excluded.expiresAt`,
+          value: sql`excluded.value`,
         },
+        target: this._table.key,
       })
       .run();
   }

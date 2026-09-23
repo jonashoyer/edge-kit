@@ -9,63 +9,63 @@ const kv = new InMemoryKeyValueService();
 const logger = new ConsoleLogger();
 const reconciler = new TaskReconciler({
   kv,
+  logger,
   mutex: new KvMutex<string>(kv, {
+    logger,
     prefix: '',
     ttlSeconds: 30,
-    logger,
   }),
-  logger,
   tasks: [
     {
-      taskName: 'documents-index',
       resolveDesiredRevision() {
         return 'documents-index-v4';
       },
       async run() {
         await enqueueDocumentReindex();
       },
+      taskName: 'documents-index',
     },
     {
-      taskName: 'cache-rebuild',
       resolveDesiredRevision() {
         return 'cache-rebuild-v2';
       },
       async run() {
         await enqueueCacheRebuild();
       },
+      taskName: 'cache-rebuild',
     },
   ],
 });
 
 export const POST = createAppRouterIncomingHookHandler({
-  verifier: new VercelWebhookVerifier([process.env.VERCEL_WEBHOOK_SECRET!]),
-  logger,
   async handle(verified) {
     if (verified.event !== 'deployment.promoted') {
       return {
-        kind: 'ignored',
         body: { ignored: true },
+        kind: 'ignored',
       };
     }
 
     const target = verified.payload.payload?.target;
     if (target !== 'production') {
       return {
-        kind: 'ignored',
         body: { ignored: true },
+        kind: 'ignored',
       };
     }
 
     const result = await reconciler.reconcileAll();
 
     return {
-      kind: 'processed',
       body: {
         received: true,
         summary: result.summary,
       },
+      kind: 'processed',
     };
   },
+  logger,
+  verifier: new VercelWebhookVerifier([process.env.VERCEL_WEBHOOK_SECRET!]),
 });
 
 async function enqueueDocumentReindex() {

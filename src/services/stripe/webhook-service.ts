@@ -4,10 +4,10 @@ import type { AbstractLogger } from '../logging/abstract-logger';
 import type { StripeSyncService } from './sync-service';
 
 export class StripeWebhookService {
-  private syncService: StripeSyncService;
-  private logger: AbstractLogger | undefined;
-  private webhookSecret: string;
-  private stripe: Stripe;
+  private readonly syncService: StripeSyncService;
+  private readonly logger: AbstractLogger | undefined;
+  private readonly webhookSecret: string;
+  private readonly stripe: Stripe;
 
   constructor(
     syncService: StripeSyncService,
@@ -27,7 +27,7 @@ export class StripeWebhookService {
   async handleWebhook(
     payload: string | Buffer,
     signature: string,
-    waitUntil?: (promise: Promise<any>) => void
+    waitUntil?: (promise: Promise<unknown>) => void
   ): Promise<{ received: boolean; error?: string }> {
     let event: Stripe.Event;
 
@@ -40,12 +40,12 @@ export class StripeWebhookService {
       );
 
       this.logger?.info('Received Stripe webhook', {
-        eventType: event.type,
         eventId: event.id,
+        eventType: event.type,
       });
 
       await safeWaitUntil(
-        waitUntil ?? ((promise: Promise<any>) => promise),
+        waitUntil ?? ((promise: Promise<unknown>) => promise),
         this.syncService.processEvent(event)
       );
 
@@ -56,7 +56,7 @@ export class StripeWebhookService {
       this.logger?.error('Webhook signature verification failed', {
         error: errorMessage,
       });
-      return { received: false, error: errorMessage };
+      return { error: errorMessage, received: false };
     }
   }
 }
@@ -67,7 +67,7 @@ export class StripeWebhookService {
  * @param promise - The promise to wait for
  */
 const safeWaitUntil = async (
-  waitUntil: (promise: Promise<unknown>) => void | Promise<unknown>,
+  waitUntil: (promise: Promise<unknown>) => unknown,
   promise: Promise<unknown>
 ) => {
   const fn = async () => {

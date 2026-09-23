@@ -105,7 +105,7 @@ describe('SignedValueService', () => {
     });
 
     it('should verify objects correctly', async () => {
-      const value = { id: 'admin-1', role: 'superuser', active: true };
+      const value = { active: true, id: 'admin-1', role: 'superuser' };
       const signed = await service.sign(value, secret);
 
       const isValid = await service.verify(signed, secret);
@@ -182,6 +182,7 @@ describe('SignedValueService', () => {
       ];
 
       for (const value of testValues) {
+        // biome-ignore lint/performance/noAwaitInLoops: Test operations deliberately exercise state transitions in order.
         const signed = await service.sign(value, secret);
         const isValid = await service.verify(signed, secret);
         expect(isValid).toBe(true);

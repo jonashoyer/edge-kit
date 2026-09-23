@@ -68,8 +68,8 @@ class MemoryStorage extends AbstractStorage {
   ): Promise<void> {
     const bytes = await storageBodyToUint8Array(data);
     this.objects.set(key, {
-      data: bytes,
       contentType: opts?.contentType,
+      data: bytes,
       etag: `etag:${key}`,
     });
   }
@@ -97,8 +97,8 @@ class MemoryStorage extends AbstractStorage {
     key: string
   ): Promise<{ url: string; expiresAt: number }> {
     return {
-      url: `https://example.test/${key}`,
       expiresAt: Date.now() + 60_000,
+      url: `https://example.test/${key}`,
     };
   }
 
@@ -108,9 +108,9 @@ class MemoryStorage extends AbstractStorage {
     expiresAt: number;
   }> {
     return {
-      url: `https://example.test/upload/${key}`,
-      method: 'PUT',
       expiresAt: Date.now() + 60_000,
+      method: 'PUT',
+      url: `https://example.test/upload/${key}`,
     };
   }
 
@@ -212,18 +212,18 @@ class MemoryCatalog extends AbstractStorageAssetService<AssetMeta> {
   ): Promise<StorageAssetRecord<AssetMeta>> {
     const existing = this.assets.get(input.id);
     const record: StorageAssetRecord<AssetMeta> = {
+      createdAt: input.createdAt ?? existing?.createdAt ?? new Date(),
       id: input.id,
-      objectKey: input.objectKey,
+      meta: input.meta ?? existing?.meta ?? {},
       mimeType: input.mimeType,
-      source: input.source,
-      parentAssetId: input.parentAssetId ?? null,
+      objectKey: input.objectKey,
       orphanedAt:
         input.orphanedAt === undefined
           ? (existing?.orphanedAt ?? null)
           : input.orphanedAt,
+      parentAssetId: input.parentAssetId ?? null,
+      source: input.source,
       tags: input.tags ?? existing?.tags ?? [],
-      meta: input.meta ?? existing?.meta ?? {},
-      createdAt: input.createdAt ?? existing?.createdAt ?? new Date(),
       updatedAt: input.updatedAt ?? new Date(),
     };
 
@@ -255,7 +255,7 @@ class MemoryCatalog extends AbstractStorageAssetService<AssetMeta> {
   ): Promise<StorageAssetRecord<AssetMeta> | null> {
     let current = this.assets.get(assetId) ?? null;
 
-    while (current?.parentAssetId !== null) {
+    while (current && current.parentAssetId !== null) {
       current = this.assets.get(current.parentAssetId) ?? null;
     }
 
@@ -302,17 +302,17 @@ class MemoryAssetRefService extends AbstractStorageAssetRefService {
   ): Promise<StorageAssetOwnerRef> {
     const key = this.keyOf({
       assetId: input.assetId,
-      ownerType: input.ownerType,
       ownerId: input.ownerId,
+      ownerType: input.ownerType,
       tenantId: input.tenantId,
     });
     const existing = this.refs.get(key);
     const record: StorageAssetOwnerRef = {
       assetId: input.assetId,
-      ownerType: input.ownerType,
-      ownerId: input.ownerId,
-      tenantId: input.tenantId ?? null,
       createdAt: input.createdAt ?? existing?.createdAt ?? new Date(),
+      ownerId: input.ownerId,
+      ownerType: input.ownerType,
+      tenantId: input.tenantId ?? null,
       updatedAt: input.updatedAt ?? new Date(),
     };
 
@@ -371,31 +371,31 @@ class MemoryUploadLedger extends AbstractStorageUploadLedgerService<UploadMeta> 
   ): Promise<StorageUploadLedgerRecord<UploadMeta>> {
     const existing = this.uploads.get(input.id);
     const record: StorageUploadLedgerRecord<UploadMeta> = {
-      id: input.id,
-      tenantId: input.tenantId ?? existing?.tenantId ?? null,
-      objectKey: input.objectKey,
-      mimeType: input.mimeType,
-      status: input.status,
-      sizeBytes:
-        input.sizeBytes === undefined
-          ? (existing?.sizeBytes ?? null)
-          : input.sizeBytes,
-      etag: input.etag === undefined ? (existing?.etag ?? null) : input.etag,
-      expiresAt: input.expiresAt,
-      issuedAt: input.issuedAt ?? existing?.issuedAt ?? new Date(),
-      uploadedAt:
-        input.uploadedAt === undefined
-          ? (existing?.uploadedAt ?? null)
-          : input.uploadedAt,
       consumedAt:
         input.consumedAt === undefined
           ? (existing?.consumedAt ?? null)
           : input.consumedAt,
+      etag: input.etag === undefined ? (existing?.etag ?? null) : input.etag,
+      expiresAt: input.expiresAt,
+      id: input.id,
+      issuedAt: input.issuedAt ?? existing?.issuedAt ?? new Date(),
+      meta: input.meta ?? existing?.meta ?? {},
+      mimeType: input.mimeType,
+      objectKey: input.objectKey,
       purgedAt:
         input.purgedAt === undefined
           ? (existing?.purgedAt ?? null)
           : input.purgedAt,
-      meta: input.meta ?? existing?.meta ?? {},
+      sizeBytes:
+        input.sizeBytes === undefined
+          ? (existing?.sizeBytes ?? null)
+          : input.sizeBytes,
+      status: input.status,
+      tenantId: input.tenantId ?? existing?.tenantId ?? null,
+      uploadedAt:
+        input.uploadedAt === undefined
+          ? (existing?.uploadedAt ?? null)
+          : input.uploadedAt,
     };
 
     this.uploads.set(record.id, record);
@@ -406,42 +406,41 @@ class MemoryUploadLedger extends AbstractStorageUploadLedgerService<UploadMeta> 
 const createPngBytes = async (
   width: number,
   height: number
-): Promise<Uint8Array> => {
-  return new Uint8Array(
+): Promise<Uint8Array> =>
+  new Uint8Array(
     await sharp({
       create: {
-        width,
-        height,
-        channels: 4,
         background: {
-          r: 12,
-          g: 140,
-          b: 220,
           alpha: 1,
+          b: 220,
+          g: 140,
+          r: 12,
         },
+        channels: 4,
+        height,
+        width,
       },
     })
       .png()
       .toBuffer()
   );
-};
 
 describe('StorageAssetInventoryService', () => {
   it('writes bytes and catalog rows together', async () => {
     const storage = new MemoryStorage();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: new MemoryCatalog(),
+      storage,
     });
 
     const asset = await inventory.writeAsset({
-      id: 'asset-1',
-      objectKey: 'assets/asset-1.png',
-      mimeType: 'image/png',
-      source: 'generated',
       data: new Uint8Array([1, 2, 3]),
-      tags: ['hero'],
+      id: 'asset-1',
       meta: { kind: 'image-generation', role: 'original' },
+      mimeType: 'image/png',
+      objectKey: 'assets/asset-1.png',
+      source: 'generated',
+      tags: ['hero'],
     });
 
     expect(asset.id).toBe('asset-1');
@@ -455,20 +454,20 @@ describe('StorageAssetInventoryService', () => {
   it('does not materialize blob input twice when preview generation is disabled', async () => {
     const storage = new MemoryStorage();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: new MemoryCatalog(),
+      storage,
     });
     const blob = new CountingBlob([new Uint8Array([1, 2, 3])], {
       type: 'image/png',
     });
 
     await inventory.writeAsset({
-      id: 'asset-blob',
-      objectKey: 'assets/asset-blob.png',
-      mimeType: 'image/png',
-      source: 'generated',
       data: blob,
+      id: 'asset-blob',
       meta: { kind: 'image-generation' },
+      mimeType: 'image/png',
+      objectKey: 'assets/asset-blob.png',
+      source: 'generated',
     });
 
     expect(blob.arrayBufferCalls).toBe(1);
@@ -477,22 +476,22 @@ describe('StorageAssetInventoryService', () => {
   it('adds ThumbHash preview metadata for written image assets', async () => {
     const storage = new MemoryStorage();
     const inventory = new StorageAssetInventoryService<AssetMeta>({
-      storage,
       assetCatalog: new MemoryCatalog(),
       previewMetadataBuilder:
         createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+      storage,
     });
 
     const asset = await inventory.writeAsset({
-      id: 'asset-preview',
-      objectKey: 'assets/asset-preview.png',
-      mimeType: 'image/png',
-      source: 'generated',
       data: await createPngBytes(240, 120),
+      id: 'asset-preview',
       meta: {
-        kind: 'image-generation',
         existing: 'preserved',
+        kind: 'image-generation',
       },
+      mimeType: 'image/png',
+      objectKey: 'assets/asset-preview.png',
+      source: 'generated',
     });
 
     expect(asset.meta.existing).toBe('preserved');
@@ -509,21 +508,21 @@ describe('StorageAssetInventoryService', () => {
   it('leaves non-image asset metadata unchanged when preview generation is configured', async () => {
     const storage = new MemoryStorage();
     const inventory = new StorageAssetInventoryService<AssetMeta>({
-      storage,
       assetCatalog: new MemoryCatalog(),
       previewMetadataBuilder:
         createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+      storage,
     });
 
     const asset = await inventory.writeAsset({
-      id: 'asset-text',
-      objectKey: 'assets/asset-text.txt',
-      mimeType: 'text/plain',
-      source: 'uploaded',
       data: new TextEncoder().encode('hello'),
+      id: 'asset-text',
       meta: {
         existing: 'preserved',
       },
+      mimeType: 'text/plain',
+      objectKey: 'assets/asset-text.txt',
+      source: 'uploaded',
     });
 
     expect(asset.meta).toEqual({
@@ -534,22 +533,22 @@ describe('StorageAssetInventoryService', () => {
   it('fails open when preview generation throws during writeAsset', async () => {
     const storage = new MemoryStorage();
     const inventory = new StorageAssetInventoryService<AssetMeta>({
-      storage,
       assetCatalog: new MemoryCatalog(),
       previewMetadataBuilder: async () => {
         throw new Error('preview failed');
       },
+      storage,
     });
 
     const asset = await inventory.writeAsset({
-      id: 'asset-open-write',
-      objectKey: 'assets/asset-open-write.png',
-      mimeType: 'image/png',
-      source: 'generated',
       data: await createPngBytes(32, 32),
+      id: 'asset-open-write',
       meta: {
         existing: 'preserved',
       },
+      mimeType: 'image/png',
+      objectKey: 'assets/asset-open-write.png',
+      source: 'generated',
     });
 
     expect(asset.meta).toEqual({
@@ -563,18 +562,18 @@ describe('StorageAssetInventoryService', () => {
     const refs = new MemoryAssetRefService();
     const uploadLedger = new MemoryUploadLedger();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: new MemoryCatalog(),
       assetRefs: refs,
-      uploadLedger,
+      storage,
       uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      uploadLedger,
     });
 
     const issued = await inventory.issueUpload({
       id: 'upload-1',
-      tenantId: 'tenant-a',
-      mimeType: 'image/png',
       meta: { flow: 'avatar' },
+      mimeType: 'image/png',
+      tenantId: 'tenant-a',
     });
 
     await storage.write('uploads/upload-1.png', new Uint8Array([9, 8, 7]), {
@@ -582,21 +581,21 @@ describe('StorageAssetInventoryService', () => {
     });
 
     const completed = await inventory.markUploadCompleted('upload-1', {
-      sizeBytes: 3,
       etag: 'etag:complete',
       meta: { completedBy: 'browser' },
+      sizeBytes: 3,
     });
     const finalized = await inventory.finalizeUpload({
-      uploadId: 'upload-1',
       assetId: 'asset-upload-1',
-      source: 'uploaded',
       meta: { kind: 'upload' },
+      source: 'uploaded',
       syncRefs: {
-        ownerType: 'profile',
-        ownerId: 'user-1',
-        tenantId: 'tenant-a',
         assetIds: ['asset-upload-1'],
+        ownerId: 'user-1',
+        ownerType: 'profile',
+        tenantId: 'tenant-a',
       },
+      uploadId: 'upload-1',
     });
 
     expect(issued.upload.status).toBe('ISSUED');
@@ -611,10 +610,10 @@ describe('StorageAssetInventoryService', () => {
     const storage = new MemoryStorage();
     const uploadLedger = new MemoryUploadLedger();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: new MemoryCatalog(),
-      uploadLedger,
+      storage,
       uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      uploadLedger,
     });
 
     await inventory.issueUpload({
@@ -631,12 +630,12 @@ describe('StorageAssetInventoryService', () => {
     await inventory.markUploadCompleted('upload-no-preview');
 
     await inventory.finalizeUpload({
-      uploadId: 'upload-no-preview',
       assetId: 'asset-no-preview',
-      source: 'uploaded',
       meta: {
         existing: 'preserved',
       },
+      source: 'uploaded',
+      uploadId: 'upload-no-preview',
     });
 
     expect(storage.readCount).toBe(0);
@@ -646,12 +645,12 @@ describe('StorageAssetInventoryService', () => {
     const storage = new MemoryStorage();
     const uploadLedger = new MemoryUploadLedger();
     const inventory = new StorageAssetInventoryService<AssetMeta>({
-      storage,
       assetCatalog: new MemoryCatalog(),
-      uploadLedger,
-      uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
       previewMetadataBuilder:
         createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+      storage,
+      uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      uploadLedger,
     });
 
     await inventory.issueUpload({
@@ -668,12 +667,12 @@ describe('StorageAssetInventoryService', () => {
     await inventory.markUploadCompleted('upload-preview');
 
     const finalized = await inventory.finalizeUpload({
-      uploadId: 'upload-preview',
       assetId: 'asset-preview',
-      source: 'uploaded',
       meta: {
         existing: 'preserved',
       },
+      source: 'uploaded',
+      uploadId: 'upload-preview',
     });
 
     expect(finalized.asset.meta.existing).toBe('preserved');
@@ -685,13 +684,13 @@ describe('StorageAssetInventoryService', () => {
     const storage = new MemoryStorage();
     const uploadLedger = new MemoryUploadLedger();
     const inventory = new StorageAssetInventoryService<AssetMeta>({
-      storage,
       assetCatalog: new MemoryCatalog(),
-      uploadLedger,
-      uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
       previewMetadataBuilder: async () => {
         throw new Error('preview failed');
       },
+      storage,
+      uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      uploadLedger,
     });
 
     await inventory.issueUpload({
@@ -708,12 +707,12 @@ describe('StorageAssetInventoryService', () => {
     await inventory.markUploadCompleted('upload-open');
 
     const finalized = await inventory.finalizeUpload({
-      uploadId: 'upload-open',
       assetId: 'asset-open',
-      source: 'uploaded',
       meta: {
         existing: 'preserved',
       },
+      source: 'uploaded',
+      uploadId: 'upload-open',
     });
 
     expect(finalized.upload.status).toBe('CONSUMED');
@@ -726,12 +725,12 @@ describe('StorageAssetInventoryService', () => {
     const storage = new MemoryStorage();
     const uploadLedger = new MemoryUploadLedger();
     const inventory = new StorageAssetInventoryService<AssetMeta>({
-      storage,
       assetCatalog: new MemoryCatalog(),
-      uploadLedger,
-      uploadKeyStrategy: (input) => `uploads/${input.id}.txt`,
       previewMetadataBuilder:
         createSharpThumbHashPreviewMetadataBuilder<AssetMeta>(),
+      storage,
+      uploadKeyStrategy: (input) => `uploads/${input.id}.txt`,
+      uploadLedger,
     });
 
     await inventory.issueUpload({
@@ -748,12 +747,12 @@ describe('StorageAssetInventoryService', () => {
     await inventory.markUploadCompleted('upload-text');
 
     const finalized = await inventory.finalizeUpload({
-      uploadId: 'upload-text',
       assetId: 'asset-text-upload',
-      source: 'uploaded',
       meta: {
         existing: 'preserved',
       },
+      source: 'uploaded',
+      uploadId: 'upload-text',
     });
 
     expect(storage.readCount).toBe(0);
@@ -776,26 +775,26 @@ describe('StorageAssetInventoryService', () => {
     const storage = new MemoryStorage();
     const uploadLedger = new MemoryUploadLedger();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: new MemoryCatalog(),
-      uploadLedger,
+      storage,
       uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      uploadLedger,
     });
 
     await inventory.issueUpload({
       id: 'upload-1',
-      mimeType: 'image/png',
       meta: { flow: 'avatar' },
+      mimeType: 'image/png',
     });
     await storage.write('uploads/upload-1.png', new Uint8Array([9, 8, 7]), {
       contentType: 'image/png',
     });
     await inventory.markUploadCompleted('upload-1');
     await inventory.finalizeUpload({
-      uploadId: 'upload-1',
       assetId: 'asset-upload-1',
-      source: 'uploaded',
       meta: { kind: 'upload' },
+      source: 'uploaded',
+      uploadId: 'upload-1',
     });
 
     await expect(
@@ -810,16 +809,16 @@ describe('StorageAssetInventoryService', () => {
     const storage = new MemoryStorage();
     const uploadLedger = new MemoryUploadLedger();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: new MemoryCatalog(),
-      uploadLedger,
+      storage,
       uploadKeyStrategy: (input) => `uploads/${input.id}.png`,
+      uploadLedger,
     });
 
     await inventory.issueUpload({
       id: 'upload-1',
-      mimeType: 'image/png',
       meta: { flow: 'avatar' },
+      mimeType: 'image/png',
     });
     await storage.write('uploads/upload-1.png', new Uint8Array([9, 8, 7]), {
       contentType: 'image/png',
@@ -827,10 +826,10 @@ describe('StorageAssetInventoryService', () => {
 
     await expect(
       inventory.finalizeUpload({
-        uploadId: 'upload-1',
         assetId: 'asset-upload-1',
-        source: 'uploaded',
         meta: { kind: 'upload' },
+        source: 'uploaded',
+        uploadId: 'upload-1',
       })
     ).rejects.toThrow(
       'Storage upload must be marked uploaded before finalization: upload-1'
@@ -843,38 +842,38 @@ describe('StorageAssetInventoryService', () => {
     const catalog = new MemoryCatalog();
     const refs = new MemoryAssetRefService();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: catalog,
       assetRefs: refs,
+      storage,
     });
 
     await catalog.create({
       id: 'root',
-      objectKey: 'generated/root/original.png',
-      mimeType: 'image/png',
-      source: 'generated',
       meta: { kind: 'image-generation' },
+      mimeType: 'image/png',
+      objectKey: 'generated/root/original.png',
+      source: 'generated',
     });
     await catalog.create({
       id: 'child',
-      objectKey: 'generated/root/thumb.webp',
-      mimeType: 'image/webp',
-      source: 'generated',
-      parentAssetId: 'root',
       meta: { kind: 'image-generation', role: 'variant' },
+      mimeType: 'image/webp',
+      objectKey: 'generated/root/thumb.webp',
+      parentAssetId: 'root',
+      source: 'generated',
     });
 
     await inventory.syncAssetRefs({
-      ownerType: 'post',
-      ownerId: 'post-1',
-      tenantId: 'tenant-a',
       assetIds: ['child'],
+      ownerId: 'post-1',
+      ownerType: 'post',
+      tenantId: 'tenant-a',
     });
     await inventory.syncAssetRefs({
-      ownerType: 'post',
-      ownerId: 'post-1',
-      tenantId: 'tenant-a',
       assetIds: ['child'],
+      ownerId: 'post-1',
+      ownerType: 'post',
+      tenantId: 'tenant-a',
     });
 
     expect((await catalog.get('root'))?.orphanedAt).toBeNull();
@@ -882,10 +881,10 @@ describe('StorageAssetInventoryService', () => {
     expect(refs.refs.size).toBe(1);
 
     await inventory.syncAssetRefs({
-      ownerType: 'post',
-      ownerId: 'post-1',
-      tenantId: 'tenant-a',
       assetIds: [],
+      ownerId: 'post-1',
+      ownerType: 'post',
+      tenantId: 'tenant-a',
     });
 
     expect((await catalog.get('root'))?.orphanedAt).toBeInstanceOf(Date);
@@ -896,36 +895,36 @@ describe('StorageAssetInventoryService', () => {
     const catalog = new MemoryCatalog();
     const refs = new MemoryAssetRefService();
     const inventory = new StorageAssetInventoryService({
-      storage: new MemoryStorage(),
       assetCatalog: catalog,
       assetRefs: refs,
+      storage: new MemoryStorage(),
     });
 
     await catalog.create({
       id: 'asset-1',
-      objectKey: 'uploads/asset-1.png',
-      mimeType: 'image/png',
-      source: 'uploaded',
       meta: { kind: 'upload' },
+      mimeType: 'image/png',
+      objectKey: 'uploads/asset-1.png',
+      source: 'uploaded',
     });
 
     await inventory.attachAsset({
       assetId: 'asset-1',
-      ownerType: 'profile',
       ownerId: 'user-1',
+      ownerType: 'profile',
       tenantId: 'tenant-a',
     });
     await inventory.syncAssetRefs({
-      ownerType: 'profile',
-      ownerId: 'user-1',
-      tenantId: 'tenant-b',
       assetIds: [],
+      ownerId: 'user-1',
+      ownerType: 'profile',
+      tenantId: 'tenant-b',
     });
 
     expect(
       await refs.listByOwner({
-        ownerType: 'profile',
         ownerId: 'user-1',
+        ownerType: 'profile',
         tenantId: 'tenant-a',
       })
     ).toHaveLength(1);
@@ -942,27 +941,27 @@ describe('StorageAssetInventoryService', () => {
 
     const uploadLedger = new MemoryUploadLedger();
     await uploadLedger.upsert({
-      id: 'upload-a',
-      tenantId: 'tenant-a',
-      objectKey: 'uploads/a.bin',
-      mimeType: 'application/octet-stream',
-      status: 'ISSUED',
       expiresAt: new Date('2026-03-01T00:00:00.000Z'),
+      id: 'upload-a',
       meta: {},
+      mimeType: 'application/octet-stream',
+      objectKey: 'uploads/a.bin',
+      status: 'ISSUED',
+      tenantId: 'tenant-a',
     });
     await uploadLedger.upsert({
-      id: 'upload-b',
-      tenantId: 'tenant-b',
-      objectKey: 'uploads/b.bin',
-      mimeType: 'application/octet-stream',
-      status: 'ISSUED',
       expiresAt: new Date('2026-03-01T00:00:00.000Z'),
+      id: 'upload-b',
       meta: {},
+      mimeType: 'application/octet-stream',
+      objectKey: 'uploads/b.bin',
+      status: 'ISSUED',
+      tenantId: 'tenant-b',
     });
 
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: new MemoryCatalog(),
+      storage,
       uploadLedger,
     });
 
@@ -983,9 +982,9 @@ describe('StorageAssetInventoryService', () => {
     const catalog = new MemoryCatalog();
     const refs = new MemoryAssetRefService();
     const inventory = new StorageAssetInventoryService({
-      storage,
       assetCatalog: catalog,
       assetRefs: refs,
+      storage,
     });
     const orphanedAt = new Date('2026-03-01T00:00:00.000Z');
 
@@ -1001,34 +1000,34 @@ describe('StorageAssetInventoryService', () => {
 
     await catalog.create({
       id: 'root',
-      objectKey: 'generated/root/original.png',
-      mimeType: 'image/png',
-      source: 'generated',
-      orphanedAt,
       meta: { kind: 'image-generation' },
+      mimeType: 'image/png',
+      objectKey: 'generated/root/original.png',
+      orphanedAt,
+      source: 'generated',
     });
     await catalog.create({
       id: 'child',
-      objectKey: 'generated/root/thumb.webp',
-      mimeType: 'image/webp',
-      source: 'generated',
-      parentAssetId: 'root',
-      orphanedAt,
       meta: { kind: 'image-generation', role: 'variant' },
+      mimeType: 'image/webp',
+      objectKey: 'generated/root/thumb.webp',
+      orphanedAt,
+      parentAssetId: 'root',
+      source: 'generated',
     });
     await catalog.create({
       id: 'skip-root',
-      objectKey: 'generated/skip/original.png',
-      mimeType: 'image/png',
-      source: 'generated',
-      orphanedAt,
       meta: { kind: 'image-generation' },
+      mimeType: 'image/png',
+      objectKey: 'generated/skip/original.png',
+      orphanedAt,
+      source: 'generated',
     });
 
     await refs.upsert({
       assetId: 'skip-root',
-      ownerType: 'post',
       ownerId: 'post-1',
+      ownerType: 'post',
       tenantId: 'tenant-a',
     });
 

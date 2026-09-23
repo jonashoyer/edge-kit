@@ -47,13 +47,14 @@ export function loadSqliteVec(
     throw new Error(
       `Failed to load sqlite-vec extension: ${
         error instanceof Error ? error.message : 'Unknown error'
-      }`
+      }`,
+      { cause: error }
     );
   }
 }
 
 function getDefaultExtensionPaths(): string[] {
-  const platform = process.platform;
+  const { platform } = process;
 
   switch (platform) {
     case 'darwin':

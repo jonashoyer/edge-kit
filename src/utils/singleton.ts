@@ -4,7 +4,7 @@
  * Extend this class to implement singletons (though dependency injection is preferred).
  */
 export abstract class Singleton {
-  private static instance: unknown;
+  private static readonly instance: unknown;
 
   protected constructor() {
     if (Singleton.instance) {

@@ -17,18 +17,16 @@ export const runVerifiedHookWithTaskReconciler = async <TPayload>(
   const result = await options.reconciler.reconcile(reconcileOptions);
   return {
     kind: 'reconciled' as const,
-    verified: options.verified,
     result,
+    verified: options.verified,
   };
 };
 
 export const createIgnoreBody = <TPayload>(
   verified: VerifiedIncomingHook<TPayload>
-) => {
-  return {
-    ignored: true,
-    provider: verified.provider,
-    event: verified.event,
-    deliveryId: verified.deliveryId,
-  };
-};
+) => ({
+  deliveryId: verified.deliveryId,
+  event: verified.event,
+  ignored: true,
+  provider: verified.provider,
+});

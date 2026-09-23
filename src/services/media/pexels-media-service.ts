@@ -7,42 +7,45 @@ import {
   fetchExt,
 } from '../../utils/fetch-utils';
 
+const VIDEO_ID_SUFFIX = /\s?\d+?\/?$/;
+const URL_PATH_PREFIX = /^.*\//;
+
 export type PexelsMediaType = 'image' | 'video';
 
 export interface PexelsQueryOptions {
-  perPage?: number;
-  page?: number;
   orientation?: 'portrait' | 'landscape' | 'square';
+  page?: number;
+  perPage?: number;
 }
 
 export interface PexelsQueryAlternativesService {
-  getAlternativeQueries(input: {
+  getAlternativeQueries: (input: {
     query: string;
     type: PexelsMediaType;
-  }): Promise<string[]>;
+  }) => Promise<string[]>;
 }
 
 export interface PexelsSearchOptions extends PexelsQueryOptions {
-  useAiAlternatives?: boolean;
   maxAlternatives?: number;
+  useAiAlternatives?: boolean;
 }
 
 export interface PexelsImageItem {
   id: string;
-  type: 'image';
-  src: string | null;
-  previewUrl: string | null;
   name: string | null;
+  previewUrl: string | null;
+  src: string | null;
+  type: 'image';
 }
 
 export interface PexelsVideoItem {
-  id: string;
-  type: 'video';
-  src: string | null;
-  previewUrl: string | null;
-  name: string | null;
   duration?: number;
+  id: string;
+  name: string | null;
+  previewUrl: string | null;
+  src: string | null;
   tags?: string[];
+  type: 'video';
 }
 
 export type PexelsMediaItem = PexelsImageItem | PexelsVideoItem;
@@ -66,32 +69,32 @@ export class PexelsMediaError extends CustomError<PexelsMediaErrorCode> {
 
 const pexelsVideoFileSchema = z
   .object({
-    quality: z.string(),
     link: z.string(),
+    quality: z.string(),
   })
   .loose();
 
 const pexelsVideoSchema = z
   .object({
-    id: z.number(),
-    url: z.string(),
-    image: z.string().nullable().optional(),
     duration: z.number().optional(),
+    id: z.number(),
+    image: z.string().nullable().optional(),
     tags: z.array(z.string()).optional(),
+    url: z.string(),
     video_files: z.array(pexelsVideoFileSchema).default([]),
   })
   .loose();
 
 const pexelsPhotoSchema = z
   .object({
-    id: z.number(),
-    url: z.string(),
     alt: z.string().nullable().optional(),
+    id: z.number(),
     src: z
       .object({
         original: z.string(),
       })
       .loose(),
+    url: z.string(),
   })
   .loose();
 
@@ -111,7 +114,7 @@ type PexelsVideo = z.infer<typeof pexelsVideoSchema>;
 type PexelsPhoto = z.infer<typeof pexelsPhotoSchema>;
 
 export class PexelsMediaService {
-  private apiKey: string;
+  private readonly apiKey: string;
 
   constructor(options: PexelsMediaServiceOptions) {
     this.apiKey = options.pexelsApiKey;
@@ -125,6 +128,7 @@ export class PexelsMediaService {
     const itemsById = new Map<string, PexelsMediaItem>();
 
     for (const q of queries) {
+      // biome-ignore lint/performance/noAwaitInLoops: Query precedence determines which duplicate media result wins; keep provider requests bounded to one.
       const batch = await this.fetchPexels(type, q, options);
       for (const item of batch) {
         if (!itemsById.has(item.id)) {
@@ -148,13 +152,13 @@ export class PexelsMediaService {
 
     const url = `${baseUrl}?${this.pexelsQueryToUrlParams(query, options)}`;
     const request = {
-      url,
       init: {
         headers: {
           Authorization: this.apiKey,
         },
       },
       throwOnHttpError: true,
+      url,
     };
 
     try {
@@ -190,21 +194,21 @@ export class PexelsMediaService {
 
     return {
       id: String(item.id),
-      type,
       src:
         (isVideo
           ? this.findBestFitVideoQuality(video.video_files)?.link
           : photo.src.original) ?? null,
+      type,
       ...(isVideo && {
         duration: video.duration,
         tags: video.tags,
       }),
-      previewUrl: this.imageToCroppedUrl(
-        isVideo ? video.image : photo.src.original
-      ),
       name: isVideo
         ? this.getVideoName(item.url)
         : (photo.alt ?? this.getVideoName(item.url)),
+      previewUrl: this.imageToCroppedUrl(
+        isVideo ? video.image : photo.src.original
+      ),
     };
   }
 
@@ -225,8 +229,8 @@ export class PexelsMediaService {
     return (
       videoUrl
         .trim()
-        .replace(/\s?\d+?\/?$/, '')
-        .replace(/^.*\//, '')
+        .replace(VIDEO_ID_SUFFIX, '')
+        .replace(URL_PATH_PREFIX, '')
         .replace(/-/g, ' ')
         .replace(/\b\w/g, (char) => char.toUpperCase()) ?? null
     );
@@ -234,7 +238,7 @@ export class PexelsMediaService {
 
   private imageToCroppedUrl(imageUrl: string | null | undefined) {
     if (!imageUrl) return null;
-    const str = imageUrl.split('?')[0];
+    const [str] = imageUrl.split('?');
     if (!str) return null;
     return `${str}?auto=compress&cs=tinysrgb&fit=crop&h=521`;
   }

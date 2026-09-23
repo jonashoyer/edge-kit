@@ -24,9 +24,9 @@ export function validateNotionList<T>(
     );
   }
   return {
-    results: response.results,
     has_more: response.has_more,
     next_cursor: response.next_cursor,
+    results: response.results,
   };
 }
 
@@ -38,6 +38,7 @@ export async function* iterateNotionList<T>(
 ): AsyncGenerator<T[]> {
   const seen = new Set<string>();
   let cursor = startCursor;
+  // biome-ignore lint/suspicious/noUnnecessaryConditions: Pagination exits after inspecting each response cursor, not before requesting the first page.
   while (true) {
     if (cursor) {
       if (seen.has(cursor)) {
@@ -48,6 +49,7 @@ export async function* iterateNotionList<T>(
       }
       seen.add(cursor);
     }
+    // biome-ignore lint/performance/noAwaitInLoops: The next page depends on this response cursor.
     const page = validateNotionList(await fetchPage(cursor), isResult);
     // Reject before yielding duplicated results from a non-advancing page.
     if (page.next_cursor && seen.has(page.next_cursor)) {

@@ -11,7 +11,7 @@ describe('LocalStorage explorer', () => {
   afterEach(async () => {
     await Promise.all(
       tempDirs.splice(0).map(async (dir) => {
-        await rm(dir, { recursive: true, force: true });
+        await rm(dir, { force: true, recursive: true });
       })
     );
   });
@@ -30,8 +30,8 @@ describe('LocalStorage explorer', () => {
         maxKeys: 1,
       })
     ).resolves.toEqual({
-      keys: ['docs/a.txt'],
       continuationToken: '1',
+      keys: ['docs/a.txt'],
     });
   });
 

@@ -19,23 +19,23 @@ export class PagerDutyAlertingService extends AbstractAlertingService {
 
   async alert(message: string, options: AlertOptions): Promise<void> {
     const payload = {
-      routing_key: this.routingKey,
       event_action: 'trigger',
       payload: {
-        summary: message,
+        custom_details: options.tags,
         severity: options.severity,
         source: options.source || 'Application',
-        custom_details: options.tags,
+        summary: message,
       },
+      routing_key: this.routingKey,
     };
 
     await fetchExt({
-      url: this.apiUrl,
       init: {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
       },
+      url: this.apiUrl,
     });
 
     this.logAlert(message, options);

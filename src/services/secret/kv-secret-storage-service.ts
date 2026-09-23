@@ -163,7 +163,8 @@ export class KvSecretStorageService implements AbstractSecretStorageService {
         { error }
       );
       throw new Error(
-        `Failed to rotate secret key: ${(error as Error).message}`
+        `Failed to rotate secret key: ${error instanceof Error ? error.message : String(error)}`,
+        { cause: error }
       );
     }
   }

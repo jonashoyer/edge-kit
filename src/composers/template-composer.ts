@@ -7,15 +7,15 @@ import { fnv1a64B64 } from '../utils/crypto-utils';
 
 export interface TplOptions {
   escapeSpecialCharacters?: boolean;
-  trimWhitespace?: boolean;
   hashFn?: (input: string) => string;
+  trimWhitespace?: boolean;
 }
 
 export interface Tpl {
+  getHash: (promptedString: string) => string | undefined;
+  withOptions: CreateTpl;
   (literals: string): string;
   (strings: TemplateStringsArray, ...values: unknown[]): string;
-  withOptions: CreateTpl;
-  getHash: (promptedString: string) => string | undefined;
 }
 
 const hashSymbol = Symbol('hash');
@@ -24,10 +24,13 @@ const valuesSymbol = Symbol('values');
 
 export type CreateTpl = (options: TplOptions) => Tpl;
 
+const DENT_REGEX = /^(\s+)\S+/;
+
 function getMinDent(lines: string[]) {
-  let mindent = null;
+  let mindent: number | null = null;
   for (const line of lines) {
-    const match = /^(\s+)\S+/.exec(line);
+    const match = DENT_REGEX.exec(line);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec returns null for unindented or blank lines.
     if (match) {
       const indent = match[1].length;
       mindent = mindent === null ? indent : Math.min(mindent, indent);
@@ -104,8 +107,9 @@ function createTpl(options: TplOptions) {
     // Apply whitespace trimming to parts
     if (trimWhitespace && placholderParts.length > 0) {
       placholderParts[0] = placholderParts[0].trimStart();
-      placholderParts[placholderParts.length - 1] =
-        placholderParts[placholderParts.length - 1].trimEnd();
+      placholderParts[placholderParts.length - 1] = (
+        placholderParts.at(-1) ?? ''
+      ).trimEnd();
     }
 
     // Handle escaped newlines in parts
@@ -116,12 +120,13 @@ function createTpl(options: TplOptions) {
     }
 
     // Now apply the values to get the final result
-    const result = placholderParts.reduce((acc, part, i) => {
-      return acc + part + (i < values.length ? values[i] : '');
-    }, '');
+    const result = placholderParts.reduce(
+      (acc, part, i) => acc + part + (i < values.length ? values[i] : ''),
+      ''
+    );
 
     // Create the result string with the symbols attached
-    const tplString = new String(result) as unknown as TplString;
+    const tplString = String(result) as unknown as TplString;
     tplString[placeholderSymbol] = placholderParts;
     tplString[valuesSymbol] = values;
 

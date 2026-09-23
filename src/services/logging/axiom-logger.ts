@@ -7,8 +7,8 @@ import {
 } from './abstract-logger';
 
 export interface AxiomLoggerOptions {
-  token: string;
   dataset: string;
+  token: string;
 }
 
 /**
@@ -29,7 +29,7 @@ export class AxiomLogger extends AbstractLogger {
     super();
     const options =
       typeof tokenOrOptions === 'string'
-        ? { token: tokenOrOptions, dataset: dataset ?? '' }
+        ? { dataset: dataset ?? '', token: tokenOrOptions }
         : tokenOrOptions;
     if (!options.dataset) {
       throw new Error('AxiomLogger dataset is required');

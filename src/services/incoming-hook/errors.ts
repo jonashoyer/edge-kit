@@ -11,8 +11,8 @@ export class IncomingHookAuthError extends CustomError<'INCOMING_HOOK_AUTH'> {
 export class IncomingHookPayloadError extends CustomError<'INCOMING_HOOK_PAYLOAD'> {
   readonly status = 400;
 
-  constructor(message: string) {
-    super(message, 'INCOMING_HOOK_PAYLOAD');
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, 'INCOMING_HOOK_PAYLOAD', options);
   }
 }
 
@@ -29,10 +29,7 @@ export const isIncomingHookError = (
 ): error is {
   status: number;
   message: string;
-} => {
-  return (
-    error instanceof IncomingHookAuthError ||
-    error instanceof IncomingHookPayloadError ||
-    error instanceof IncomingHookMethodError
-  );
-};
+} =>
+  error instanceof IncomingHookAuthError ||
+  error instanceof IncomingHookPayloadError ||
+  error instanceof IncomingHookMethodError;

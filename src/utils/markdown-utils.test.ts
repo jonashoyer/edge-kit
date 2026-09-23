@@ -14,12 +14,13 @@ describe('markdown-utils', () => {
         age: number;
       };
 
+      // biome-ignore assist/source/useSortedKeys: Field insertion order controls rendered output.
       const config: MdSchemaConfig<User> = {
         name: {},
         age: {},
       };
 
-      const result = buildMarkdown({ name: 'Alice', age: 30 }, config);
+      const result = buildMarkdown({ age: 30, name: 'Alice' }, config);
       expect(result).toBe('name: Alice\nage: 30');
     });
 
@@ -29,13 +30,14 @@ describe('markdown-utils', () => {
         email: string;
       };
 
+      // biome-ignore assist/source/useSortedKeys: Field insertion order controls rendered output.
       const config: MdSchemaConfig<User> = {
         name: { label: 'Full Name' },
         email: { label: 'Email Address' },
       };
 
       const result = buildMarkdown(
-        { name: 'Bob', email: 'bob@example.com' },
+        { email: 'bob@example.com', name: 'Bob' },
         config
       );
       expect(result).toBe('Full Name: Bob\nEmail Address: bob@example.com');
@@ -122,6 +124,7 @@ describe('markdown-utils', () => {
         };
       };
 
+      // biome-ignore assist/source/useSortedKeys: Field insertion order controls rendered output.
       const config: MdSchemaConfig<User> = {
         name: {},
         address: {
@@ -134,8 +137,8 @@ describe('markdown-utils', () => {
 
       const result = buildMarkdown(
         {
-          name: 'Frank',
           address: { city: 'NYC', country: 'USA' },
+          name: 'Frank',
         },
         config
       );
@@ -208,8 +211,8 @@ describe('markdown-utils', () => {
   describe('omission of empty values', () => {
     it('should omit undefined fields by default', () => {
       const config: MdSchemaConfig<{ name: string; age?: number }> = {
-        name: {},
         age: {},
+        name: {},
       };
 
       const result = buildMarkdown({ name: 'Grace' }, config);
@@ -218,21 +221,21 @@ describe('markdown-utils', () => {
 
     it('should omit null fields by default', () => {
       const config: MdSchemaConfig<{ name: string; email: string | null }> = {
-        name: {},
         email: {},
+        name: {},
       };
 
-      const result = buildMarkdown({ name: 'Henry', email: null }, config);
+      const result = buildMarkdown({ email: null, name: 'Henry' }, config);
       expect(result).toBe('name: Henry');
     });
 
     it('should omit empty strings by default', () => {
       const config: MdSchemaConfig<{ name: string; bio: string }> = {
-        name: {},
         bio: {},
+        name: {},
       };
 
-      const result = buildMarkdown({ name: 'Iris', bio: '' }, config);
+      const result = buildMarkdown({ bio: '', name: 'Iris' }, config);
       expect(result).toBe('name: Iris');
     });
 
@@ -255,11 +258,11 @@ describe('markdown-utils', () => {
       };
 
       const config: MdSchemaConfig<User> = {
-        name: {},
         age: {},
+        name: {},
       };
 
-      const result = buildXml({ name: 'Karen', age: 25 }, config);
+      const result = buildXml({ age: 25, name: 'Karen' }, config);
       expect(result).toContain('<root>');
       expect(result).toContain('<name>Karen</name>');
       expect(result).toContain('<age>25</age>');
@@ -335,7 +338,6 @@ describe('markdown-utils', () => {
       };
 
       const config: MdSchemaConfig<Team> = {
-        name: {},
         members: {
           arrayMode: 'bulleted',
           fields: {
@@ -343,15 +345,16 @@ describe('markdown-utils', () => {
             role: {},
           },
         },
+        name: {},
       };
 
       const result = buildMarkdown(
         {
-          name: 'Engineering',
           members: [
             { name: 'Alice', role: 'Lead' },
             { name: 'Bob', role: 'Dev' },
           ],
+          name: 'Engineering',
         },
         config
       );
@@ -376,12 +379,6 @@ describe('markdown-utils', () => {
 
       const config: MdSchemaConfig<Product> = {
         id: { format: 'code' },
-        name: { format: 'bold' },
-        price: {
-          label: 'Price (USD)',
-          transform: (n: number) => `$${n.toFixed(2)}`,
-        },
-        tags: { arrayMode: 'inline' },
         metadata: {
           fields: {
             createdAt: {
@@ -390,15 +387,21 @@ describe('markdown-utils', () => {
             },
           },
         },
+        name: { format: 'bold' },
+        price: {
+          label: 'Price (USD)',
+          transform: (n: number) => `$${n.toFixed(2)}`,
+        },
+        tags: { arrayMode: 'inline' },
       };
 
       const result = buildMarkdown(
         {
           id: 'prod-123',
+          metadata: { createdAt: new Date('2025-01-15') },
           name: 'Widget',
           price: 29.99,
           tags: ['new', 'featured'],
-          metadata: { createdAt: new Date('2025-01-15') },
         },
         config
       );
@@ -439,8 +442,8 @@ describe('markdown-utils', () => {
   describe('edge cases', () => {
     it('should handle fields not in data', () => {
       const config: MdSchemaConfig<{ name: string; age?: number }> = {
-        name: {},
         age: {},
+        name: {},
       };
 
       const result = buildMarkdown({ name: 'Oscar' }, config);

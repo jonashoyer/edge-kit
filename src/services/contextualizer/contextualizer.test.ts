@@ -11,7 +11,6 @@ describe('Contextualizer', () => {
     const createProvider = (
       id: string
     ): ContextProvider<{ value: string }, string> => ({
-      id,
       async fetch(params) {
         inFlight += 1;
         maxInFlight = Math.max(maxInFlight, inFlight);
@@ -22,6 +21,7 @@ describe('Contextualizer', () => {
           items: [params.value],
         };
       },
+      id,
       render(item) {
         return item;
       },
@@ -46,16 +46,16 @@ describe('Contextualizer', () => {
     let fetchCount = 0;
 
     const provider: ContextProvider<{ id: string }, string> = {
-      id: 'users',
-      getCacheKey(params) {
-        return params.id;
-      },
       async fetch(params) {
         fetchCount += 1;
         return {
           items: [`user:${params.id}:${fetchCount}`],
         };
       },
+      getCacheKey(params) {
+        return params.id;
+      },
+      id: 'users',
       render(item) {
         return item;
       },
@@ -84,29 +84,29 @@ describe('Contextualizer', () => {
 
   it('renders with renderPage when available and falls back to item rendering', async () => {
     const contextualizer = new Contextualizer({
-      page: {
-        id: 'page',
-        async fetch() {
-          return {
-            items: ['a', 'b'],
-          };
-        },
-        render(item) {
-          return item.toUpperCase();
-        },
-        renderPage(result) {
-          return result.items.join('|');
-        },
-      },
       list: {
-        id: 'list',
         async fetch() {
           return {
             items: ['c', 'd'],
           };
         },
+        id: 'list',
         render(item) {
           return `item:${item}`;
+        },
+      },
+      page: {
+        async fetch() {
+          return {
+            items: ['a', 'b'],
+          };
+        },
+        id: 'page',
+        render(item: string) {
+          return item.toUpperCase();
+        },
+        renderPage(result) {
+          return result.items.join('|');
         },
       },
     });
@@ -123,14 +123,14 @@ describe('Contextualizer', () => {
   it('fetchAndRender returns both typed data and rendered output', async () => {
     const contextualizer = new Contextualizer({
       notes: {
-        id: 'notes',
         async fetch() {
           return {
             items: [{ body: 'hello' }, { body: 'world' }],
             nextCursor: 'next-page',
           };
         },
-        render(item) {
+        id: 'notes',
+        render(item: { body: string }) {
           return item.body;
         },
       },

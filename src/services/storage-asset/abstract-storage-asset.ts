@@ -3,54 +3,54 @@ import { CustomError } from '../../utils/custom-error';
 export interface StorageAssetRecord<
   TMeta extends object = Record<string, unknown>,
 > {
-  id: string;
-  objectKey: string;
-  mimeType: string;
-  source: string;
-  parentAssetId: string | null;
-  orphanedAt: Date | null;
-  tags: string[];
-  meta: TMeta;
   createdAt: Date;
+  id: string;
+  meta: TMeta;
+  mimeType: string;
+  objectKey: string;
+  orphanedAt: Date | null;
+  parentAssetId: string | null;
+  source: string;
+  tags: string[];
   updatedAt: Date;
 }
 
 export interface UpsertStorageAssetInput<
   TMeta extends object = Record<string, unknown>,
 > {
-  id: string;
-  objectKey: string;
-  mimeType: string;
-  source: string;
-  parentAssetId?: string | null;
-  orphanedAt?: Date | null;
-  tags?: string[];
-  meta?: TMeta;
   createdAt?: Date;
+  id: string;
+  meta?: TMeta;
+  mimeType: string;
+  objectKey: string;
+  orphanedAt?: Date | null;
+  parentAssetId?: string | null;
+  source: string;
+  tags?: string[];
   updatedAt?: Date;
 }
 
 export interface UpdateStorageAssetInput<
   TMeta extends object = Record<string, unknown>,
 > {
-  objectKey?: string;
-  mimeType?: string;
-  source?: string;
-  parentAssetId?: string | null;
-  orphanedAt?: Date | null;
-  tags?: string[];
   meta?: TMeta;
+  mimeType?: string;
+  objectKey?: string;
+  orphanedAt?: Date | null;
+  parentAssetId?: string | null;
+  source?: string;
+  tags?: string[];
   updatedAt?: Date;
 }
 
 export type StorageAssetListOrder = 'asc' | 'desc';
 
 export interface StorageAssetListPageOptions {
-  source?: string;
-  parentAssetId?: string | null;
-  limit?: number;
   cursor?: string;
+  limit?: number;
   order?: StorageAssetListOrder;
+  parentAssetId?: string | null;
+  source?: string;
 }
 
 export interface StorageAssetListPageResult<
@@ -61,8 +61,8 @@ export interface StorageAssetListPageResult<
 }
 
 export interface ListOrphanedStorageAssetRootsOptions {
-  olderThan?: Date;
   limit?: number;
+  olderThan?: Date;
 }
 
 type StorageAssetCursorPayload = {
@@ -74,8 +74,8 @@ type StorageAssetCursorPayload = {
 const DEFAULT_CURSOR_ORDER = 'desc';
 
 export class InvalidStorageAssetCursorError extends CustomError<'INVALID_CURSOR'> {
-  constructor() {
-    super('Invalid storage asset cursor', 'INVALID_CURSOR');
+  constructor(options?: ErrorOptions) {
+    super('Invalid storage asset cursor', 'INVALID_CURSOR', options);
   }
 }
 
@@ -151,7 +151,8 @@ export const decodeStorageAssetCursor = (
       throw error;
     }
 
-    throw new InvalidStorageAssetCursorError();
+    // biome-ignore lint/style/useErrorCause: CustomError accepts ErrorOptions as its first constructor argument.
+    throw new InvalidStorageAssetCursorError({ cause: error });
   }
 };
 
@@ -216,19 +217,19 @@ export abstract class AbstractStorageAssetService<
     }
 
     return await this.upsert({
+      createdAt: existing.createdAt,
       id,
-      objectKey: patch.objectKey ?? existing.objectKey,
+      meta: patch.meta ?? existing.meta,
       mimeType: patch.mimeType ?? existing.mimeType,
-      source: patch.source ?? existing.source,
+      objectKey: patch.objectKey ?? existing.objectKey,
+      orphanedAt:
+        patch.orphanedAt === undefined ? existing.orphanedAt : patch.orphanedAt,
       parentAssetId:
         patch.parentAssetId === undefined
           ? existing.parentAssetId
           : patch.parentAssetId,
-      orphanedAt:
-        patch.orphanedAt === undefined ? existing.orphanedAt : patch.orphanedAt,
+      source: patch.source ?? existing.source,
       tags: patch.tags ?? existing.tags,
-      meta: patch.meta ?? existing.meta,
-      createdAt: existing.createdAt,
       updatedAt: patch.updatedAt ?? new Date(),
     });
   }

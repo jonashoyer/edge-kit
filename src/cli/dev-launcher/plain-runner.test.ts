@@ -6,7 +6,7 @@ const {
   loadRecentDevServiceSelectionsMock,
   saveRecentDevServiceSelectionMock,
 } = vi.hoisted(() => ({
-  loadRecentDevServiceSelectionsMock: vi.fn(() => []),
+  loadRecentDevServiceSelectionsMock: vi.fn((): string[][] => []),
   saveRecentDevServiceSelectionMock: vi.fn(),
 }));
 

@@ -12,12 +12,11 @@ const WINDOWS_PATH_SEPARATOR_PATTERN = /\\/g;
  * Converts Windows separators to forward slashes and strips leading `./` or
  * `/` so callers can compare paths using a consistent relative format.
  */
-export const normalizeRelativePath = (value: string): string => {
-  return value
+export const normalizeRelativePath = (value: string): string =>
+  value
     .replace(WINDOWS_PATH_SEPARATOR_PATTERN, '/')
     .replace(LEADING_CURRENT_DIRECTORY_PATTERN, '')
     .replace(LEADING_SLASHES_PATTERN, '');
-};
 
 /**
  * Normalizes a user-provided path pattern before matching.
@@ -26,12 +25,8 @@ export const normalizeRelativePath = (value: string): string => {
  * removes trailing slashes so directory prefixes and glob patterns compare
  * consistently.
  */
-export const normalizePathPattern = (pattern: string): string => {
-  return normalizeRelativePath(pattern.trim()).replace(
-    TRAILING_SLASHES_PATTERN,
-    ''
-  );
-};
+export const normalizePathPattern = (pattern: string): string =>
+  normalizeRelativePath(pattern.trim()).replace(TRAILING_SLASHES_PATTERN, '');
 
 /**
  * Builds a relative path between two filesystem locations and normalizes it to
@@ -41,9 +36,7 @@ export const normalizePathPattern = (pattern: string): string => {
 export const getNormalizedRelativePath = (
   fromPath: string,
   toPath: string
-): string => {
-  return normalizeRelativePath(path.relative(fromPath, toPath));
-};
+): string => normalizeRelativePath(path.relative(fromPath, toPath));
 
 /**
  * Checks whether a relative path matches a normalized prefix or glob pattern.

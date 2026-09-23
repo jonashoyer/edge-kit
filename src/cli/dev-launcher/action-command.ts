@@ -61,12 +61,11 @@ const createDefaultActionRuntime = (): DevActionRunnerRuntime => ({
 
 const defaultRuntime: DevActionCommandRuntime = {
   actionRuntime: createDefaultActionRuntime(),
-  listActions: async (manifest, actionsConfig, runtime) => {
-    return await listDevActions(manifest, actionsConfig, runtime);
-  },
+  listActions: async (manifest, actionsConfig, runtime) =>
+    await listDevActions(manifest, actionsConfig, runtime),
   loadManifest: async (options) => await loadDevLauncherConfig(options),
-  runAction: async (manifest, actionsConfig, actionId, options) => {
-    return await resolveDevActionExecutionRequest(
+  runAction: async (manifest, actionsConfig, actionId, options) =>
+    await resolveDevActionExecutionRequest(
       manifest,
       actionsConfig,
       {
@@ -74,17 +73,15 @@ const defaultRuntime: DevActionCommandRuntime = {
         force: options?.force,
       },
       options?.runtime
-    );
-  },
+    ),
   stderr: process.stderr,
   stdout: process.stdout,
 };
 
 const getCommandGlobalOptions = (
   command: Command
-): DevActionCommandGlobalOptions => {
-  return command.optsWithGlobals<DevActionCommandGlobalOptions>();
-};
+): DevActionCommandGlobalOptions =>
+  command.optsWithGlobals<DevActionCommandGlobalOptions>();
 
 const formatActionStatusLine = (action: ResolvedDevAction): string => {
   const status = action.available ? 'available' : 'unavailable';
@@ -104,8 +101,8 @@ export const runDevActionListCommand = async (
   }
 ): Promise<number> => {
   const manifest = await runtime.loadManifest({
-    cwd: runtime.actionRuntime.cwd,
     configPath: options.config,
+    cwd: runtime.actionRuntime.cwd,
   });
 
   const actions = await runtime.listActions(
@@ -138,8 +135,8 @@ export const runDevActionRunCommand = async (
   }
 ): Promise<number> => {
   const manifest = await runtime.loadManifest({
-    cwd: runtime.actionRuntime.cwd,
     configPath: options.config,
+    cwd: runtime.actionRuntime.cwd,
   });
 
   const result = await runtime.runAction(manifest, manifest, actionId, {
@@ -151,7 +148,7 @@ export const runDevActionRunCommand = async (
     throw new Error(result.unavailable.message);
   }
 
-  const execution = result.execution;
+  const { execution } = result;
   if (!execution) {
     throw new Error(`Action "${actionId}" did not produce a result.`);
   }

@@ -2,16 +2,16 @@ import { CustomError } from '../../utils/custom-error';
 
 export interface StorageAssetOwnerRef {
   assetId: string;
-  ownerType: string;
-  ownerId: string;
-  tenantId: string | null;
   createdAt: Date;
+  ownerId: string;
+  ownerType: string;
+  tenantId: string | null;
   updatedAt: Date;
 }
 
 export interface StorageAssetOwnerRefScope {
-  ownerType: string;
   ownerId: string;
+  ownerType: string;
   tenantId?: string | null;
 }
 
@@ -76,8 +76,8 @@ export abstract class AbstractStorageAssetRefService {
     scope: StorageAssetOwnerRefScope
   ): Required<StorageAssetOwnerRefScope> {
     return {
-      ownerType: normalizeRequiredString(scope.ownerType, 'ownerType'),
       ownerId: normalizeRequiredString(scope.ownerId, 'ownerId'),
+      ownerType: normalizeRequiredString(scope.ownerType, 'ownerType'),
       tenantId: normalizeTenantId(scope.tenantId),
     };
   }

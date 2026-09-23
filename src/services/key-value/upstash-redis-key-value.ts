@@ -14,7 +14,7 @@ export class UpstashRedisKeyValueService extends AbstractKeyValueService {
     super();
     this.client =
       'url' in redis
-        ? new Redis({ url: redis.url, token: redis.token })
+        ? new Redis({ token: redis.token, url: redis.url })
         : redis;
   }
 
@@ -24,10 +24,10 @@ export class UpstashRedisKeyValueService extends AbstractKeyValueService {
   }
 
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
-    if (ttlSeconds !== undefined) {
-      await this.client.set(key, value, { ex: ttlSeconds });
-    } else {
+    if (ttlSeconds === undefined) {
       await this.client.set(key, value);
+    } else {
+      await this.client.set(key, value, { ex: ttlSeconds });
     }
   }
 
@@ -65,10 +65,10 @@ export class UpstashRedisKeyValueService extends AbstractKeyValueService {
     const pipeline = this.client.pipeline();
 
     for (const [key, value] of keyValues) {
-      if (ttlSeconds !== undefined) {
-        pipeline.set(key, value, { ex: ttlSeconds });
-      } else {
+      if (ttlSeconds === undefined) {
         pipeline.set(key, value);
+      } else {
+        pipeline.set(key, value, { ex: ttlSeconds });
       }
     }
 
@@ -76,7 +76,7 @@ export class UpstashRedisKeyValueService extends AbstractKeyValueService {
   }
 
   async zadd(key: string, score: number, member: string): Promise<void> {
-    await this.client.zadd(key, { score, member });
+    await this.client.zadd(key, { member, score });
   }
 
   async zrank(key: string, member: string): Promise<number | null> {

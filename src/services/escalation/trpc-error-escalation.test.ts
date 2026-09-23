@@ -36,7 +36,7 @@ describe('createTrpcErrorEscalationHandler', () => {
       error,
       expect.objectContaining({
         groupId: getTrpcErrorFingerprint({ error, path: 'report.build' }),
-        rules: [{ type: 'always', intervalSeconds: 86_400 }],
+        rules: [{ intervalSeconds: 86_400, type: 'always' }],
       })
     );
   });
@@ -60,10 +60,10 @@ describe('createTrpcErrorEscalationHandler', () => {
       expect.objectContaining({
         rules: [
           {
-            type: 'threshold',
-            count: 3,
-            windowSeconds: 3600,
             cooldownSeconds: 86_400,
+            count: 3,
+            type: 'threshold',
+            windowSeconds: 3600,
           },
         ],
       })
@@ -75,7 +75,7 @@ describe('createTrpcErrorEscalationHandler', () => {
       .fn<(error: unknown, config: CaptureConfig) => Promise<void>>()
       .mockResolvedValue();
     const clientErrorRules: CaptureConfig['rules'] = [
-      { type: 'always', intervalSeconds: 300 },
+      { intervalSeconds: 300, type: 'always' },
     ];
     const handler = createTrpcErrorEscalationHandler({
       clientErrorRules,

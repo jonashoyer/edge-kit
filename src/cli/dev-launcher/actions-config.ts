@@ -1,7 +1,5 @@
-import {
-  loadDevActionsConfigSubset,
-  resolveDevLauncherConfigPath,
-} from './config';
+import { loadDevActionsConfigSubset } from './config';
+import { resolveDevLauncherConfigPath } from './repo-utils';
 import type { LoadedDevLauncherManifest } from './types';
 
 export interface LoadedDevActionsConfig {
@@ -22,6 +20,4 @@ export const resolveDevActionsConfigPath = resolveDevLauncherConfigPath;
 export const loadDevActionsConfig = async (options?: {
   configPath?: string;
   cwd?: string;
-}): Promise<LoadedDevActionsConfig> => {
-  return loadDevActionsConfigSubset(options);
-};
+}): Promise<LoadedDevActionsConfig> => loadDevActionsConfigSubset(options);

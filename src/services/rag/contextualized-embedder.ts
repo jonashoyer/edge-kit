@@ -3,10 +3,10 @@ import { fetchExt } from '../../utils/fetch-utils';
 export type ContextualizedInputType = 'document' | 'query' | null;
 
 export interface ContextualizedEmbedder {
-  embed(
+  embed: (
     documents: string[][],
     inputType: ContextualizedInputType
-  ): Promise<number[][]>;
+  ) => Promise<number[][]>;
 }
 
 export type VoyageContextualizedEmbedderModel =
@@ -15,8 +15,8 @@ export type VoyageContextualizedEmbedderModel =
 
 export interface VoyageContextualizedEmbedderOptions {
   apiKey: string;
-  model: VoyageContextualizedEmbedderModel;
   baseUrl?: string; // default: https://api.voyageai.com/v1
+  model: VoyageContextualizedEmbedderModel;
   outputDimension?: 256 | 512 | 1024 | 2048;
   outputDtype?: 'float' | 'int8' | 'uint8' | 'binary' | 'ubinary';
 }
@@ -50,25 +50,25 @@ export class VoyageContextualizedEmbedder implements ContextualizedEmbedder {
     inputType: ContextualizedInputType
   ): Promise<number[][]> {
     const body = {
-      model: this.model,
-      inputs: documents,
       input_type: inputType,
+      inputs: documents,
+      model: this.model,
       output_dimension: this.outputDimension,
       output_dtype: this.outputDtype,
     };
 
     const res = await fetchExt({
-      url: `${this.baseUrl}/contextual_embeddings`,
       init: {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${this.apiKey}`,
-        },
         body: JSON.stringify(body),
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        method: 'POST',
       },
       retries: 2,
       timeout: 20_000,
+      url: `${this.baseUrl}/contextual_embeddings`,
     });
 
     if (!res.ok) {

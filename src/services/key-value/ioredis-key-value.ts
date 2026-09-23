@@ -29,10 +29,10 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
   async set<T>(key: string, value: T, ttlSeconds?: number): Promise<void> {
     const serializedValue =
       typeof value === 'string' ? value : JSON.stringify(value);
-    if (ttlSeconds !== undefined) {
-      await this.client.set(key, serializedValue, 'EX', ttlSeconds);
-    } else {
+    if (ttlSeconds === undefined) {
       await this.client.set(key, serializedValue);
+    } else {
+      await this.client.set(key, serializedValue, 'EX', ttlSeconds);
     }
   }
 
@@ -80,10 +80,10 @@ export class IoredisKeyValueService extends AbstractKeyValueService {
     for (const [key, value] of keyValues) {
       const serializedValue =
         typeof value === 'string' ? value : JSON.stringify(value);
-      if (ttlSeconds !== undefined) {
-        pipeline.set(key, serializedValue, 'EX', ttlSeconds);
-      } else {
+      if (ttlSeconds === undefined) {
         pipeline.set(key, serializedValue);
+      } else {
+        pipeline.set(key, serializedValue, 'EX', ttlSeconds);
       }
     }
 

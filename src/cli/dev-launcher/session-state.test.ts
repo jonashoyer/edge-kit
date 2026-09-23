@@ -77,7 +77,7 @@ describe('session-state', () => {
     const socketPath = resolveDevLauncherSocketPath(manifest);
 
     expect(metadataPath).toContain('/dev-launcher/');
-    expect(metadataPath).toMatch(/\.session\.json$/u);
+    expect(metadataPath.endsWith('.session.json')).toBe(true);
     expect(resolveDevLauncherSocketPath(manifest)).toBe(socketPath);
     expect(socketPath.length).toBeLessThan(100);
   });

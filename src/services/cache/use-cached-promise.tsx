@@ -48,7 +48,6 @@ export function useCachedPromise<T>(
     if (entry && (entry.expiresAt === null || Date.now() <= entry.expiresAt)) {
       return entry.value as T;
     }
-    return;
   });
 
   const [loading, setLoading] = React.useState(false);
@@ -84,6 +83,7 @@ export function useCachedPromise<T>(
       cachedEntry.expiresAt !== null && Date.now() > cachedEntry.expiresAt;
 
     if (!isExpired) return false;
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Effect cleanup changes this ref after unmount.
     if (!mountedRef.current) return false;
 
     setData(cachedEntry.value as T);
@@ -127,8 +127,9 @@ export function useCachedPromise<T>(
       const rawResult = await promise;
       const { actualValue, expiresAt } = processRawResult(rawResult);
 
-      cacheState.cache.set(key, { value: actualValue, expiresAt });
+      cacheState.cache.set(key, { expiresAt, value: actualValue });
 
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: Effect cleanup changes this ref after unmount.
       if (mountedRef.current) {
         setData(actualValue);
         setLoading(false);
@@ -151,6 +152,7 @@ export function useCachedPromise<T>(
 
   // Helper: Update state with cached value
   const updateWithCachedValue = React.useCallback((value: T) => {
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Effect cleanup changes this ref after unmount.
     if (mountedRef.current) {
       setData(value);
       setError(undefined);
@@ -164,6 +166,7 @@ export function useCachedPromise<T>(
       if (!pendingRequest) return null;
 
       const result = (await pendingRequest) as T;
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: Effect cleanup changes this ref after unmount.
       if (mountedRef.current) {
         setData(result);
         setLoading(false);
@@ -192,6 +195,7 @@ export function useCachedPromise<T>(
     }
 
     // Execute the promise
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Effect cleanup changes this ref after unmount.
     if (mountedRef.current) {
       setLoading(true);
       setError(undefined);
@@ -209,8 +213,8 @@ export function useCachedPromise<T>(
 
   return {
     data,
-    loading,
     error,
     execute,
+    loading,
   };
 }

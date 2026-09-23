@@ -26,16 +26,16 @@ export interface VectorEntry<
   TIncludeMetadata extends boolean = false,
 > {
   id: string;
-  vector: TIncludeVectors extends true ? TVector : never;
   metadata: TIncludeMetadata extends true ? TMetadata : never;
+  vector: TIncludeVectors extends true ? TVector : never;
 }
 
 export interface VectorQueryOptions<
   TIncludeVectors extends boolean,
   TIncludeMetadata extends boolean,
 > {
-  includeVectors?: TIncludeVectors;
   includeMetadata?: TIncludeMetadata;
+  includeVectors?: TIncludeVectors;
 }
 
 /**
@@ -74,7 +74,9 @@ export abstract class AbstractVectorDatabase<
     vector: TVector,
     topK: number,
     opts?: VectorQueryOptions<TIncludeVectors, TIncludeMetadata>
-  ): Promise<VectorEntry<TVector, TMetadata, TIncludeVectors>[]>;
+  ): Promise<
+    VectorEntry<TVector, TMetadata, TIncludeVectors, TIncludeMetadata>[]
+  >;
   abstract list<
     TIncludeVectors extends boolean,
     TIncludeMetadata extends boolean,

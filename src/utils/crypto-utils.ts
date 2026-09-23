@@ -1,10 +1,9 @@
 import { arrayBufferToBase64Url } from './buffer-utils';
 
-const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array => {
-  return typeof data === 'string'
+const dataToUint8Array = (data: string | ArrayBuffer): Uint8Array =>
+  typeof data === 'string'
     ? new TextEncoder().encode(data)
     : new Uint8Array(data);
-};
 
 const toBufferSource = (data: string | ArrayBuffer): ArrayBuffer => {
   const bytes = dataToUint8Array(data);
@@ -41,11 +40,10 @@ export async function sha256Base64(
   return arrayBufferToBase64Url(hashBuffer);
 }
 
-const arrayBufferToHex = (buffer: ArrayBuffer): string => {
-  return Array.from(new Uint8Array(buffer))
+const arrayBufferToHex = (buffer: ArrayBuffer): string =>
+  Array.from(new Uint8Array(buffer))
     .map((value) => value.toString(16).padStart(2, '0'))
     .join('');
-};
 
 const importHmacKey = async (
   secret: string,
@@ -59,8 +57,8 @@ const importHmacKey = async (
       secretBytes.byteOffset + secretBytes.byteLength
     ),
     {
-      name: 'HMAC',
       hash: algorithm,
+      name: 'HMAC',
     },
     false,
     ['sign']
@@ -139,7 +137,8 @@ export function constantTimeEqual(a: string, b: string): boolean {
   }
 
   let result = 0;
-  for (let i = 0; i < a.length; i++) {
+  for (let i = 0; i < a.length; i += 1) {
+    // biome-ignore lint/suspicious/noBitwiseOperators: Hashing and constant-time comparisons require bitwise arithmetic.
     result |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
   return result === 0;
@@ -152,9 +151,11 @@ export function constantTimeEqual(a: string, b: string): boolean {
  */
 export function hashCode(str: string) {
   let hash = 0;
-  for (let i = 0, len = str.length; i < len; i++) {
+  for (let i = 0, len = str.length; i < len; i += 1) {
     const chr = str.charCodeAt(i);
+    // biome-ignore lint/suspicious/noBitwiseOperators: Hashing and constant-time comparisons require bitwise arithmetic.
     hash = (hash << 5) - hash + chr;
+    // biome-ignore lint/suspicious/noBitwiseOperators: Hashing and constant-time comparisons require bitwise arithmetic.
     hash |= 0; // Convert to 32bit integer
   }
   return hash;
@@ -176,6 +177,7 @@ export function fnv1a64(str: string): bigint {
   // FNV-1a 64-bit constants
   const FNV_offset_basis_64 = 14695981039346656037n;
   const FNV_prime_64 = 1099511628211n;
+  // biome-ignore lint/suspicious/noBitwiseOperators: Hashing and constant-time comparisons require bitwise arithmetic.
   const MASK_64 = (1n << 64n) - 1n;
 
   let hash = FNV_offset_basis_64;
@@ -184,14 +186,16 @@ export function fnv1a64(str: string): bigint {
   const encoder = new TextEncoder();
   const bytes = encoder.encode(str);
 
-  for (let i = 0; i < bytes.length; i++) {
+  for (const byte of bytes) {
     // XOR the hash with the current byte
-    hash ^= BigInt(bytes[i]); // Use the byte value
+    // biome-ignore lint/suspicious/noBitwiseOperators: Hashing and constant-time comparisons require bitwise arithmetic.
+    hash ^= BigInt(byte); // Use the byte value
 
     // Multiply by the FNV prime
     hash *= FNV_prime_64;
 
     // Apply the 64-bit mask
+    // biome-ignore lint/suspicious/noBitwiseOperators: Hashing and constant-time comparisons require bitwise arithmetic.
     hash &= MASK_64;
   }
 
@@ -215,7 +219,8 @@ export function constantTimeArrayBufferCompare(
   const bView = new Uint8Array(b);
   let result = 0;
 
-  for (let i = 0; i < a.byteLength; i++) {
+  for (let i = 0; i < a.byteLength; i += 1) {
+    // biome-ignore lint/suspicious/noBitwiseOperators: Hashing and constant-time comparisons require bitwise arithmetic.
     result |= aView[i] ^ bView[i];
   }
 

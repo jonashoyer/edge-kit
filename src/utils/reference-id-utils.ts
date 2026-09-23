@@ -15,16 +15,12 @@ const INCREMENT = 1729; // Offset (Ramanujan number)
 const MULTIPLIER_INVERSE = 6753; // Modular multiplicative inverse of 2897 mod 6760
 
 // Obfuscate index using LCG: (a*x + c) mod m
-const obfuscateIndex = (index: number): number => {
-  return (MULTIPLIER * index + INCREMENT) % MODULUS;
-};
+const obfuscateIndex = (index: number): number =>
+  (MULTIPLIER * index + INCREMENT) % MODULUS;
 
 // Reverse obfuscation using modular inverse: a^-1 * (y - c) mod m
-const deobfuscateIndex = (obfuscated: number): number => {
-  return (
-    (MULTIPLIER_INVERSE * (obfuscated - INCREMENT + MODULUS * 1000)) % MODULUS
-  );
-};
+const deobfuscateIndex = (obfuscated: number): number =>
+  (MULTIPLIER_INVERSE * (obfuscated - INCREMENT + MODULUS * 1000)) % MODULUS;
 
 /**
  * Converts an index to a reference ID using LCG for obfuscation.
@@ -89,9 +85,8 @@ export const getIndexFromReferenceId = (refId: string): number => {
  * @param indices - Array of indices in range [0, 6759]
  * @returns Array of 3-character reference IDs
  */
-export const getIndexReferenceIds = (indices: number[]): string[] => {
-  return indices.map((index) => getIndexReferenceId(index));
-};
+export const getIndexReferenceIds = (indices: number[]): string[] =>
+  indices.map((index) => getIndexReferenceId(index));
 
 /**
  * Converts an array of reference IDs back to their original indices.
@@ -99,6 +94,5 @@ export const getIndexReferenceIds = (indices: number[]): string[] => {
  * @param refIds - Array of 3-character reference IDs
  * @returns Array of original indices in range [0, 6759]
  */
-export const getIndicesFromReferenceIds = (refIds: string[]): number[] => {
-  return refIds.map((refId) => getIndexFromReferenceId(refId));
-};
+export const getIndicesFromReferenceIds = (refIds: string[]): number[] =>
+  refIds.map((refId) => getIndexFromReferenceId(refId));

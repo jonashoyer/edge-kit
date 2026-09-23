@@ -4,23 +4,23 @@
  */
 
 export const COPY_PASTE_INTEGRATION_PROMPT = {
-  name: 'copy_paste_feature_into_repo',
-  description:
-    'Guide an agent to copy Edge Kit source files into a target repository instead of importing edge-kit as a package.',
   arguments: [
     {
-      name: 'feature_id',
       description:
         'Optional Edge Kit feature ID to retrieve immediately with get_feature.',
+      name: 'feature_id',
       required: false,
     },
     {
-      name: 'target_path',
       description:
         'Optional target repo path or source root to adapt copied files into.',
+      name: 'target_path',
       required: false,
     },
   ],
+  description:
+    'Guide an agent to copy Edge Kit source files into a target repository instead of importing edge-kit as a package.',
+  name: 'copy_paste_feature_into_repo',
 } as const;
 
 export interface CopyPastePromptArguments {

@@ -15,9 +15,8 @@ import {
   writeSkillsLockfile,
 } from './skills';
 
-const createTempDir = (prefix: string): string => {
-  return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-};
+const createTempDir = (prefix: string): string =>
+  fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 
 const writeFile = (filePath: string, content: string): void => {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -28,8 +27,8 @@ const writeSkillDirectory = (
   parentDirectoryPath: string,
   skillName: string,
   files: Record<string, string> = {
-    'SKILL.md': `# ${skillName}\n`,
     'assets/icon.svg': '<svg></svg>\n',
+    'SKILL.md': `# ${skillName}\n`,
   }
 ): string => {
   const skillDirectoryPath = path.join(parentDirectoryPath, skillName);
@@ -71,9 +70,8 @@ const createRuntime = (): {
   };
 };
 
-const getOutput = (stdout: { write: ReturnType<typeof vi.fn> }): string => {
-  return stdout.write.mock.calls.map((call) => String(call[0] ?? '')).join('');
-};
+const getOutput = (stdout: { write: ReturnType<typeof vi.fn> }): string =>
+  stdout.write.mock.calls.map((call) => String(call[0] ?? '')).join('');
 
 describe('skills CLI runners', () => {
   it('installs a skill from a local directory and records lockfile metadata', async () => {
@@ -134,7 +132,7 @@ describe('skills CLI runners', () => {
     const { codexRoot, execFile, runtime } = createRuntime();
 
     execFile.mockImplementationOnce(async (_file: string, args: string[]) => {
-      const cloneTargetPath = args[3];
+      const [, , , cloneTargetPath] = args;
       if (typeof cloneTargetPath !== 'string') {
         throw new Error('Expected git clone target path.');
       }

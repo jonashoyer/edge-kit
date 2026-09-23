@@ -11,9 +11,9 @@ export interface StorageDirectoryEntry {
 }
 
 export interface StorageDirectoryListing {
-  prefix: string;
   directories: string[];
   objects: StorageDirectoryEntry[];
+  prefix: string;
 }
 
 export interface StorageInventoryServiceOptions {
@@ -88,11 +88,11 @@ export class StorageInventoryService {
     objects.sort((left, right) => left.name.localeCompare(right.name));
 
     return {
-      prefix: normalizedPrefix,
       directories: [...directories].sort((left, right) =>
         left.localeCompare(right)
       ),
       objects,
+      prefix: normalizedPrefix,
     };
   }
 

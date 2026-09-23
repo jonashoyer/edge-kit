@@ -80,9 +80,7 @@ const normalizeTenantId = (
 
 const normalizeMetaObject = <TMeta extends object>(
   meta: TMeta | undefined
-): TMeta => {
-  return (meta ?? EMPTY_META) as TMeta;
-};
+): TMeta => (meta ?? EMPTY_META) as TMeta;
 
 type StorageUploadLedgerTableDefinition<
   Dialect extends 'mysql' | 'pg' | 'sqlite',
@@ -212,122 +210,119 @@ export const createMySqlStorageUploadLedgerTable = <
   TMeta extends object = Record<string, unknown>,
 >(
   name = DEFAULT_TABLE_NAME
-): MySqlStorageUploadLedgerTable<TMeta> => {
-  return mysqlTable(
+): MySqlStorageUploadLedgerTable<TMeta> =>
+  mysqlTable(
     name,
     {
+      consumedAt: mysqlTimestamp('consumed_at', { fsp: 3, mode: 'date' }),
+      etag: mysqlVarchar('etag', { length: 255 }),
+      expiresAt: mysqlTimestamp('expires_at', {
+        fsp: 3,
+        mode: 'date',
+      }).notNull(),
       id: mysqlVarchar('id', { length: 191 }).notNull().primaryKey(),
-      tenantId: mysqlVarchar('tenant_id', { length: 191 }),
-      objectKey: mysqlVarchar('object_key', { length: 512 }).notNull(),
+      issuedAt: mysqlTimestamp('issued_at', { fsp: 3, mode: 'date' }).notNull(),
+      meta: mysqlJson('meta').$type<TMeta>().notNull(),
       mimeType: mysqlVarchar('mime_type', { length: 255 }).notNull(),
+      objectKey: mysqlVarchar('object_key', { length: 512 }).notNull(),
+      purgedAt: mysqlTimestamp('purged_at', { fsp: 3, mode: 'date' }),
+      sizeBytes: mysqlInt('size_bytes'),
       status: mysqlVarchar('status', { length: 32 })
         .notNull()
         .$type<StorageUploadStatus>(),
-      sizeBytes: mysqlInt('size_bytes'),
-      etag: mysqlVarchar('etag', { length: 255 }),
-      expiresAt: mysqlTimestamp('expires_at', {
-        mode: 'date',
-        fsp: 3,
-      }).notNull(),
-      issuedAt: mysqlTimestamp('issued_at', { mode: 'date', fsp: 3 }).notNull(),
-      uploadedAt: mysqlTimestamp('uploaded_at', { mode: 'date', fsp: 3 }),
-      consumedAt: mysqlTimestamp('consumed_at', { mode: 'date', fsp: 3 }),
-      purgedAt: mysqlTimestamp('purged_at', { mode: 'date', fsp: 3 }),
-      meta: mysqlJson('meta').$type<TMeta>().notNull(),
+      tenantId: mysqlVarchar('tenant_id', { length: 191 }),
+      uploadedAt: mysqlTimestamp('uploaded_at', { fsp: 3, mode: 'date' }),
     },
     (table) => ({
+      objectKeyIndex: mysqlIndex(`${name}_object_key_idx`).on(table.objectKey),
       statusExpiryIndex: mysqlIndex(`${name}_status_expiry_idx`).on(
         table.status,
         table.expiresAt
       ),
-      objectKeyIndex: mysqlIndex(`${name}_object_key_idx`).on(table.objectKey),
     })
   ) as MySqlStorageUploadLedgerTable<TMeta>;
-};
 
 export const createPostgresStorageUploadLedgerTable = <
   TMeta extends object = Record<string, unknown>,
 >(
   name = DEFAULT_TABLE_NAME
-): PostgresStorageUploadLedgerTable<TMeta> => {
-  return pgTable(
+): PostgresStorageUploadLedgerTable<TMeta> =>
+  pgTable(
     name,
     {
-      id: pgText('id').notNull().primaryKey(),
-      tenantId: pgText('tenant_id'),
-      objectKey: pgText('object_key').notNull(),
-      mimeType: pgText('mime_type').notNull(),
-      status: pgText('status').notNull().$type<StorageUploadStatus>(),
-      sizeBytes: pgInteger('size_bytes'),
+      consumedAt: pgTimestamp('consumed_at', {
+        mode: 'date',
+        precision: 3,
+        withTimezone: true,
+      }),
       etag: pgText('etag'),
       expiresAt: pgTimestamp('expires_at', {
         mode: 'date',
         precision: 3,
         withTimezone: true,
       }).notNull(),
+      id: pgText('id').notNull().primaryKey(),
       issuedAt: pgTimestamp('issued_at', {
         mode: 'date',
         precision: 3,
         withTimezone: true,
       }).notNull(),
-      uploadedAt: pgTimestamp('uploaded_at', {
-        mode: 'date',
-        precision: 3,
-        withTimezone: true,
-      }),
-      consumedAt: pgTimestamp('consumed_at', {
-        mode: 'date',
-        precision: 3,
-        withTimezone: true,
-      }),
+      meta: pgJson('meta').$type<TMeta>().notNull(),
+      mimeType: pgText('mime_type').notNull(),
+      objectKey: pgText('object_key').notNull(),
       purgedAt: pgTimestamp('purged_at', {
         mode: 'date',
         precision: 3,
         withTimezone: true,
       }),
-      meta: pgJson('meta').$type<TMeta>().notNull(),
+      sizeBytes: pgInteger('size_bytes'),
+      status: pgText('status').notNull().$type<StorageUploadStatus>(),
+      tenantId: pgText('tenant_id'),
+      uploadedAt: pgTimestamp('uploaded_at', {
+        mode: 'date',
+        precision: 3,
+        withTimezone: true,
+      }),
     },
     (table) => ({
+      objectKeyIndex: pgIndex(`${name}_object_key_idx`).on(table.objectKey),
       statusExpiryIndex: pgIndex(`${name}_status_expiry_idx`).on(
         table.status,
         table.expiresAt
       ),
-      objectKeyIndex: pgIndex(`${name}_object_key_idx`).on(table.objectKey),
     })
   ) as PostgresStorageUploadLedgerTable<TMeta>;
-};
 
 export const createSqliteStorageUploadLedgerTable = <
   TMeta extends object = Record<string, unknown>,
 >(
   name = DEFAULT_TABLE_NAME
-): SQLiteStorageUploadLedgerTable<TMeta> => {
-  return sqliteTable(
+): SQLiteStorageUploadLedgerTable<TMeta> =>
+  sqliteTable(
     name,
     {
-      id: text('id').notNull().primaryKey(),
-      tenantId: text('tenant_id'),
-      objectKey: text('object_key').notNull(),
-      mimeType: text('mime_type').notNull(),
-      status: text('status').notNull().$type<StorageUploadStatus>(),
-      sizeBytes: integer('size_bytes'),
+      consumedAt: integer('consumed_at', { mode: 'timestamp_ms' }),
       etag: text('etag'),
       expiresAt: integer('expires_at', { mode: 'timestamp_ms' }).notNull(),
+      id: text('id').notNull().primaryKey(),
       issuedAt: integer('issued_at', { mode: 'timestamp_ms' }).notNull(),
-      uploadedAt: integer('uploaded_at', { mode: 'timestamp_ms' }),
-      consumedAt: integer('consumed_at', { mode: 'timestamp_ms' }),
-      purgedAt: integer('purged_at', { mode: 'timestamp_ms' }),
       meta: text('meta', { mode: 'json' }).$type<TMeta>().notNull(),
+      mimeType: text('mime_type').notNull(),
+      objectKey: text('object_key').notNull(),
+      purgedAt: integer('purged_at', { mode: 'timestamp_ms' }),
+      sizeBytes: integer('size_bytes'),
+      status: text('status').notNull().$type<StorageUploadStatus>(),
+      tenantId: text('tenant_id'),
+      uploadedAt: integer('uploaded_at', { mode: 'timestamp_ms' }),
     },
     (table) => ({
+      objectKeyIndex: sqliteIndex(`${name}_object_key_idx`).on(table.objectKey),
       statusExpiryIndex: sqliteIndex(`${name}_status_expiry_idx`).on(
         table.status,
         table.expiresAt
       ),
-      objectKeyIndex: sqliteIndex(`${name}_object_key_idx`).on(table.objectKey),
     })
   ) as SQLiteStorageUploadLedgerTable<TMeta>;
-};
 
 type StorageUploadLedgerRow<TMeta extends object> = {
   id: string;
@@ -376,19 +371,19 @@ class BaseDrizzleStorageUploadLedgerService<
     const { table } = this.internal;
 
     return {
-      id: table.id,
-      tenantId: table.tenantId,
-      objectKey: table.objectKey,
-      mimeType: table.mimeType,
-      status: table.status,
-      sizeBytes: table.sizeBytes,
+      consumedAt: table.consumedAt,
       etag: table.etag,
       expiresAt: table.expiresAt,
+      id: table.id,
       issuedAt: table.issuedAt,
-      uploadedAt: table.uploadedAt,
-      consumedAt: table.consumedAt,
-      purgedAt: table.purgedAt,
       meta: table.meta,
+      mimeType: table.mimeType,
+      objectKey: table.objectKey,
+      purgedAt: table.purgedAt,
+      sizeBytes: table.sizeBytes,
+      status: table.status,
+      tenantId: table.tenantId,
+      uploadedAt: table.uploadedAt,
     };
   }
 
@@ -397,13 +392,13 @@ class BaseDrizzleStorageUploadLedgerService<
   ): StorageUploadLedgerRecord<TMeta> {
     return {
       ...row,
-      tenantId: normalizeTenantId(row.tenantId),
-      sizeBytes: row.sizeBytes ?? null,
-      etag: row.etag ?? null,
-      uploadedAt: row.uploadedAt ?? null,
       consumedAt: row.consumedAt ?? null,
-      purgedAt: row.purgedAt ?? null,
+      etag: row.etag ?? null,
       meta: normalizeMetaObject(row.meta),
+      purgedAt: row.purgedAt ?? null,
+      sizeBytes: row.sizeBytes ?? null,
+      tenantId: normalizeTenantId(row.tenantId),
+      uploadedAt: row.uploadedAt ?? null,
     };
   }
 
@@ -414,28 +409,28 @@ class BaseDrizzleStorageUploadLedgerService<
     const tenantId = normalizeTenantId(input.tenantId ?? existing?.tenantId);
 
     return {
-      id: normalizeRequiredString(input.id, 'id'),
-      tenantId,
-      objectKey: normalizeRequiredString(input.objectKey, 'objectKey'),
-      mimeType: normalizeRequiredString(input.mimeType, 'mimeType'),
-      status: input.status,
-      sizeBytes: input.sizeBytes ?? existing?.sizeBytes ?? null,
-      etag: input.etag ?? existing?.etag ?? null,
-      expiresAt: input.expiresAt,
-      issuedAt: input.issuedAt ?? existing?.issuedAt ?? new Date(),
-      uploadedAt:
-        input.uploadedAt === undefined
-          ? (existing?.uploadedAt ?? null)
-          : input.uploadedAt,
       consumedAt:
         input.consumedAt === undefined
           ? (existing?.consumedAt ?? null)
           : input.consumedAt,
+      etag: input.etag ?? existing?.etag ?? null,
+      expiresAt: input.expiresAt,
+      id: normalizeRequiredString(input.id, 'id'),
+      issuedAt: input.issuedAt ?? existing?.issuedAt ?? new Date(),
+      meta: normalizeMetaObject(input.meta ?? existing?.meta),
+      mimeType: normalizeRequiredString(input.mimeType, 'mimeType'),
+      objectKey: normalizeRequiredString(input.objectKey, 'objectKey'),
       purgedAt:
         input.purgedAt === undefined
           ? (existing?.purgedAt ?? null)
           : input.purgedAt,
-      meta: normalizeMetaObject(input.meta ?? existing?.meta),
+      sizeBytes: input.sizeBytes ?? existing?.sizeBytes ?? null,
+      status: input.status,
+      tenantId,
+      uploadedAt:
+        input.uploadedAt === undefined
+          ? (existing?.uploadedAt ?? null)
+          : input.uploadedAt,
     };
   }
 
@@ -447,8 +442,6 @@ class BaseDrizzleStorageUploadLedgerService<
     if (conditions.length > 1) {
       return and(...conditions);
     }
-
-    return;
   }
 
   protected async persist(
@@ -467,7 +460,7 @@ class BaseDrizzleStorageUploadLedgerService<
       .where(eq(table.id, normalizeRequiredString(id, 'id')))
       .limit(1)
       .execute()) as StorageUploadLedgerRow<TMeta>[];
-    const row = rows[0];
+    const [row] = rows;
 
     return row ? this.toRecord(row) : null;
   }
@@ -530,18 +523,18 @@ class MySqlDrizzleStorageUploadLedgerService<
       .values(row)
       .onDuplicateKeyUpdate({
         set: {
-          tenantId: row.tenantId,
-          objectKey: row.objectKey,
-          mimeType: row.mimeType,
-          status: row.status,
-          sizeBytes: row.sizeBytes,
+          consumedAt: row.consumedAt,
           etag: row.etag,
           expiresAt: row.expiresAt,
           issuedAt: row.issuedAt,
-          uploadedAt: row.uploadedAt,
-          consumedAt: row.consumedAt,
-          purgedAt: row.purgedAt,
           meta: row.meta,
+          mimeType: row.mimeType,
+          objectKey: row.objectKey,
+          purgedAt: row.purgedAt,
+          sizeBytes: row.sizeBytes,
+          status: row.status,
+          tenantId: row.tenantId,
+          uploadedAt: row.uploadedAt,
         },
       })
       .execute();
@@ -564,21 +557,21 @@ class PostgresDrizzleStorageUploadLedgerService<
       .insert(this.table)
       .values(row)
       .onConflictDoUpdate({
-        target: this.table.id,
         set: {
-          tenantId: row.tenantId,
-          objectKey: row.objectKey,
-          mimeType: row.mimeType,
-          status: row.status,
-          sizeBytes: row.sizeBytes,
+          consumedAt: row.consumedAt,
           etag: row.etag,
           expiresAt: row.expiresAt,
           issuedAt: row.issuedAt,
-          uploadedAt: row.uploadedAt,
-          consumedAt: row.consumedAt,
-          purgedAt: row.purgedAt,
           meta: row.meta,
+          mimeType: row.mimeType,
+          objectKey: row.objectKey,
+          purgedAt: row.purgedAt,
+          sizeBytes: row.sizeBytes,
+          status: row.status,
+          tenantId: row.tenantId,
+          uploadedAt: row.uploadedAt,
         },
+        target: this.table.id,
       })
       .execute();
 
@@ -600,21 +593,21 @@ class SqliteDrizzleStorageUploadLedgerService<
       .insert(this.table)
       .values(row)
       .onConflictDoUpdate({
-        target: this.table.id,
         set: {
-          tenantId: row.tenantId,
-          objectKey: row.objectKey,
-          mimeType: row.mimeType,
-          status: row.status,
-          sizeBytes: row.sizeBytes,
+          consumedAt: row.consumedAt,
           etag: row.etag,
           expiresAt: row.expiresAt,
           issuedAt: row.issuedAt,
-          uploadedAt: row.uploadedAt,
-          consumedAt: row.consumedAt,
-          purgedAt: row.purgedAt,
           meta: row.meta,
+          mimeType: row.mimeType,
+          objectKey: row.objectKey,
+          purgedAt: row.purgedAt,
+          sizeBytes: row.sizeBytes,
+          status: row.status,
+          tenantId: row.tenantId,
+          uploadedAt: row.uploadedAt,
         },
+        target: this.table.id,
       })
       .run();
 

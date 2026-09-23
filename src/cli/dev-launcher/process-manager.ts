@@ -91,14 +91,11 @@ const defaultRuntime: DevLauncherProcessManagerRuntime = {
   now: () => Date.now(),
   platform: process.platform,
   setTimeout,
-  spawn: (command, args, options) => {
-    return spawn(command, args, options);
-  },
+  spawn: (command, args, options) => spawn(command, args, options),
 };
 
-const shouldUseProcessGroup = (platform: NodeJS.Platform): boolean => {
-  return platform !== 'win32';
-};
+const shouldUseProcessGroup = (platform: NodeJS.Platform): boolean =>
+  platform !== 'win32';
 
 const getPackageManagerCommand = (
   packageManager: LoadedDevLauncherManifest['packageManager'],
@@ -129,14 +126,13 @@ const createInitialServiceState = (
 const createInitialServiceStateMap = (
   manifest: LoadedDevLauncherManifest,
   now: number
-): Record<string, ManagedDevServiceState> => {
-  return Object.fromEntries(
+): Record<string, ManagedDevServiceState> =>
+  Object.fromEntries(
     manifest.serviceIdsInOrder.map((serviceId) => [
       serviceId,
       createInitialServiceState(serviceId, now),
     ])
   ) as Record<string, ManagedDevServiceState>;
-};
 
 /**
  * Builds the concrete child-process spawn spec for a service defined in the
@@ -279,12 +275,12 @@ export class DevLauncherProcessManager implements DevLauncherProcessController {
     this.#managedServiceIds = normalizedServiceIds;
     this.#emitChange();
 
-    const removedServiceIds = previousServiceIds.filter((serviceId) => {
-      return !normalizedServiceIds.includes(serviceId);
-    });
-    const addedServiceIds = normalizedServiceIds.filter((serviceId) => {
-      return !previousServiceIds.includes(serviceId);
-    });
+    const removedServiceIds = previousServiceIds.filter(
+      (serviceId) => !normalizedServiceIds.includes(serviceId)
+    );
+    const addedServiceIds = normalizedServiceIds.filter(
+      (serviceId) => !previousServiceIds.includes(serviceId)
+    );
 
     await Promise.all(
       removedServiceIds.map(async (serviceId) => this.stopService(serviceId))
@@ -627,10 +623,11 @@ export class DevLauncherProcessManager implements DevLauncherProcessController {
     stream: DevLauncherLogStream,
     line: string
   ): void {
+    this.#logSequence += 1;
     const entry: DevLauncherLogEntry = {
       line,
       runId,
-      sequence: ++this.#logSequence,
+      sequence: this.#logSequence,
       serviceId,
       stream,
       timestamp: this.#runtime.now(),

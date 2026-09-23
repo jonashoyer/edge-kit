@@ -45,17 +45,17 @@ export const createAppRouterIncomingHookHandler = <TPayload>(
 
       const rawBody = await request.text();
       const incomingRequest: IncomingHookRequest = {
+        headers: normalizeHeaders(request.headers),
         method: request.method,
         pathname: new URL(request.url).pathname,
-        headers: normalizeHeaders(request.headers),
         rawBody,
       };
 
       const verified = await options.verifier.verify(incomingRequest);
       let waitUntil: WaitUntil | undefined;
       if (options.mode === 'waitUntil' && waitUntilImplementation) {
-        waitUntil = (promise: Promise<unknown>) => {
-          return waitUntilImplementation(
+        waitUntil = (promise: Promise<unknown>) =>
+          waitUntilImplementation(
             promise.catch((error) => {
               options.logger?.error('incoming-hook.waitUntil failure', {
                 error,
@@ -63,7 +63,6 @@ export const createAppRouterIncomingHookHandler = <TPayload>(
               throw error;
             })
           );
-        };
       }
 
       const result = await options.handle(verified, { waitUntil });

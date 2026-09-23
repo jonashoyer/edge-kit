@@ -4,11 +4,11 @@ import type { AbstractLogger } from '../logging/abstract-logger';
 import type { AbstractStripeStore } from './abstract-stripe-store';
 
 export class StripeCheckoutService {
-  private store: AbstractStripeStore;
-  private logger: AbstractLogger | undefined;
-  private stripe: Stripe;
-  private successUrl: string;
-  private cancelUrl: string;
+  private readonly store: AbstractStripeStore;
+  private readonly logger: AbstractLogger | undefined;
+  private readonly stripe: Stripe;
+  private readonly successUrl: string;
+  private readonly cancelUrl: string;
 
   constructor(
     store: AbstractStripeStore,
@@ -58,12 +58,12 @@ export class StripeCheckoutService {
       await this.store.setUserToCustomerMapping(userId, customer.id);
 
       this.logger?.info('Created new Stripe customer', {
-        userId,
         customerId: customer.id,
+        userId,
       });
       return customer.id;
     } catch (error) {
-      this.logger?.error('Failed to create Stripe customer', { userId, error });
+      this.logger?.error('Failed to create Stripe customer', { error, userId });
       throw error;
     }
   }
@@ -88,37 +88,37 @@ export class StripeCheckoutService {
 
       // Create the checkout session with the customer ID
       const session = await this.stripe.checkout.sessions.create({
+        cancel_url: options?.cancelUrl || this.cancelUrl,
         customer: customerId,
-        payment_method_types: ['card'],
         line_items: [
           {
             price: priceId,
             quantity: 1,
           },
         ],
-        mode: 'subscription',
-        subscription_data: options?.trialPeriodDays
-          ? { trial_period_days: options.trialPeriodDays }
-          : undefined,
-        success_url: options?.successUrl || this.successUrl,
-        cancel_url: options?.cancelUrl || this.cancelUrl,
         metadata: {
           userId,
           ...options?.metadata,
         },
+        mode: 'subscription',
+        payment_method_types: ['card'],
+        subscription_data: options?.trialPeriodDays
+          ? { trial_period_days: options.trialPeriodDays }
+          : undefined,
+        success_url: options?.successUrl || this.successUrl,
       });
 
       this.logger?.info('Created subscription checkout session', {
-        userId,
-        customerId,
         checkoutSessionId: session.id,
+        customerId,
+        userId,
       });
 
       return session;
     } catch (error) {
       this.logger?.error('Failed to create subscription checkout', {
-        userId,
         error,
+        userId,
       });
       throw error;
     }
@@ -146,32 +146,32 @@ export class StripeCheckoutService {
 
       // Create the checkout session with the customer ID
       const session = await this.stripe.checkout.sessions.create({
+        cancel_url: options?.cancelUrl || this.cancelUrl,
         customer: customerId,
-        payment_method_types: ['card'],
         line_items: lineItems.map((item) => ({
           price: item.priceId,
           quantity: item.quantity,
         })),
-        mode: 'payment',
-        success_url: options?.successUrl || this.successUrl,
-        cancel_url: options?.cancelUrl || this.cancelUrl,
         metadata: {
           userId,
           ...options?.metadata,
         },
+        mode: 'payment',
+        payment_method_types: ['card'],
+        success_url: options?.successUrl || this.successUrl,
       });
 
       this.logger?.info('Created one-time payment checkout session', {
-        userId,
-        customerId,
         checkoutSessionId: session.id,
+        customerId,
+        userId,
       });
 
       return session;
     } catch (error) {
       this.logger?.error('Failed to create one-time checkout', {
-        userId,
         error,
+        userId,
       });
       throw error;
     }

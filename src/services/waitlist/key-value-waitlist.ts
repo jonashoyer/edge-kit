@@ -12,15 +12,21 @@ import {
  */
 export class KeyValueWaitlistService extends AbstractWaitlistService {
   namespace = new NamespaceComposer({
-    sortedSet: 'waitlist:sorted',
     entry: (email: string) => `waitlist:entry:${email}`,
+    sortedSet: 'waitlist:sorted',
   });
 
-  constructor(private kv: AbstractKeyValueService) {
+  private readonly kv: AbstractKeyValueService;
+
+  constructor(kv: AbstractKeyValueService) {
     super();
+    this.kv = kv;
   }
 
-  async join(email: string, metadata?: Record<string, any>): Promise<number> {
+  async join(
+    email: string,
+    metadata?: Record<string, unknown>
+  ): Promise<number> {
     const isExisting = await this.isOnWaitlist(email);
     if (isExisting) {
       return (await this.getPosition(email)) ?? 0;
@@ -52,7 +58,7 @@ export class KeyValueWaitlistService extends AbstractWaitlistService {
   }
 
   async getEntryCount(): Promise<number> {
-    return (await this.kv.zcard(this.namespace.key('sortedSet'))) ?? 0;
+    return await this.kv.zcard(this.namespace.key('sortedSet'));
   }
 
   async isOnWaitlist(email: string): Promise<boolean> {

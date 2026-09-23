@@ -1,11 +1,11 @@
 export interface OcrExtractSource {
-  url: string;
   contentType: string;
+  url: string;
 }
 
 export interface OcrExtractResult {
-  provider: string;
   markdown: string;
+  provider: string;
   title?: string;
 }
 

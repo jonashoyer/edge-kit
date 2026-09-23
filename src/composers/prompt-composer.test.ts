@@ -29,7 +29,9 @@ describe('prompt-composer', () => {
     });
 
     it('formats nested mixed structures as TOON', () => {
+      // biome-ignore assist/source/useSortedKeys: The serialization contract preserves input key order.
       const result = PromptComposer.format({
+        // biome-ignore assist/source/useSortedKeys: Nested fields preserve input key order too.
         team: { name: 'Edge', active: true },
         members: [
           { id: 1, name: 'Alice' },
@@ -93,7 +95,7 @@ describe('prompt-composer', () => {
           toon: {
             replacer: (key, value) => {
               if (key === 'secret') {
-                return undefined;
+                return;
               }
 
               return value;
@@ -107,6 +109,7 @@ describe('prompt-composer', () => {
 
     it('supports XML formatting', () => {
       const result = PromptComposer.format(
+        // biome-ignore assist/source/useSortedKeys: XML elements preserve input key order.
         {
           team: { name: 'Edge' },
           members: ['Alice', 'Bob'],
@@ -140,6 +143,7 @@ describe('prompt-composer', () => {
 
     it('supports legacy keyValue formatting', () => {
       const result = PromptComposer.format(
+        // biome-ignore assist/source/useSortedKeys: Key-value rendering preserves input key order.
         {
           name: 'Alice',
           count: 3,
@@ -162,6 +166,7 @@ describe('prompt-composer', () => {
 
     it('keeps objectToKeyValue output unchanged', () => {
       expect(
+        // biome-ignore assist/source/useSortedKeys: Key-value rendering preserves input key order.
         PromptComposer.objectToKeyValue({
           name: 'Alice',
           age: 30,
@@ -172,6 +177,7 @@ describe('prompt-composer', () => {
     it('keeps jsonToXml output unchanged', () => {
       expect(
         PromptComposer.jsonToXml({
+          // biome-ignore assist/source/useSortedKeys: XML elements preserve input key order.
           user: {
             name: 'Alice',
             admin: true,
@@ -206,28 +212,28 @@ describe('prompt-composer', () => {
         {{footer}}
         `,
         {
-          tasks: {
-            data: [
-              { id: 1, title: 'Draft prompt' },
-              { id: 2, title: 'Review output' },
-            ],
-            converter: (value) => PromptComposer.format(value),
-          },
           metadata: {
-            data: {
-              owner: 'j',
-              tags: ['prompt', 'toon'],
-            },
             converter: (value) =>
               PromptComposer.format(value, {
                 format: 'xml',
                 rootName: 'metadata',
               }),
+            data: {
+              owner: 'j',
+              tags: ['prompt', 'toon'],
+            },
+          },
+          tasks: {
+            converter: (value) => PromptComposer.format(value),
+            data: [
+              { id: 1, title: 'Draft prompt' },
+              { id: 2, title: 'Review output' },
+            ],
           },
         },
         {
-          name: 'Edge Kit',
           footer: 'done',
+          name: 'Edge Kit',
         }
       );
 

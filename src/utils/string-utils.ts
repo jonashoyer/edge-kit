@@ -1,4 +1,4 @@
-export const ml = (strings: readonly string[], ...placeholders: any[]) => {
+export const ml = (strings: readonly string[], ...placeholders: unknown[]) => {
   const withSpace = strings.reduce((result, string, i) => {
     if (!placeholders[i - 1]) return result + string;
     return result + placeholders[i - 1] + string;
@@ -20,12 +20,11 @@ export const convertSnakeCaseToReadable = (input: string) =>
     .join(' ');
 
 // New function
-export const camelToSnakeCase = (str: string): string => {
-  return str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
-};
+export const camelToSnakeCase = (str: string): string =>
+  str.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`);
 
 // New function
 export const truncate = (str: string, maxLength: number): string => {
   if (str.length <= maxLength) return str;
-  return str.slice(0, maxLength - 3) + '...';
+  return `${str.slice(0, maxLength - 3)}...`;
 };

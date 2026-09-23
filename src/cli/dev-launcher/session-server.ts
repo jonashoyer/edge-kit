@@ -30,20 +30,17 @@ import type {
 
 interface SocketLike {
   destroy: () => void;
-  on: (
-    event: 'close' | 'data' | 'error',
-    listener: (...args: any[]) => void
-  ) => void;
+  on: ((event: 'close', listener: () => void) => void) &
+    ((event: 'data', listener: (chunk: Buffer | string) => void) => void) &
+    ((event: 'error', listener: (error: Error) => void) => void);
   write: (chunk: string) => boolean;
 }
 
 interface ServerLike {
   close: (callback?: (error?: Error | undefined) => void) => void;
   listen: (path: string, listeningListener?: () => void) => void;
-  on: (
-    event: 'connection' | 'error',
-    listener: (...args: any[]) => void
-  ) => void;
+  on: ((event: 'connection', listener: (socket: SocketLike) => void) => void) &
+    ((event: 'error', listener: (error: Error) => void) => void);
 }
 
 export interface DevLauncherSessionServerRuntime
@@ -97,22 +94,18 @@ const defaultRuntime: DevLauncherSessionServerRuntime = {
   randomUUID: () => randomUUID(),
 };
 
-const isRecord = (value: unknown): value is Record<string, unknown> => {
-  return typeof value === 'object' && value !== null;
-};
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
 
-const isRpcRequest = (value: unknown): value is DevLauncherRpcRequest => {
-  return (
-    isRecord(value) &&
-    value.jsonrpc === DEV_LAUNCHER_RPC_VERSION &&
-    typeof value.method === 'string' &&
-    ('id' in value
-      ? value.id === null ||
-        typeof value.id === 'number' ||
-        typeof value.id === 'string'
-      : true)
-  );
-};
+const isRpcRequest = (value: unknown): value is DevLauncherRpcRequest =>
+  isRecord(value) &&
+  value.jsonrpc === DEV_LAUNCHER_RPC_VERSION &&
+  typeof value.method === 'string' &&
+  ('id' in value
+    ? value.id === null ||
+      typeof value.id === 'number' ||
+      typeof value.id === 'string'
+    : true);
 
 const clampLogLimit = (value: number | undefined): number => {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
@@ -172,7 +165,7 @@ export class DevLauncherSessionServer {
   #metadata: DevLauncherSessionMetadata | null = null;
   #resolveStopped: (() => void) | null = null;
   #started = false;
-  #stoppedPromise: Promise<void>;
+  readonly #stoppedPromise: Promise<void>;
   #stopPromise: Promise<void> | null = null;
 
   constructor(
@@ -207,6 +200,7 @@ export class DevLauncherSessionServer {
   async start(
     initialServiceIds?: string[]
   ): Promise<DevLauncherSessionMetadata> {
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: A prior start call sets this mutable lifecycle flag.
     if (this.#started) {
       return this.getMetadata();
     }
@@ -297,7 +291,13 @@ export class DevLauncherSessionServer {
           );
         case DEV_LAUNCHER_RPC_METHODS.sessionStop:
           queueMicrotask(() => {
-            void this.stop();
+            this.stop().catch((error: unknown) => {
+              const message =
+                error instanceof Error ? error.message : String(error);
+              process.stderr.write(
+                `Failed to stop dev launcher session: ${message}\n`
+              );
+            });
           });
           return createSuccessResponse(request.id, { stopped: true });
         case DEV_LAUNCHER_RPC_METHODS.servicesApplySet: {
@@ -358,28 +358,7 @@ export class DevLauncherSessionServer {
           );
         }
         case DEV_LAUNCHER_RPC_METHODS.logsRead: {
-          const params = (request.params ?? {}) as DevLauncherLogsReadParams;
-          if (
-            params.serviceId !== undefined &&
-            typeof params.serviceId !== 'string'
-          ) {
-            throw new Error(
-              'logs.read serviceId must be a string when provided.'
-            );
-          }
-
-          if (params.serviceId) {
-            assertKnownServiceId(this.#manifest, params.serviceId);
-          }
-
-          const snapshot = this.#controller.getSnapshot();
-          const sourceEntries = params.serviceId
-            ? (snapshot.logsByServiceId[params.serviceId] ?? [])
-            : snapshot.allLogs;
-          return createSuccessResponse(
-            request.id,
-            getLogsReadResult(sourceEntries, params)
-          );
+          return this.#readLogs(request);
         }
         default:
           return createFailureResponse(request.id, {
@@ -396,6 +375,27 @@ export class DevLauncherSessionServer {
         message,
       });
     }
+  }
+
+  #readLogs(request: DevLauncherRpcRequest): DevLauncherRpcResponse<unknown> {
+    const params = (request.params ?? {}) as DevLauncherLogsReadParams;
+    if (
+      params.serviceId !== undefined &&
+      typeof params.serviceId !== 'string'
+    ) {
+      throw new Error('logs.read serviceId must be a string when provided.');
+    }
+    if (params.serviceId) {
+      assertKnownServiceId(this.#manifest, params.serviceId);
+    }
+    const snapshot = this.#controller.getSnapshot();
+    const sourceEntries = params.serviceId
+      ? (snapshot.logsByServiceId[params.serviceId] ?? [])
+      : snapshot.allLogs;
+    return createSuccessResponse(
+      request.id,
+      getLogsReadResult(sourceEntries, params)
+    );
   }
 
   #handleSocketConnection(socket: SocketLike): void {

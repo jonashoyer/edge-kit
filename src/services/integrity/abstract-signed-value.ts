@@ -4,10 +4,10 @@
 export interface SignedValue<T> {
   /** Algorithm used for signing */
   algorithm: string;
-  /** The original value (stored as-is, not stringified) */
-  value: T;
   /** The signature for this value */
   signature: string;
+  /** The original value (stored as-is, not stringified) */
+  value: T;
 }
 
 /**

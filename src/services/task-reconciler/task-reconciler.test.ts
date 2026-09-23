@@ -43,21 +43,21 @@ describe('TaskReconciler', () => {
     });
 
     const result = await reconciler.reconcile({
-      taskName: 'documents-index',
       desiredRevision: 'docs-index-v1',
       metadata: { scope: 'documents' },
       async run() {},
+      taskName: 'documents-index',
     });
 
     expect(result.outcome).toBe('executed');
     expect(result.runId).toBeTypeOf('string');
     expect(result.durationMs).toBeGreaterThanOrEqual(0);
     expect(result.state).toMatchObject({
-      taskName: 'documents-index',
       appliedRevision: 'docs-index-v1',
       lastAttemptedRevision: 'docs-index-v1',
-      status: 'succeeded',
       metadata: { scope: 'documents' },
+      status: 'succeeded',
+      taskName: 'documents-index',
     });
 
     const storedState = await reconciler.getState('documents-index');
@@ -72,39 +72,39 @@ describe('TaskReconciler', () => {
     });
 
     const missing = await reconciler.shouldReconcile({
-      taskName: 'search-sync',
       desiredRevision: 'sync-v1',
+      taskName: 'search-sync',
     });
     expect(missing).toEqual({
-      shouldReconcile: true,
       reason: 'missing',
+      shouldReconcile: true,
       state: null,
     });
 
     await reconciler.reconcile({
-      taskName: 'search-sync',
       desiredRevision: 'sync-v1',
       async run() {},
+      taskName: 'search-sync',
     });
 
     const upToDate = await reconciler.shouldReconcile({
-      taskName: 'search-sync',
       desiredRevision: 'sync-v1',
+      taskName: 'search-sync',
     });
     expect(upToDate.shouldReconcile).toBe(false);
     expect(upToDate.reason).toBe('up-to-date');
 
     const changed = await reconciler.shouldReconcile({
-      taskName: 'search-sync',
       desiredRevision: 'sync-v2',
+      taskName: 'search-sync',
     });
     expect(changed.shouldReconcile).toBe(true);
     expect(changed.reason).toBe('revision-changed');
 
     const forced = await reconciler.shouldReconcile({
-      taskName: 'search-sync',
       desiredRevision: 'sync-v1',
       force: true,
+      taskName: 'search-sync',
     });
     expect(forced.shouldReconcile).toBe(true);
     expect(forced.reason).toBe('forced');
@@ -119,19 +119,19 @@ describe('TaskReconciler', () => {
     let runCount = 0;
 
     await reconciler.reconcile({
-      taskName: 'documents-index',
       desiredRevision: 'docs-index-v1',
       async run() {
         runCount += 1;
       },
+      taskName: 'documents-index',
     });
 
     const result = await reconciler.reconcile({
-      taskName: 'documents-index',
       desiredRevision: 'docs-index-v1',
       async run() {
         runCount += 1;
       },
+      taskName: 'documents-index',
     });
 
     expect(result.outcome).toBe('skipped');
@@ -148,19 +148,19 @@ describe('TaskReconciler', () => {
     const executedRevisions: string[] = [];
 
     await reconciler.reconcile({
-      taskName: 'documents-index',
       desiredRevision: 'docs-index-v1',
       async run() {
         executedRevisions.push('docs-index-v1');
       },
+      taskName: 'documents-index',
     });
 
     const result = await reconciler.reconcile({
-      taskName: 'documents-index',
       desiredRevision: 'docs-index-v2',
       async run() {
         executedRevisions.push('docs-index-v2');
       },
+      taskName: 'documents-index',
     });
 
     expect(result.outcome).toBe('executed');
@@ -176,18 +176,18 @@ describe('TaskReconciler', () => {
     });
 
     await reconciler.reconcile({
-      taskName: 'documents-index',
       desiredRevision: 'docs-index-v1',
       async run() {},
+      taskName: 'documents-index',
     });
 
     await expect(
       reconciler.reconcile({
-        taskName: 'documents-index',
         desiredRevision: 'docs-index-v2',
         async run() {
           throw new Error('rebuild failed');
         },
+        taskName: 'documents-index',
       })
     ).rejects.toThrow('rebuild failed');
 
@@ -195,16 +195,16 @@ describe('TaskReconciler', () => {
     expect(failedState).toMatchObject({
       appliedRevision: 'docs-index-v1',
       lastAttemptedRevision: 'docs-index-v2',
-      status: 'failed',
       lastError: {
         message: 'rebuild failed',
       },
+      status: 'failed',
     });
 
     const retryResult = await reconciler.reconcile({
-      taskName: 'documents-index',
       desiredRevision: 'docs-index-v2',
       async run() {},
+      taskName: 'documents-index',
     });
 
     expect(retryResult.outcome).toBe('executed');
@@ -221,20 +221,20 @@ describe('TaskReconciler', () => {
     let runCount = 0;
 
     await reconciler.reconcile({
-      taskName: 'cache-rebuild',
       desiredRevision: 'cache-v1',
       async run() {
         runCount += 1;
       },
+      taskName: 'cache-rebuild',
     });
 
     const result = await reconciler.reconcile({
-      taskName: 'cache-rebuild',
       desiredRevision: 'cache-v1',
       force: true,
       async run() {
         runCount += 1;
       },
+      taskName: 'cache-rebuild',
     });
 
     expect(result.outcome).toBe('executed');
@@ -251,12 +251,12 @@ describe('TaskReconciler', () => {
     });
 
     await reconciler.reconcile({
-      taskName: 'backfill-users',
       desiredRevision: 'backfill-v1',
       async run(ctx) {
         const refreshed = await ctx.refreshLease();
         expect(refreshed).toBe(true);
       },
+      taskName: 'backfill-users',
     });
 
     const state = await reconciler.getState('backfill-users');
@@ -268,11 +268,11 @@ describe('TaskReconciler', () => {
   it('rechecks state after lock acquisition so concurrent callers do not double-run', async () => {
     const kv = new InMemoryKeyValueService();
     const mutex = new KvMutex<string>(kv, {
+      jitterMs: 1,
       prefix: '',
-      ttlSeconds: 5,
       retries: 200,
       retryDelayMs: 1,
-      jitterMs: 1,
+      ttlSeconds: 5,
     });
     const reconciler = new TaskReconciler({
       kv,
@@ -290,23 +290,23 @@ describe('TaskReconciler', () => {
     });
 
     const first = reconciler.reconcile({
-      taskName: 'search-sync',
       desiredRevision: 'search-v1',
       async run() {
         runCount += 1;
         markFirstRunStarted();
         await firstRunCanFinish;
       },
+      taskName: 'search-sync',
     });
 
     await firstRunStarted;
 
     const second = reconciler.reconcile({
-      taskName: 'search-sync',
       desiredRevision: 'search-v1',
       async run() {
         runCount += 1;
       },
+      taskName: 'search-sync',
     });
 
     releaseFirstRun();
@@ -326,19 +326,19 @@ describe('TaskReconciler', () => {
       mutex: new RecordingMutex(),
       tasks: [
         {
-          taskName: 'documents-index',
+          metadata: { scope: 'documents' },
           resolveDesiredRevision() {
             return 'docs-index-v1';
           },
-          metadata: { scope: 'documents' },
           async run() {},
+          taskName: 'documents-index',
         },
         {
-          taskName: 'cache-rebuild',
           resolveDesiredRevision() {
             return 'cache-v1';
           },
           async run() {},
+          taskName: 'cache-rebuild',
         },
       ],
     });
@@ -347,23 +347,23 @@ describe('TaskReconciler', () => {
 
     expect(initial.summary).toEqual({
       checked: 2,
+      failed: 0,
       stale: 2,
       upToDate: 0,
-      failed: 0,
     });
     expect(initial.results).toMatchObject([
       {
-        taskName: 'documents-index',
         desiredRevision: 'docs-index-v1',
-        shouldReconcile: true,
-        reason: 'missing',
         metadata: { scope: 'documents' },
+        reason: 'missing',
+        shouldReconcile: true,
+        taskName: 'documents-index',
       },
       {
-        taskName: 'cache-rebuild',
         desiredRevision: 'cache-v1',
-        shouldReconcile: true,
         reason: 'missing',
+        shouldReconcile: true,
+        taskName: 'cache-rebuild',
       },
     ]);
 
@@ -373,20 +373,20 @@ describe('TaskReconciler', () => {
 
     expect(afterSingleTask.summary).toEqual({
       checked: 2,
+      failed: 0,
       stale: 1,
       upToDate: 1,
-      failed: 0,
     });
     expect(afterSingleTask.results).toMatchObject([
       {
-        taskName: 'documents-index',
         reason: 'up-to-date',
         shouldReconcile: false,
+        taskName: 'documents-index',
       },
       {
-        taskName: 'cache-rebuild',
         reason: 'missing',
         shouldReconcile: true,
+        taskName: 'cache-rebuild',
       },
     ]);
   });
@@ -401,22 +401,22 @@ describe('TaskReconciler', () => {
       mutex: new RecordingMutex(),
       tasks: [
         {
-          taskName: 'documents-index',
           resolveDesiredRevision() {
             return documentsRevision;
           },
           async run() {
             documentsRunCount += 1;
           },
+          taskName: 'documents-index',
         },
         {
-          taskName: 'cache-rebuild',
           resolveDesiredRevision() {
             return 'cache-v1';
           },
           async run() {
             cacheRunCount += 1;
           },
+          taskName: 'cache-rebuild',
         },
       ],
     });
@@ -426,8 +426,8 @@ describe('TaskReconciler', () => {
     expect(first.summary).toEqual({
       checked: 2,
       executed: 2,
-      skipped: 0,
       failed: 0,
+      skipped: 0,
     });
     expect(documentsRunCount).toBe(1);
     expect(cacheRunCount).toBe(1);
@@ -439,20 +439,20 @@ describe('TaskReconciler', () => {
     expect(second.summary).toEqual({
       checked: 2,
       executed: 1,
-      skipped: 1,
       failed: 0,
+      skipped: 1,
     });
     expect(second.results).toMatchObject([
       {
-        taskName: 'documents-index',
         desiredRevision: 'docs-index-v2',
         outcome: 'executed',
+        taskName: 'documents-index',
       },
       {
-        taskName: 'cache-rebuild',
         desiredRevision: 'cache-v1',
         outcome: 'skipped',
         reason: 'up-to-date',
+        taskName: 'cache-rebuild',
       },
     ]);
     expect(documentsRunCount).toBe(2);
@@ -467,31 +467,31 @@ describe('TaskReconciler', () => {
       mutex: new RecordingMutex(),
       tasks: [
         {
-          taskName: 'documents-index',
           resolveDesiredRevision() {
             return 'docs-index-v1';
           },
           async run() {
             executedTasks.push('documents-index');
           },
+          taskName: 'documents-index',
         },
         {
-          taskName: 'cache-rebuild',
           resolveDesiredRevision() {
             return 'cache-v1';
           },
           async run() {
             throw new Error('cache rebuild failed');
           },
+          taskName: 'cache-rebuild',
         },
         {
-          taskName: 'search-sync',
           resolveDesiredRevision() {
             return 'search-v1';
           },
           async run() {
             executedTasks.push('search-sync');
           },
+          taskName: 'search-sync',
         },
       ],
     });
@@ -501,25 +501,25 @@ describe('TaskReconciler', () => {
     expect(result.summary).toEqual({
       checked: 3,
       executed: 2,
-      skipped: 0,
       failed: 1,
+      skipped: 0,
     });
     expect(executedTasks).toEqual(['documents-index', 'search-sync']);
     expect(result.results).toMatchObject([
       {
-        taskName: 'documents-index',
         outcome: 'executed',
+        taskName: 'documents-index',
       },
       {
-        taskName: 'cache-rebuild',
-        outcome: 'failed',
         error: {
           message: 'cache rebuild failed',
         },
+        outcome: 'failed',
+        taskName: 'cache-rebuild',
       },
       {
-        taskName: 'search-sync',
         outcome: 'executed',
+        taskName: 'search-sync',
       },
     ]);
     expect(await reconciler.getState('cache-rebuild')).toMatchObject({
@@ -537,13 +537,13 @@ describe('TaskReconciler', () => {
       mutex: new RecordingMutex(),
       tasks: [
         {
-          taskName: 'documents-index',
           resolveDesiredRevision() {
             return 'docs-index-v1';
           },
           async run() {
             runCount += 1;
           },
+          taskName: 'documents-index',
         },
       ],
     });
@@ -555,20 +555,19 @@ describe('TaskReconciler', () => {
       ],
       secrets: ['service-secret'],
     });
-    const fetchMock: typeof fetch = async (input, init) => {
-      return await handler(new Request(String(input), init));
-    };
+    const fetchMock: typeof fetch = async (input, init) =>
+      await handler(new Request(String(input), init));
 
     const checkResponse = await sendServiceIngress({
-      url: 'https://example.com/api/internal/service-ingress',
-      secret: 'service-secret',
+      fetch: fetchMock,
       ingress: defineTaskReconcilerServiceIngress({
         reconciler,
       }),
       params: {
         mode: 'check',
       },
-      fetch: fetchMock,
+      secret: 'service-secret',
+      url: 'https://example.com/api/internal/service-ingress',
     });
 
     expect(await checkResponse.json()).toMatchObject({
@@ -576,23 +575,23 @@ describe('TaskReconciler', () => {
       result: {
         summary: {
           checked: 1,
+          failed: 0,
           stale: 1,
           upToDate: 0,
-          failed: 0,
         },
       },
     });
 
     const reconcileResponse = await sendServiceIngress({
-      url: 'https://example.com/api/internal/service-ingress',
-      secret: 'service-secret',
+      fetch: fetchMock,
       ingress: defineTaskReconcilerServiceIngress({
         reconciler,
       }),
       params: {
         mode: 'reconcile',
       },
-      fetch: fetchMock,
+      secret: 'service-secret',
+      url: 'https://example.com/api/internal/service-ingress',
     });
 
     expect(await reconcileResponse.json()).toMatchObject({
@@ -601,8 +600,8 @@ describe('TaskReconciler', () => {
         summary: {
           checked: 1,
           executed: 1,
-          skipped: 0,
           failed: 0,
+          skipped: 0,
         },
       },
     });
@@ -612,11 +611,11 @@ describe('TaskReconciler', () => {
   it('rechecks state during concurrent reconcileAll sweeps so a stale task runs once', async () => {
     const kv = new InMemoryKeyValueService();
     const mutex = new KvMutex<string>(kv, {
+      jitterMs: 1,
       prefix: '',
-      ttlSeconds: 5,
       retries: 200,
       retryDelayMs: 1,
-      jitterMs: 1,
+      ttlSeconds: 5,
     });
     let runCount = 0;
     let markFirstRunStarted = () => {};
@@ -634,7 +633,6 @@ describe('TaskReconciler', () => {
       mutex,
       tasks: [
         {
-          taskName: 'search-sync',
           resolveDesiredRevision() {
             return 'search-v1';
           },
@@ -643,6 +641,7 @@ describe('TaskReconciler', () => {
             markFirstRunStarted();
             await firstRunCanFinish;
           },
+          taskName: 'search-sync',
         },
       ],
     });
@@ -660,14 +659,14 @@ describe('TaskReconciler', () => {
     expect(firstResult.summary).toEqual({
       checked: 1,
       executed: 1,
-      skipped: 0,
       failed: 0,
+      skipped: 0,
     });
     expect(secondResult.summary).toEqual({
       checked: 1,
       executed: 0,
-      skipped: 1,
       failed: 0,
+      skipped: 1,
     });
   });
 });

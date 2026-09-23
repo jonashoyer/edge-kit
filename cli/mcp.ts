@@ -35,51 +35,47 @@ const server = new Server(
   },
   {
     capabilities: {
-      tools: {},
-      resources: {},
       prompts: {},
+      resources: {},
+      tools: {},
     },
   }
 );
 
 // Tools
-server.setRequestHandler(ListToolsRequestSchema, async () => {
-  return {
-    tools: [
-      {
-        name: 'list_features',
-        description:
-          "Discover copy-paste-ready Edge Kit features. Returns services (e.g., 'stripe', 's3-storage'), utilities, and composers with their IDs and descriptions so you can choose what source code to copy into a target repository.",
-        inputSchema: {
-          type: 'object',
-          properties: {},
-        },
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
+  tools: [
+    {
+      description:
+        "Discover copy-paste-ready Edge Kit features. Returns services (e.g., 'stripe', 's3-storage'), utilities, and composers with their IDs and descriptions so you can choose what source code to copy into a target repository.",
+      inputSchema: {
+        properties: {},
+        type: 'object',
       },
-      {
-        name: 'get_feature',
-        description:
-          "Retrieve the complete source code, local dependencies, and required third-party npm packages for a specific feature by its ID (e.g., 'stripe'). Copy the returned files into the target codebase; do not import `edge-kit` as a package.",
-        inputSchema: {
-          type: 'object',
-          properties: {
-            feature_id: {
-              type: 'string',
-              description:
-                "The ID of the feature to retrieve (e.g., 'stripe', 'storage/s3-storage')",
-            },
+      name: 'list_features',
+    },
+    {
+      description:
+        "Retrieve the complete source code, local dependencies, and required third-party npm packages for a specific feature by its ID (e.g., 'stripe'). Copy the returned files into the target codebase; do not import `edge-kit` as a package.",
+      inputSchema: {
+        properties: {
+          feature_id: {
+            description:
+              "The ID of the feature to retrieve (e.g., 'stripe', 'storage/s3-storage')",
+            type: 'string',
           },
-          required: ['feature_id'],
         },
+        required: ['feature_id'],
+        type: 'object',
       },
-    ],
-  };
-});
+      name: 'get_feature',
+    },
+  ],
+}));
 
-server.setRequestHandler(ListPromptsRequestSchema, async () => {
-  return {
-    prompts: [COPY_PASTE_INTEGRATION_PROMPT],
-  };
-});
+server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+  prompts: [COPY_PASTE_INTEGRATION_PROMPT],
+}));
 
 server.setRequestHandler(GetPromptRequestSchema, async (request) => {
   if (request.params.name !== COPY_PASTE_INTEGRATION_PROMPT.name) {
@@ -93,14 +89,14 @@ server.setRequestHandler(GetPromptRequestSchema, async (request) => {
     description: COPY_PASTE_INTEGRATION_PROMPT.description,
     messages: [
       {
-        role: 'user',
         content: {
-          type: 'text',
           text: renderCopyPasteIntegrationPrompt({
             featureId,
             targetPath,
           }),
+          type: 'text',
         },
+        role: 'user',
       },
     ],
   };
@@ -115,8 +111,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return {
       content: [
         {
-          type: 'text',
           text: featureListToXml(features),
+          type: 'text',
         },
       ],
     };
@@ -144,8 +140,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return {
       content: [
         {
-          type: 'text',
           text: featureBundleToXml(bundle),
+          type: 'text',
         },
       ],
     };
@@ -155,28 +151,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 });
 
 // Resources
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  return {
-    resources: [
-      {
-        uri: 'edge-kit://guidelines/usage',
-        name: 'Usage Guidelines',
-        mimeType: 'text/markdown',
-        description:
-          'Instructions for copying Edge Kit feature bundles into a target codebase',
-      },
-    ],
-  };
-});
+server.setRequestHandler(ListResourcesRequestSchema, async () => ({
+  resources: [
+    {
+      description:
+        'Instructions for copying Edge Kit feature bundles into a target codebase',
+      mimeType: 'text/markdown',
+      name: 'Usage Guidelines',
+      uri: 'edge-kit://guidelines/usage',
+    },
+  ],
+}));
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   if (request.params.uri === 'edge-kit://guidelines/usage') {
     return {
       contents: [
         {
-          uri: 'edge-kit://guidelines/usage',
           mimeType: 'text/markdown',
           text: USAGE_GUIDELINES,
+          uri: 'edge-kit://guidelines/usage',
         },
       ],
     };

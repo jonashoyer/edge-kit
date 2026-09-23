@@ -37,8 +37,8 @@ export const dedupeBy = <T>(arr: T[], key: (item: T) => string) => {
 export const groupBy = <T>(
   arr: T[],
   key: (item: T) => string
-): Record<string, T[]> => {
-  return arr.reduce(
+): Record<string, T[]> =>
+  arr.reduce(
     (acc, item) => {
       const groupKey = key(item);
       if (!acc[groupKey]) {
@@ -49,7 +49,6 @@ export const groupBy = <T>(
     },
     {} as Record<string, T[]>
   );
-};
 
 type MapByBaseOptions<T, V> = {
   include?: (item: T) => boolean;

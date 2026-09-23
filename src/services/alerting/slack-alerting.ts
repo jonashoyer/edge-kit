@@ -35,7 +35,7 @@ export class SlackAlertingService extends AbstractAlertingService {
 
   async alert(message: string, options: AlertOptions): Promise<void> {
     const blocks = this.buildBlocks(message, options);
-    await this.notification.send({ channel: this.channel, blocks });
+    await this.notification.send({ blocks, channel: this.channel });
     this.logAlert(message, options);
   }
 
@@ -55,13 +55,13 @@ export class SlackAlertingService extends AbstractAlertingService {
 
   private collectFields(options: AlertOptions) {
     const base = [
-      { title: 'Severity', value: options.severity, short: true },
-      { title: 'Source', value: options.source ?? 'N/A', short: true },
+      { short: true, title: 'Severity', value: options.severity },
+      { short: true, title: 'Source', value: options.source ?? 'N/A' },
     ];
     const tags = Object.entries(options.tags ?? {}).map(([key, value]) => ({
+      short: true,
       title: key,
       value,
-      short: true,
     }));
     return [...(this.fields ?? []), ...base, ...tags];
   }
@@ -83,7 +83,7 @@ export class SlackAlertingService extends AbstractAlertingService {
 
   // Lightweight helpers aligned with SlackNotificationService
   private createSection(text: string): SlackBlock {
-    return { type: 'section', text: { type: 'mrkdwn', text } } as SlackBlock;
+    return { text: { text, type: 'mrkdwn' }, type: 'section' } as SlackBlock;
   }
 
   private createDivider(): SlackBlock {

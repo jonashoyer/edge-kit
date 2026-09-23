@@ -31,6 +31,7 @@ function getMinDent(lines: string[]) {
   let mindent: number | null = null;
   for (const line of lines) {
     const match = DENT_REGEX.exec(line);
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: RegExp.exec returns null for unindented or blank lines.
     if (match) {
       const indent = match[1]?.length ?? 0;
       mindent = mindent === null ? indent : Math.min(mindent, indent);

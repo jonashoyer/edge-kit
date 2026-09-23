@@ -18,9 +18,8 @@ import {
 
 const getCommandGlobalOptions = (
   command: Command
-): SkillsCommandGlobalOptions => {
-  return command.optsWithGlobals<SkillsCommandGlobalOptions>();
-};
+): SkillsCommandGlobalOptions =>
+  command.optsWithGlobals<SkillsCommandGlobalOptions>();
 
 const handleCommandError = (error: unknown): void => {
   const message = error instanceof Error ? error.message : String(error);

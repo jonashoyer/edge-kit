@@ -66,9 +66,8 @@ const normalizeTenantId = (
   return normalized.length > 0 ? normalized : null;
 };
 
-const toTenantKey = (tenantId: string | null | undefined): string => {
-  return normalizeTenantId(tenantId) ?? EMPTY_TENANT_KEY;
-};
+const toTenantKey = (tenantId: string | null | undefined): string =>
+  normalizeTenantId(tenantId) ?? EMPTY_TENANT_KEY;
 
 type StorageAssetRefTableDefinition<Dialect extends 'mysql' | 'pg' | 'sqlite'> =
   CreateTableConfig<
@@ -145,55 +144,54 @@ export type SQLiteStorageAssetRefTable = SQLiteTableWithColumns<
 
 export const createMySqlStorageAssetRefTable = (
   name = DEFAULT_TABLE_NAME
-): MySqlStorageAssetRefTable => {
-  return mysqlTable(
+): MySqlStorageAssetRefTable =>
+  mysqlTable(
     name,
     {
+      assetId: mysqlVarchar('asset_id', { length: 191 }).notNull(),
+      createdAt: mysqlTimestamp('created_at', {
+        fsp: 3,
+        mode: 'date',
+      }).notNull(),
+      ownerId: mysqlVarchar('owner_id', { length: 191 }).notNull(),
+      ownerType: mysqlVarchar('owner_type', { length: 191 }).notNull(),
       tenantId: mysqlVarchar('tenant_id', { length: 191 }),
       tenantKey: mysqlVarchar('tenant_key', { length: 191 }).notNull(),
-      assetId: mysqlVarchar('asset_id', { length: 191 }).notNull(),
-      ownerType: mysqlVarchar('owner_type', { length: 191 }).notNull(),
-      ownerId: mysqlVarchar('owner_id', { length: 191 }).notNull(),
-      createdAt: mysqlTimestamp('created_at', {
-        mode: 'date',
-        fsp: 3,
-      }).notNull(),
       updatedAt: mysqlTimestamp('updated_at', {
-        mode: 'date',
         fsp: 3,
+        mode: 'date',
       }).notNull(),
     },
     (table) => ({
+      assetIdIndex: mysqlIndex(`${name}_asset_lookup_idx`).on(
+        table.tenantKey,
+        table.assetId
+      ),
       ownerAssetUnique: mysqlUniqueIndex(`${name}_owner_asset_unique`).on(
         table.tenantKey,
         table.ownerType,
         table.ownerId,
         table.assetId
       ),
-      assetIdIndex: mysqlIndex(`${name}_asset_lookup_idx`).on(
-        table.tenantKey,
-        table.assetId
-      ),
     })
   ) as MySqlStorageAssetRefTable;
-};
 
 export const createPostgresStorageAssetRefTable = (
   name = DEFAULT_TABLE_NAME
-): PostgresStorageAssetRefTable => {
-  return pgTable(
+): PostgresStorageAssetRefTable =>
+  pgTable(
     name,
     {
-      tenantId: pgText('tenant_id'),
-      tenantKey: pgText('tenant_key').notNull(),
       assetId: pgText('asset_id').notNull(),
-      ownerType: pgText('owner_type').notNull(),
-      ownerId: pgText('owner_id').notNull(),
       createdAt: pgTimestamp('created_at', {
         mode: 'date',
         precision: 3,
         withTimezone: true,
       }).notNull(),
+      ownerId: pgText('owner_id').notNull(),
+      ownerType: pgText('owner_type').notNull(),
+      tenantId: pgText('tenant_id'),
+      tenantKey: pgText('tenant_key').notNull(),
       updatedAt: pgTimestamp('updated_at', {
         mode: 'date',
         precision: 3,
@@ -201,48 +199,46 @@ export const createPostgresStorageAssetRefTable = (
       }).notNull(),
     },
     (table) => ({
+      assetIdIndex: pgIndex(`${name}_asset_lookup_idx`).on(
+        table.tenantKey,
+        table.assetId
+      ),
       ownerAssetUnique: pgUniqueIndex(`${name}_owner_asset_unique`).on(
         table.tenantKey,
         table.ownerType,
         table.ownerId,
         table.assetId
       ),
-      assetIdIndex: pgIndex(`${name}_asset_lookup_idx`).on(
-        table.tenantKey,
-        table.assetId
-      ),
     })
   ) as PostgresStorageAssetRefTable;
-};
 
 export const createSqliteStorageAssetRefTable = (
   name = DEFAULT_TABLE_NAME
-): SQLiteStorageAssetRefTable => {
-  return sqliteTable(
+): SQLiteStorageAssetRefTable =>
+  sqliteTable(
     name,
     {
+      assetId: text('asset_id').notNull(),
+      createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
+      ownerId: text('owner_id').notNull(),
+      ownerType: text('owner_type').notNull(),
       tenantId: text('tenant_id'),
       tenantKey: text('tenant_key').notNull(),
-      assetId: text('asset_id').notNull(),
-      ownerType: text('owner_type').notNull(),
-      ownerId: text('owner_id').notNull(),
-      createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull(),
       updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull(),
     },
     (table) => ({
+      assetIdIndex: sqliteIndex(`${name}_asset_lookup_idx`).on(
+        table.tenantKey,
+        table.assetId
+      ),
       ownerAssetUnique: sqliteUniqueIndex(`${name}_owner_asset_unique`).on(
         table.tenantKey,
         table.ownerType,
         table.ownerId,
         table.assetId
       ),
-      assetIdIndex: sqliteIndex(`${name}_asset_lookup_idx`).on(
-        table.tenantKey,
-        table.assetId
-      ),
     })
   ) as SQLiteStorageAssetRefTable;
-};
 
 type StorageAssetRefRow = {
   tenantId: string | null;
@@ -284,12 +280,12 @@ class BaseDrizzleStorageAssetRefService<
     const { table } = this.internal;
 
     return {
+      assetId: table.assetId,
+      createdAt: table.createdAt,
+      ownerId: table.ownerId,
+      ownerType: table.ownerType,
       tenantId: table.tenantId,
       tenantKey: table.tenantKey,
-      assetId: table.assetId,
-      ownerType: table.ownerType,
-      ownerId: table.ownerId,
-      createdAt: table.createdAt,
       updatedAt: table.updatedAt,
     };
   }
@@ -297,10 +293,10 @@ class BaseDrizzleStorageAssetRefService<
   private toRecord(row: StorageAssetRefRow): StorageAssetOwnerRef {
     return {
       assetId: row.assetId,
-      ownerType: row.ownerType,
-      ownerId: row.ownerId,
-      tenantId: normalizeTenantId(row.tenantId),
       createdAt: row.createdAt,
+      ownerId: row.ownerId,
+      ownerType: row.ownerType,
+      tenantId: normalizeTenantId(row.tenantId),
       updatedAt: row.updatedAt,
     };
   }
@@ -312,12 +308,12 @@ class BaseDrizzleStorageAssetRefService<
     const tenantId = normalizeTenantId(input.tenantId);
 
     return {
+      assetId: normalizeRequiredString(input.assetId, 'assetId'),
+      createdAt: input.createdAt ?? existing?.createdAt ?? new Date(),
+      ownerId: normalizeRequiredString(input.ownerId, 'ownerId'),
+      ownerType: normalizeRequiredString(input.ownerType, 'ownerType'),
       tenantId,
       tenantKey: toTenantKey(tenantId),
-      assetId: normalizeRequiredString(input.assetId, 'assetId'),
-      ownerType: normalizeRequiredString(input.ownerType, 'ownerType'),
-      ownerId: normalizeRequiredString(input.ownerId, 'ownerId'),
-      createdAt: input.createdAt ?? existing?.createdAt ?? new Date(),
       updatedAt: input.updatedAt ?? new Date(),
     };
   }
@@ -362,7 +358,7 @@ class BaseDrizzleStorageAssetRefService<
       )
       .limit(1)
       .execute()) as StorageAssetRefRow[];
-    const row = rows[0];
+    const [row] = rows;
 
     return row ? this.toRecord(row) : null;
   }
@@ -460,9 +456,9 @@ class MySqlDrizzleStorageAssetRefService extends BaseDrizzleStorageAssetRefServi
       .values(row)
       .onDuplicateKeyUpdate({
         set: {
+          createdAt: row.createdAt,
           tenantId: row.tenantId,
           tenantKey: row.tenantKey,
-          createdAt: row.createdAt,
           updatedAt: row.updatedAt,
         },
       })
@@ -470,10 +466,10 @@ class MySqlDrizzleStorageAssetRefService extends BaseDrizzleStorageAssetRefServi
 
     return {
       assetId: row.assetId,
-      ownerType: row.ownerType,
-      ownerId: row.ownerId,
-      tenantId: row.tenantId,
       createdAt: row.createdAt,
+      ownerId: row.ownerId,
+      ownerType: row.ownerType,
+      tenantId: row.tenantId,
       updatedAt: row.updatedAt,
     };
   }
@@ -490,27 +486,27 @@ class PostgresDrizzleStorageAssetRefService extends BaseDrizzleStorageAssetRefSe
       .insert(this.table)
       .values(row)
       .onConflictDoUpdate({
+        set: {
+          createdAt: row.createdAt,
+          tenantId: row.tenantId,
+          tenantKey: row.tenantKey,
+          updatedAt: row.updatedAt,
+        },
         target: [
           this.table.tenantKey,
           this.table.ownerType,
           this.table.ownerId,
           this.table.assetId,
         ],
-        set: {
-          tenantId: row.tenantId,
-          tenantKey: row.tenantKey,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        },
       })
       .execute();
 
     return {
       assetId: row.assetId,
-      ownerType: row.ownerType,
-      ownerId: row.ownerId,
-      tenantId: row.tenantId,
       createdAt: row.createdAt,
+      ownerId: row.ownerId,
+      ownerType: row.ownerType,
+      tenantId: row.tenantId,
       updatedAt: row.updatedAt,
     };
   }
@@ -527,27 +523,27 @@ class SqliteDrizzleStorageAssetRefService extends BaseDrizzleStorageAssetRefServ
       .insert(this.table)
       .values(row)
       .onConflictDoUpdate({
+        set: {
+          createdAt: row.createdAt,
+          tenantId: row.tenantId,
+          tenantKey: row.tenantKey,
+          updatedAt: row.updatedAt,
+        },
         target: [
           this.table.tenantKey,
           this.table.ownerType,
           this.table.ownerId,
           this.table.assetId,
         ],
-        set: {
-          tenantId: row.tenantId,
-          tenantKey: row.tenantKey,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-        },
       })
       .run();
 
     return {
       assetId: row.assetId,
-      ownerType: row.ownerType,
-      ownerId: row.ownerId,
-      tenantId: row.tenantId,
       createdAt: row.createdAt,
+      ownerId: row.ownerId,
+      ownerType: row.ownerType,
+      tenantId: row.tenantId,
       updatedAt: row.updatedAt,
     };
   }

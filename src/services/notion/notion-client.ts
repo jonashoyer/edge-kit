@@ -146,6 +146,7 @@ export class NotionClient {
     options: NotionClientOptions = {}
   ) {
     if (typeof apiKeyOrOptions !== 'string') {
+      // biome-ignore lint/suspicious/noUnnecessaryConditions: Runtime callers can bypass the options type; pagination terminates on the returned cursor.
       if (apiKeyOrOptions.readOnly) {
         throw new NotionError(
           'readOnly requires a managed SDK client',
@@ -185,9 +186,9 @@ export class NotionClient {
   ): Promise<CreatePageResponse> {
     if (typeof optionsOrDatabaseId === 'string') {
       return this.client.pages.create({
+        markdown,
         parent: { database_id: optionsOrDatabaseId },
         properties,
-        markdown,
       });
     }
 
@@ -215,6 +216,7 @@ export class NotionClient {
     const seenCursors = new Set<string>();
     let cursor: string | undefined = startCursor;
 
+    // biome-ignore lint/suspicious/noUnnecessaryConditions: Runtime callers can bypass the options type; pagination terminates on the returned cursor.
     while (true) {
       if (cursor) {
         if (seenCursors.has(cursor))
@@ -224,12 +226,13 @@ export class NotionClient {
           );
         seenCursors.add(cursor);
       }
+      // biome-ignore lint/performance/noAwaitInLoops: The next request needs the cursor returned by this page.
       const response = await fn(cursor);
       pages.push(response.data);
       if (!response.cursor) {
         return pages;
       }
-      cursor = response.cursor;
+      ({ cursor } = response);
     }
   }
 
@@ -397,7 +400,7 @@ export class NotionClient {
     ];
     return this.queryDataSource(databaseId, {
       filter: filters.length > 0 ? { and: filters } : undefined,
-      sorts: [{ timestamp: 'last_edited_time', direction: 'descending' }],
+      sorts: [{ direction: 'descending', timestamp: 'last_edited_time' }],
       start_cursor: options?.cursor,
     });
   }
@@ -418,12 +421,12 @@ export class NotionClient {
     const queryOptions: QueryDataSourceOptions = {
       ...sdkOptions,
       filter: withLastEditedLowerBound(options.filter, since),
-      sorts: [{ timestamp: 'last_edited_time', direction: 'ascending' }],
+      sorts: [{ direction: 'ascending', timestamp: 'last_edited_time' }],
     };
     const results = await this.queryDataSource(dataSourceId, queryOptions);
     const highWaterTimestamp = getHighWaterTimestamp(results);
 
-    return { results, highWaterTimestamp };
+    return { highWaterTimestamp, results };
   }
 
   /**

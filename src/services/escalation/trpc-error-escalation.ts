@@ -14,7 +14,7 @@ export type TrpcOnErrorParams<TContext = unknown> = {
 };
 
 type ErrorEscalationCapture = {
-  capture(error: unknown, config: CaptureConfig): Promise<unknown>;
+  capture: (error: unknown, config: CaptureConfig) => Promise<unknown>;
 };
 
 export type TrpcErrorEscalationOptions<TContext> = {
@@ -39,8 +39,8 @@ const HTTP_STATUS_BY_CODE: Record<string, number> = {
   NOT_FOUND: 404,
   NOT_IMPLEMENTED: 501,
   PARSE_ERROR: 400,
-  PAYMENT_REQUIRED: 402,
   PAYLOAD_TOO_LARGE: 413,
+  PAYMENT_REQUIRED: 402,
   PRECONDITION_FAILED: 412,
   SERVICE_UNAVAILABLE: 503,
   TIMEOUT: 408,
@@ -54,14 +54,14 @@ const ONE_HOUR_SECONDS = 60 * 60;
 const ONE_DAY_SECONDS = 24 * ONE_HOUR_SECONDS;
 const DEFAULT_CLIENT_ERROR_RULES: EscalationRule[] = [
   {
-    type: 'threshold',
-    count: 3,
-    windowSeconds: ONE_HOUR_SECONDS,
     cooldownSeconds: ONE_DAY_SECONDS,
+    count: 3,
+    type: 'threshold',
+    windowSeconds: ONE_HOUR_SECONDS,
   },
 ];
 const DEFAULT_SERVER_ERROR_RULES: EscalationRule[] = [
-  { type: 'always', intervalSeconds: ONE_DAY_SECONDS },
+  { intervalSeconds: ONE_DAY_SECONDS, type: 'always' },
 ];
 const NUMBER_SEQUENCE = /\d+/g;
 const WHITESPACE_SEQUENCE = /\s+/g;
@@ -123,16 +123,16 @@ export const createTrpcErrorEscalationHandler =
     const fingerprint = getTrpcErrorFingerprint(params);
 
     await escalation.capture(params.error, {
-      name: `tRPC ${status >= 500 ? 'server' : 'client'} error`,
-      severity: 'error',
       groupId: fingerprint,
       message: `HTTP ${status}, procedure: ${params.path ?? 'unknown'}, type: ${params.type ?? 'unknown'}`,
+      name: `tRPC ${status >= 500 ? 'server' : 'client'} error`,
+      rules: status >= 500 ? serverErrorRules : clientErrorRules,
+      severity: 'error',
       tags: {
         environment,
         path: params.path ?? 'unknown',
         status: String(status),
         trpcCode: params.error.code,
       },
-      rules: status >= 500 ? serverErrorRules : clientErrorRules,
     });
   };

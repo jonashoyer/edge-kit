@@ -148,8 +148,8 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavors> {
           ...data,
         })
         .onConflictDoUpdate({
-          target: [table.name],
           set,
+          target: [table.name],
         });
     } else if (is(this._db, BaseSQLiteDatabase)) {
       const table = this._table as unknown as SQLiteDataMigrationTable;
@@ -161,8 +161,8 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavors> {
           ...data,
         })
         .onConflictDoUpdate({
-          target: [table.name],
           set,
+          target: [table.name],
         });
     }
   }
@@ -190,9 +190,10 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavors> {
           throw new Error(`Migration function not found: ${migration.name}`);
         }
 
+        // biome-ignore lint/performance/noAwaitInLoops: Migrations must finish in declared order before the next script starts.
         await this.insert(
           migration,
-          { startedAt, completedAt: null, error: null, meta: {} },
+          { completedAt: null, error: null, meta: {}, startedAt },
           { startedAt }
         );
 
@@ -214,7 +215,7 @@ export class DrizzleDataMigrationService<SqlFlavor extends SqlFlavors> {
         const date = new Date();
         await this.insert(
           migration,
-          { startedAt, completedAt: date, error: errorMessage, meta: {} },
+          { completedAt: date, error: errorMessage, meta: {}, startedAt },
           { completedAt: date, error: errorMessage }
         );
       }

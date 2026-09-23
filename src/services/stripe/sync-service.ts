@@ -5,9 +5,9 @@ import type { AbstractStripeStore } from './abstract-stripe-store';
 import type { StripeSubscription } from './types';
 
 export class StripeSyncService {
-  private store: AbstractStripeStore;
-  private stripe: Stripe;
-  private logger: AbstractLogger | undefined;
+  private readonly store: AbstractStripeStore;
+  private readonly stripe: Stripe;
+  private readonly logger: AbstractLogger | undefined;
 
   constructor(
     store: AbstractStripeStore,
@@ -29,9 +29,9 @@ export class StripeSyncService {
       // Fetch latest subscription data from Stripe
       const subscriptions = await this.stripe.subscriptions.list({
         customer: customerId,
+        expand: ['data.default_payment_method'],
         limit: 1,
         status: 'all',
-        expand: ['data.default_payment_method'],
       });
 
       // If no subscriptions, store a "none" status
@@ -42,17 +42,13 @@ export class StripeSyncService {
       }
 
       // Get the subscription (we're assuming one subscription per customer)
-      const subscription = subscriptions.data[0];
+      const [subscription] = subscriptions.data;
 
       // Extract and store the subscription data
       const subData: StripeSubscription = {
-        subscriptionId: subscription.id,
-        subscriptionItemId: subscription.items.data[0]?.id,
-        status: subscription.status,
-        priceId: subscription.items.data[0].price.id,
-        currentPeriodStart: subscription.current_period_start,
-        currentPeriodEnd: subscription.current_period_end,
         cancelAtPeriodEnd: subscription.cancel_at_period_end,
+        currentPeriodEnd: subscription.current_period_end,
+        currentPeriodStart: subscription.current_period_start,
         paymentMethod:
           subscription.default_payment_method &&
           typeof subscription.default_payment_method !== 'string'
@@ -61,6 +57,10 @@ export class StripeSyncService {
                 last4: subscription.default_payment_method.card?.last4 ?? null,
               }
             : null,
+        priceId: subscription.items.data[0].price.id,
+        status: subscription.status,
+        subscriptionId: subscription.id,
+        subscriptionItemId: subscription.items.data[0]?.id,
       };
 
       // Store the data in the data store
@@ -68,8 +68,8 @@ export class StripeSyncService {
       return subData;
     } catch (error) {
       this.logger?.error('Error syncing Stripe data to KV', {
-        error,
         customerId,
+        error,
       });
       throw error;
     }

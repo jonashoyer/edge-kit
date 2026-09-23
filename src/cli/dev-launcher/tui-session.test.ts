@@ -1,17 +1,20 @@
+import type { ReactElement } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { DevActionOrchestrationResult } from './action-orchestrator';
 import type { ResolvedDevAction } from './action-runner';
 import type { DevLauncherProcessController } from './process-manager';
 import { startDevLauncherTuiSession } from './tui';
 import type {
-  DevActionRunExecutionResult,
   LoadedDevLauncherManifest,
   ManagedDevServiceState,
 } from './types';
 
 const { renderMock } = vi.hoisted(() => ({
-  renderMock: vi.fn(() => ({
-    unmount: vi.fn(),
-  })),
+  renderMock: vi.fn(
+    (_app: ReactElement<{ onExitCode: (code: number) => void }>) => ({
+      unmount: vi.fn(),
+    })
+  ),
 }));
 
 vi.mock('ink', () => ({
@@ -78,16 +81,18 @@ const createRuntime = (controller: DevLauncherProcessController) => ({
   listActions: vi.fn(async (): Promise<ResolvedDevAction[]> => []),
   openExternalUrl: vi.fn(async () => undefined),
   runDevAction: vi.fn(
-    async (): Promise<DevActionRunExecutionResult> => ({
-      action: {
-        available: true,
-        id: 'noop',
-        impactPolicy: 'parallel',
-        label: 'No-op',
-        suggestInDev: false,
+    async (): Promise<DevActionOrchestrationResult> => ({
+      execution: {
+        action: {
+          available: true,
+          id: 'noop',
+          impactPolicy: 'parallel',
+          label: 'No-op',
+          suggestInDev: false,
+        },
+        forced: false,
+        summary: 'No-op.',
       },
-      forced: false,
-      summary: 'No-op.',
     })
   ),
   stderr: process.stderr,
@@ -126,6 +131,9 @@ describe('startDevLauncherTuiSession', () => {
     const renderedApp = renderMock.mock.calls[0]?.[0];
     expect(renderedApp?.props.onExitCode).toBeTypeOf('function');
 
+    if (!renderedApp) {
+      throw new Error('Expected rendered app');
+    }
     renderedApp.props.onExitCode(0);
 
     await expect(sessionPromise).resolves.toBe(0);
