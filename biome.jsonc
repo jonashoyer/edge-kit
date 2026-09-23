@@ -27,6 +27,8 @@
         "noImgElement": "off"
       },
       "suspicious": {
+        "noShadow": "off",
+        "noLeakedRender": "off",
         "noUnknownAtRules": "off",
         "noArrayIndexKey": "off",
         "noEmptyBlockStatements": "off",
@@ -39,9 +41,7 @@
         "useImageSize": "off"
       },
       "nursery": {
-        "noShadow": "off",
-        "useSortedClasses": "warn",
-        "noLeakedRender": "off"
+        "useSortedClasses": "warn"
       }
     }
   }

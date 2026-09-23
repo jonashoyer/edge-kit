@@ -1,25 +1,31 @@
-import { bench, describe } from 'vitest';
+import { type BenchRegistration, test } from 'vitest';
 import { fnv1a64B64 } from '../crypto-utils';
 import { tpl } from './tpl';
 
-describe('tpl function benchmarks', () => {
+test('tpl function benchmarks', async ({ bench }) => {
+  const benchmarks: BenchRegistration<string>[] = [];
   // Simple template benchmark
-  bench('simple template', () => {
-    tpl`Hello world`;
-  });
+  benchmarks.push(
+    bench('simple template', () => {
+      tpl`Hello world`;
+    })
+  );
 
   // Template with interpolation
-  bench('template with interpolation', () => {
-    const value = 'world';
-    tpl`Hello ${value}`;
-  });
+  benchmarks.push(
+    bench('template with interpolation', () => {
+      const value = 'world';
+      tpl`Hello ${value}`;
+    })
+  );
 
   // Complex template with multiple interpolations
-  bench('complex template', () => {
-    const date = new Date().toISOString();
-    const random = Math.random();
+  benchmarks.push(
+    bench('complex template', () => {
+      const date = new Date().toISOString();
+      const random = Math.random();
 
-    tpl`
+      tpl`
       # System prompt
       You are a helpful assistant.
       
@@ -34,18 +40,23 @@ describe('tpl function benchmarks', () => {
       The current time is: ${date}
       Random value: ${random}
     `;
-  });
+    })
+  );
 
   // Compare with direct hashing
-  bench('full tpl process with hash', () => {
-    const value = 'beautiful';
-    const result = tpl`Hello ${value} world`;
-    tpl.getHash(result);
-  });
+  benchmarks.push(
+    bench('full tpl process with hash', () => {
+      const value = 'beautiful';
+      const result = tpl`Hello ${value} world`;
+      tpl.getHash(result);
+    })
+  );
 
-  bench('direct hash only', () => {
-    fnv1a64B64('Hello _TPL$_ world');
-  });
+  benchmarks.push(
+    bench('direct hash only', () => {
+      fnv1a64B64('Hello _TPL$_ world');
+    })
+  );
 
   // Large template benchmarks
   const largeTemplate = (() => {
@@ -56,16 +67,23 @@ describe('tpl function benchmarks', () => {
     return template;
   })();
 
-  bench('direct hash large text (L100 C3000)', () => {
-    fnv1a64B64(largeTemplate);
-  });
+  benchmarks.push(
+    bench('direct hash large text (L100 C3000)', () => {
+      fnv1a64B64(largeTemplate);
+    })
+  );
 
-  bench('large raw string (L100 C3000)', () => {
-    tpl(largeTemplate);
-  });
+  benchmarks.push(
+    bench('large raw string (L100 C3000)', () => {
+      tpl(largeTemplate);
+    })
+  );
 
-  bench('large template with interpolation', () => {
-    const dynamic = 'dynamic value';
-    tpl`${largeTemplate}${dynamic}`;
-  });
+  benchmarks.push(
+    bench('large template with interpolation', () => {
+      const dynamic = 'dynamic value';
+      tpl`${largeTemplate}${dynamic}`;
+    })
+  );
+  await bench.compare(...benchmarks);
 });

@@ -1,5 +1,4 @@
-import { Innertube } from 'youtubei.js';
-import type { Thumbnail } from 'youtubei.js/dist/src/parser/misc';
+import { Innertube, type Misc } from 'youtubei.js';
 
 import type { PunctuatorService } from './punctuator-service';
 
@@ -11,7 +10,7 @@ export interface YoutubeTranscriptSourceMetadata {
   } | null;
   videoId: string;
   duration: number | undefined;
-  thumbnail: Thumbnail[] | undefined;
+  thumbnail: Misc.Thumbnail[] | undefined;
   description: string | undefined;
   keywords: string[] | undefined;
 }

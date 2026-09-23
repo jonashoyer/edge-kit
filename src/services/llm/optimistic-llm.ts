@@ -1,6 +1,6 @@
 import { type LanguageModel, streamObject, streamText } from 'ai';
 import { z } from 'zod';
-import type { JSONSchema } from 'zod/v4/core/json-schema';
+import type { JSONSchema } from 'zod/v4/core';
 import { fnv1a64B64 } from '../../utils/crypto-utils';
 import { stableStringify } from '../../utils/object-utils';
 import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
@@ -169,7 +169,7 @@ export class OptimisticLlmService {
    * Computes a stable hash for a given Zod schema by extracting a serializable descriptor.
    * Falls back to description/constructor name if extraction fails.
    */
-  private hashSchema(schema: JSONSchema): string {
+  private hashSchema(schema: JSONSchema.JSONSchema): string {
     return fnv1a64B64(stableStringify(schema));
   }
 

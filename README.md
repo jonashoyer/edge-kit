@@ -24,8 +24,21 @@ importable runtime package.
 
 ### Prerequisites
 
-- Node.js (v18+)
-- TypeScript (v5.0+)
+- Node.js 24 LTS for repository development, pinned in `.node-version`.
+- Use the pnpm version pinned in `package.json`.
+
+Run `pnpm type-check` for library and CLI code, and `pnpm type-check:tests`
+for tests and Vitest configuration. The separate test type-check currently
+reports errors in existing test fixtures and mocks. `pnpm test:run` runs the test suite;
+`pnpm test:coverage` includes V8 coverage.
+
+The repository uses TypeScript with bundler module resolution for its tsx and
+bundled workflows. Copied modules should use the consuming project's runtime
+and TypeScript configuration.
+
+Type-checking uses TypeScript 7. The MCP CLI uses the `typescript-api` alias
+for TypeScript 6 because TypeScript 7 does not expose the JavaScript compiler
+API required to parse source files.
 
 ### Usage Guide
 

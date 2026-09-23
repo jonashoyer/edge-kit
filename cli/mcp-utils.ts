@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import ts from 'typescript';
+import ts from 'typescript-api';
 import { jsonToXml } from '../src/utils/markdown-utils.js';
 import { getNormalizedRelativePath } from '../src/utils/path-utils.js';
 

@@ -14,21 +14,24 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "check": "ultracite check",
-    "fix": "ultracite fix"
+    "fix": "ultracite fix",
+    "type-check:tests": "tsc --project tsconfig.tests.json"
   },
   "devDependencies": {
     "@azure/arm-compute": "^23.3.0",
     "@azure/identity": "^4.13.0",
-    "@biomejs/biome": "2.3.12",
-    "@types/node": "^22.7.5",
+    "@biomejs/biome": "2.5.14",
+    "@types/node": "^24.13.6",
     "@types/prompts": "^2.4.9",
-    "@vitest/ui": "^3.2.4",
+    "@vitest/coverage-v8": "^5.0.1",
+    "@vitest/ui": "^5.0.1",
     "ink-testing-library": "^4.0.0",
     "next": "^15.4.5",
-    "tsx": "^4.21.0",
-    "typescript": "^5.9.2",
-    "ultracite": "7.1.1",
-    "vitest": "^3.2.4"
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "typescript-api": "npm:typescript@6.0.3",
+    "ultracite": "7.12.0",
+    "vitest": "^5.0.1"
   },
   "dependencies": {
     "@ai-sdk/openai": "^3.0.18",
@@ -76,5 +79,8 @@
     "youtubei.js": "^13.4.0",
     "zod": "^4.0.15"
   },
-  "packageManager": "pnpm@10.5.2+sha512.da9dc28cd3ff40d0592188235ab25d3202add8a207afbedc682220e4a0029ffbff4562102b9e6e46b4e3f9e8bd53e6d05de48544b0c57d4b0179e22c76d1199b"
+  "packageManager": "pnpm@10.5.2+sha512.da9dc28cd3ff40d0592188235ab25d3202add8a207afbedc682220e4a0029ffbff4562102b9e6e46b4e3f9e8bd53e6d05de48544b0c57d4b0179e22c76d1199b",
+  "engines": {
+    "node": "^24.0.0"
+  }
 }

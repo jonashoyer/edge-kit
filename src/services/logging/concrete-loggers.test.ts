@@ -3,9 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const ingestMock = vi.fn();
 vi.mock('@axiomhq/js', () => {
   return {
-    Axiom: vi.fn(() => ({
-      ingest: ingestMock,
-    })),
+    Axiom: vi.fn(
+      class {
+        ingest = ingestMock;
+      }
+    ),
   };
 });
 
