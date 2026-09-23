@@ -88,7 +88,7 @@ export interface ApolloSequenceSearchResponse {
     total_pages?: number;
     total_entries?: number;
   };
-  breadcrumbs?: Array<Record<string, unknown>>;
+  breadcrumbs?: Record<string, unknown>[];
 }
 
 export interface ApolloClientOptions {

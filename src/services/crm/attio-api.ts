@@ -1,6 +1,12 @@
-const DEFAULT_ATTIO_BASE_URL = 'https://api.attio.com/v2';
+import { fetchExt } from '../../utils/fetch-utils';
 
-export type AttioObjectSlug = 'people' | 'companies' | string;
+const DEFAULT_ATTIO_BASE_URL = 'https://api.attio.com/v2';
+const ATTIO_REQUEST_TIMEOUT_MS = 20_000;
+const ATTIO_RETRY_DELAY_MS = 750;
+const ATTIO_IDEMPOTENT_RETRY_COUNT = 3;
+const ATTIO_RETRY_HTTP_STATUSES = [429, 503] as const;
+
+export type AttioObjectSlug = 'people' | 'companies' | 'deals' | (string & {});
 
 export interface AttioObjectMeta {
   id: string;
@@ -211,7 +217,7 @@ export interface AttioFilterCondition {
  * }
  */
 export interface AttioPathFilter {
-  path: Array<[string, string]>;
+  path: [string, string][];
   constraints: Record<string, unknown>;
 }
 
@@ -304,7 +310,7 @@ export interface AttioQuerySort {
   direction: AttioSortDirection;
   attribute?: string;
   field?: string;
-  path?: Array<[string, string]>;
+  path?: [string, string][];
 }
 
 export interface QueryRecordsRequest {
@@ -415,10 +421,11 @@ export class AttioAPI {
   }
 
   async getObject(object: AttioObjectSlug): Promise<AttioObjectMeta> {
-    const res = await this.request(
-      `${this.baseUrl}/objects/${encodeURIComponent(object)}`
+    const res = await this.request<{ data: AttioObjectMeta }>(
+      `${this.baseUrl}/objects/${encodeURIComponent(object)}`,
+      { retries: ATTIO_IDEMPOTENT_RETRY_COUNT }
     );
-    return res.data as AttioObjectMeta;
+    return res.data;
   }
 
   async assertRecord<
@@ -428,14 +435,16 @@ export class AttioAPI {
     object: AttioObjectSlug,
     values: TRequestValues
   ): Promise<CreateRecordResponse<TValuesMap>> {
-    const res = await this.request(
+    return await this.request<CreateRecordResponse<TValuesMap>>(
       `${this.baseUrl}/objects/${encodeURIComponent(object)}/records`,
       {
-        method: 'PUT',
-        body: JSON.stringify({ data: { values } }),
+        retries: ATTIO_IDEMPOTENT_RETRY_COUNT,
+        init: {
+          method: 'PUT',
+          body: JSON.stringify({ data: { values } }),
+        },
       }
     );
-    return res as CreateRecordResponse<TValuesMap>;
   }
 
   async createRecord<
@@ -445,24 +454,25 @@ export class AttioAPI {
     object: AttioObjectSlug,
     values: TRequestValues
   ): Promise<CreateRecordResponse<TValuesMap>> {
-    const res = await this.request(
+    return await this.request<CreateRecordResponse<TValuesMap>>(
       `${this.baseUrl}/objects/${encodeURIComponent(object)}/records`,
       {
-        method: 'POST',
-        body: JSON.stringify({ data: { values } }),
+        init: {
+          method: 'POST',
+          body: JSON.stringify({ data: { values } }),
+        },
       }
     );
-    return res as CreateRecordResponse<TValuesMap>;
   }
 
   async getRecord<TValues extends Record<string, unknown>>(
     object: AttioObjectSlug,
     recordId: string
   ): Promise<GetRecordResponse<TValues>> {
-    const res = await this.request(
-      `${this.baseUrl}/objects/${encodeURIComponent(object)}/records/${encodeURIComponent(recordId)}`
+    return await this.request<GetRecordResponse<TValues>>(
+      `${this.baseUrl}/objects/${encodeURIComponent(object)}/records/${encodeURIComponent(recordId)}`,
+      { retries: ATTIO_IDEMPOTENT_RETRY_COUNT }
     );
-    return res as GetRecordResponse<TValues>;
   }
 
   async upsertCompanyRecord(values: AttioCompanyValues) {
@@ -493,14 +503,16 @@ export class AttioAPI {
     object: AttioObjectSlug,
     query: QueryRecordsRequest
   ): Promise<QueryRecordsResponse<TValuesMap>> {
-    const res = await this.request(
+    return await this.request<QueryRecordsResponse<TValuesMap>>(
       `${this.baseUrl}/objects/${encodeURIComponent(object)}/records/query`,
       {
-        method: 'POST',
-        body: JSON.stringify(query),
+        retries: ATTIO_IDEMPOTENT_RETRY_COUNT,
+        init: {
+          method: 'POST',
+          body: JSON.stringify(query),
+        },
       }
     );
-    return res as QueryRecordsResponse<TValuesMap>;
   }
 
   async queryCompanyRecords(
@@ -515,19 +527,33 @@ export class AttioAPI {
     return this.queryRecords<AttioPersonRecordValues>('people', query);
   }
 
-  private async request(url: string, init?: RequestInit): Promise<any> {
-    const res = await fetch(url, {
-      ...init,
-      headers: {
-        'content-type': 'application/json',
-        authorization: `Bearer ${this.apiKey}`,
-        ...init?.headers,
+  private async request<T>(
+    url: string,
+    options?: {
+      init?: RequestInit;
+      retries?: number;
+    }
+  ): Promise<T> {
+    const init = options?.init;
+    const res = await fetchExt({
+      url,
+      init: {
+        ...init,
+        headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${this.apiKey}`,
+          ...init?.headers,
+        },
       },
+      timeout: ATTIO_REQUEST_TIMEOUT_MS,
+      retries: options?.retries ?? 0,
+      retryDelay: ATTIO_RETRY_DELAY_MS,
+      retryOnHttpStatuses: [...ATTIO_RETRY_HTTP_STATUSES],
     });
     if (!res.ok) {
       const text = await res.text().catch(() => '');
       throw new Error(`Attio API error ${res.status}: ${text}`);
     }
-    return await res.json();
+    return (await res.json()) as T;
   }
 }
