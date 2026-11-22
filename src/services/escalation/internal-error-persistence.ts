@@ -1,10 +1,15 @@
 import { fnv1a64 } from '../../utils/crypto-utils';
+import {
+  type ErrorDiagnosticValue,
+  serializeErrorDiagnostics,
+} from '../../utils/error-diagnostics';
 import { serializeError } from '../../utils/error-utils';
 import type { AbstractKeyValueService } from '../key-value/abstract-key-value';
 
-export const INTERNAL_ERROR_TTL_SECONDS = 24 * 60 * 60;
+export const INTERNAL_ERROR_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 export interface InternalErrorDebugData {
+  diagnostics?: ErrorDiagnosticValue;
   errorMessage: string;
   errorName: string | null;
   hash: string;
@@ -24,6 +29,7 @@ export interface StoredInternalErrorActorRecord {
   hash: string;
   impersonatedBy: string | null;
   lastSeenAt: string;
+  pagePath?: string | null;
   userId: string;
 }
 
@@ -35,6 +41,7 @@ export interface InternalErrorActor {
 export interface PersistInternalErrorInput {
   actor?: InternalErrorActor | null;
   error: unknown;
+  pagePath?: string | null;
   path?: string;
 }
 
@@ -83,10 +90,35 @@ export const getPublicInternalErrorMessage = (
 ): string => `Internal server error #${getInternalErrorHash(message)}`;
 
 /**
+ * Extract a safe HTTP(S) pathname from a referer header without query parameters or fragments.
+ *
+ * @param referer - Raw `Referer` header value
+ * @returns Normalized pathname, or `null` when missing or non-HTTP(S)
+ */
+export const getInternalErrorPagePath = (
+  referer: string | null | undefined
+): string | null => {
+  if (!referer) {
+    return null;
+  }
+
+  try {
+    const url = new URL(referer);
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      return null;
+    }
+    // Keep page context without persisting query parameters or fragments.
+    return url.pathname;
+  } catch {
+    return null;
+  }
+};
+
+/**
  * Serialize an error into the diagnostic shape stored by the persistence service.
  *
  * @param input - Error and optional procedure or route path
- * @returns Error details including the unredacted stack and stable message hash
+ * @returns Error details including redacted diagnostics, stack, and stable message hash
  */
 export const buildInternalErrorDebugData = (input: {
   error: unknown;
@@ -108,6 +140,7 @@ export const buildInternalErrorDebugData = (input: {
       : (serialized.stack ?? null);
 
   return {
+    diagnostics: serializeErrorDiagnostics(input.error),
     errorMessage,
     errorName,
     hash: getInternalErrorHash(errorMessage),
@@ -119,8 +152,8 @@ export const buildInternalErrorDebugData = (input: {
 /**
  * Persist aggregate and optional per-actor diagnostics for internal errors.
  *
- * Records use a sliding TTL and preserve their original `firstSeenAt`. Actor
- * indexes use negative timestamps so ascending sorted-set reads return newest
+ * Records use a sliding TTL (default 7 days) and preserve their original `firstSeenAt`.
+ * Actor indexes use negative timestamps so ascending sorted-set reads return newest
  * actors first.
  */
 export class InternalErrorPersistenceService {
@@ -146,7 +179,7 @@ export class InternalErrorPersistenceService {
   /**
    * Persist an internal error occurrence and refresh its record TTLs.
    *
-   * @param input - Error, optional route path, and optional authenticated actor
+   * @param input - Error, optional route path, optional page path, and optional authenticated actor
    * @returns Written key identifiers, or null when the error is not internal
    */
   async persist(
@@ -191,6 +224,7 @@ export class InternalErrorPersistenceService {
         impersonatedBy:
           input.actor.impersonatedBy ?? existingActor?.impersonatedBy ?? null,
         lastSeenAt: now,
+        pagePath: input.pagePath ?? null,
         userId: input.actor.userId,
       },
       this.ttlSeconds

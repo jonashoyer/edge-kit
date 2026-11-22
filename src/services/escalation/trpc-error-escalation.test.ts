@@ -89,4 +89,29 @@ describe('createTrpcErrorEscalationHandler', () => {
       expect.objectContaining({ rules: clientErrorRules })
     );
   });
+
+  it('attaches internalErrorHash tag and diagnostics URL for INTERNAL_SERVER_ERROR', async () => {
+    const capture = vi
+      .fn<(error: unknown, config: CaptureConfig) => Promise<void>>()
+      .mockResolvedValue();
+    const error = createError('INTERNAL_SERVER_ERROR', 'boom');
+    const handler = createTrpcErrorEscalationHandler({
+      errorLookupBaseUrl: 'https://app.example.com',
+      getEscalation: () => ({ capture }),
+    });
+
+    await handler({ error, path: 'report.build', type: 'mutation' });
+
+    expect(capture).toHaveBeenCalledWith(
+      error,
+      expect.objectContaining({
+        message: expect.stringContaining(
+          'Full diagnostics: https://app.example.com/admin/errors?hash=cd2fd39bc6b0130a'
+        ),
+        tags: expect.objectContaining({
+          internalErrorHash: 'cd2fd39bc6b0130a',
+        }),
+      })
+    );
+  });
 });

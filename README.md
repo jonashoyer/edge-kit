@@ -143,6 +143,9 @@ API required to parse source files.
 
 ### Operations & Coordination
 
+- [KV Mutex](./src/services/mutex/mutex-kv.ts): Distributed locking over
+  `AbstractKeyValueService` with `withDoubleCheckedLock` and `getOrSet`
+  cache-stampede protection.
 - [Task Reconciler](./src/services/task-reconciler/task-reconciler.ts): Central
   registry-based desired-vs-applied reconciliation for reindexing, backfills,
   cache rebuilds, and similar operational work.
@@ -402,6 +405,7 @@ High-quality, focused utility functions located in `src/utils/`.
   const [error, result] = await tryCatch(asyncFn());
   ```
 - **[Custom Error](./src/utils/custom-error.ts)**: Typed error handling.
+- **[Error Diagnostics](./src/utils/error-diagnostics.ts)**: Bounded, redacted error graph serialization.
 - **[Date](./src/utils/date-utils.ts)**, **[String](./src/utils/string-utils.ts)**, **[Array](./src/utils/array-utils.ts)**, **[Crypto](./src/utils/crypto-utils.ts)**, and more.
 
 ## 📣 Starter Kits

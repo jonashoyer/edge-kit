@@ -59,4 +59,35 @@ export abstract class AbstractMutex<TNamespace extends string = string> {
       await this.release(name, token, options);
     }
   }
+
+  /**
+   * Double-checked locking helper for cache-stampede / singleflight coordination.
+   *
+   * Checks for an existing fresh value before acquiring the lock, and checks
+   * again once the lock is held so waiters reuse work completed by an earlier holder.
+   */
+  async withDoubleCheckedLock<T>(
+    name: TNamespace,
+    check: () => Promise<T | undefined> | T | undefined,
+    runExclusive: (refresher: () => Promise<boolean>) => Promise<T>,
+    options?: MutexOptions
+  ): Promise<T> {
+    const existing = await check();
+    if (existing !== undefined) {
+      return existing;
+    }
+
+    return await this.withLock(
+      name,
+      async (refresher) => {
+        const rechecked = await check();
+        if (rechecked !== undefined) {
+          return rechecked;
+        }
+
+        return await runExclusive(refresher);
+      },
+      options
+    );
+  }
 }

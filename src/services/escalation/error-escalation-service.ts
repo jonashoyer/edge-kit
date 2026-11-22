@@ -1,4 +1,7 @@
-import { serializeError } from '../../utils/error-utils';
+import {
+  type SerializedErrorCause,
+  serializeError,
+} from '../../utils/error-utils';
 import type {
   AbstractAlertingService,
   AlertSeverity,
@@ -33,6 +36,8 @@ export type ErrorMetadata = {
   name?: string;
   message?: string;
   stack?: string;
+  details?: Record<string, boolean | number | string | null>;
+  causes?: SerializedErrorCause[];
 };
 
 const DEFAULT_PREFIX = 'err:';
@@ -95,7 +100,13 @@ export class ErrorEscalationService {
 
   private toMeta(error: unknown): ErrorMetadata {
     const se = serializeError(error);
-    return { message: se.message, name: se.name, stack: se.stack };
+    return {
+      causes: se.causes,
+      details: se.details,
+      message: se.message,
+      name: se.name,
+      stack: se.stack,
+    };
   }
 
   private async applyRules(args: {
@@ -246,9 +257,15 @@ export class ErrorEscalationService {
 
     const errMsg = meta.message ? `\nError: ${meta.message}` : '';
     const errName = meta.name ? ` (${meta.name})` : '';
+    const details = meta.details
+      ? `\nDetails: ${JSON.stringify(meta.details)}`
+      : '';
+    const causes = buildCauseText(meta.causes);
     const stack = meta.stack ? `\n\nStack:\n${truncateStack(meta.stack)}` : '';
 
-    return `${header}${errName}${group}\n${message}\n${ruleLines}${errMsg}${stack}`;
+    return truncateAlertText(
+      `${header}${errName}${group}\n${message ?? '<no message>'}\n${ruleLines}${errMsg}${details}${causes}${stack}`
+    );
   }
 
   private async notify(opts: {
@@ -260,11 +277,14 @@ export class ErrorEscalationService {
     config: CaptureConfig;
     extra?: { count?: number };
   }): Promise<void> {
-    await this.alerting.alert(this.buildText(opts), {
-      severity: opts.severity,
-      source: 'error-escalation',
-      tags: opts.config.tags,
-    });
+    await this.alerting.alert(
+      this.buildText({ ...opts, message: opts.config.message }),
+      {
+        severity: opts.severity,
+        source: 'error-escalation',
+        tags: opts.config.tags,
+      }
+    );
   }
 }
 
@@ -273,4 +293,27 @@ function truncateStack(stack: string, maxLines = 30): string {
   if (lines.length <= maxLines) return stack;
   const head = lines.slice(0, maxLines).join('\n');
   return `${head}\n... (${lines.length - maxLines} more lines)`;
+}
+
+const MAX_ALERT_TEXT_LENGTH = 2900;
+
+function truncateAlertText(text: string): string {
+  if (text.length <= MAX_ALERT_TEXT_LENGTH) return text;
+  return `${text.slice(0, MAX_ALERT_TEXT_LENGTH)}\n... (truncated)`;
+}
+
+function buildCauseText(causes: SerializedErrorCause[] | undefined): string {
+  if (!causes || causes.length === 0) return '';
+
+  const summaries = causes.map((cause, index) => {
+    const label = [`[${index + 1}]`, cause.name]
+      .filter((value): value is string => Boolean(value))
+      .join(' ');
+    const message = cause.message ? `: ${cause.message}` : '';
+    const details = cause.details
+      ? `\nDetails: ${JSON.stringify(cause.details)}`
+      : '';
+    return `${label}${message}${details}`;
+  });
+  return `\n\nCaused by:\n${summaries.join('\n')}`;
 }
