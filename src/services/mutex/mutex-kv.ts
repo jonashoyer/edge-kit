@@ -24,6 +24,24 @@ function buildCountKey(prefix: string, name: string): string {
   return `${prefix}${name}:count`;
 }
 
+export type KvMutexGetOrSetOptions<T, TNamespace extends string = string> = {
+  /** Skip cache reads and always compute and store a fresh value. */
+  bypassCache?: boolean;
+  /** Predicate to validate whether a cached entry is still fresh (e.g. token expiry buffer). */
+  isFresh?: (value: T) => boolean;
+  /** Override the mutex lock name. Defaults to the cache `key`. */
+  lockName?: TNamespace;
+  /** Per-call mutex options (TTL, retries, backoff, prefix, logger). */
+  lockOptions?: MutexOptions;
+  /** Static TTL in seconds or a function deriving TTL from the computed value. */
+  ttlSeconds?: number | ((value: T) => number | undefined);
+};
+
+const isUsableCachedValue = <T>(
+  value: T | null,
+  isFresh?: (candidate: T) => boolean
+): value is T => value !== null && (isFresh ? isFresh(value) : true);
+
 /**
  * Distributed Mutex implementation using a Key-Value store.
  * Provides locking mechanisms with TTL, retries, and exponential backoff.
@@ -150,5 +168,68 @@ export class KvMutex<
       opts.logger?.warn('mutex refresh failed', { name });
     }
     return ok;
+  }
+
+  /**
+   * Read a value from the underlying KV store or compute and cache it under
+   * this mutex using double-checked locking (cache-stampede protection).
+   *
+   * 1. Fast path (no lock): returns a fresh cached value from `kv` if present.
+   * 2. Lock path: acquires the mutex, re-reads `kv` in case another caller
+   *    populated it while waiting, and only invokes `compute` on a miss or
+   *    stale entry.
+   *
+   * @example
+   * ```ts
+   * const token = await mutex.getOrSet(
+   *   'github:token:contents:read',
+   *   async () => await mintToken(),
+   *   {
+   *     isFresh: (entry) => entry.expiresAt - 5 * 60_000 > Date.now(),
+   *     ttlSeconds: (entry) => Math.max(1, Math.floor((entry.expiresAt - Date.now()) / 1000)),
+   *   }
+   * );
+   * ```
+   */
+  async getOrSet<T>(
+    key: TNamespace,
+    compute: (refresher: () => Promise<boolean>) => Promise<T>,
+    options?: KvMutexGetOrSetOptions<T, TNamespace>
+  ): Promise<T> {
+    const bypassCache = options?.bypassCache ?? false;
+    const isFresh = options?.isFresh;
+    const lockName = options?.lockName ?? key;
+
+    const computeAndStore = async (
+      refresher: () => Promise<boolean>
+    ): Promise<T> => {
+      const value = await compute(refresher);
+      if (value !== undefined) {
+        const resolvedTtl =
+          typeof options?.ttlSeconds === 'function'
+            ? options.ttlSeconds(value)
+            : options?.ttlSeconds;
+        await this.kv.set(key, value, resolvedTtl);
+      }
+      return value;
+    };
+
+    if (bypassCache) {
+      return await this.withLock(
+        lockName,
+        computeAndStore,
+        options?.lockOptions
+      );
+    }
+
+    return await this.withDoubleCheckedLock(
+      lockName,
+      async () => {
+        const cached = await this.kv.get<T>(key);
+        return isUsableCachedValue(cached, isFresh) ? cached : undefined;
+      },
+      computeAndStore,
+      options?.lockOptions
+    );
   }
 }

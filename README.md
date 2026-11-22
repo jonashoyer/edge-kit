@@ -143,9 +143,9 @@ API required to parse source files.
 
 ### Operations & Coordination
 
-- [KV Mutex](./src/services/mutex/mutex-kv.ts) & [Locked Cache (`getOrSetWithLock`)](./src/services/mutex/locked-cache.ts):
-  Distributed locking over `AbstractKeyValueService` plus double-checked locking
-  for cache-stampede protection.
+- [KV Mutex](./src/services/mutex/mutex-kv.ts): Distributed locking over
+  `AbstractKeyValueService` with `withDoubleCheckedLock` and `getOrSet`
+  cache-stampede protection.
 - [Task Reconciler](./src/services/task-reconciler/task-reconciler.ts): Central
   registry-based desired-vs-applied reconciliation for reindexing, backfills,
   cache rebuilds, and similar operational work.

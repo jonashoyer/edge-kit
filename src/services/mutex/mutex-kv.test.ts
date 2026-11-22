@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { InMemoryKeyValueService } from '../key-value/in-memory-key-value';
 import { MutexAcquireTimeoutError } from './abstract-mutex';
-import { getOrSetWithLock } from './locked-cache';
 import { KvMutex } from './mutex-kv';
 
 describe('KvMutex', () => {
@@ -32,9 +31,34 @@ describe('KvMutex', () => {
     );
     await mutex.release('busy', token);
   });
+
+  it('supports generic double-checked locking via withDoubleCheckedLock', async () => {
+    const kv = new InMemoryKeyValueService();
+    const mutex = new KvMutex(kv, {
+      backoff: 'none',
+      jitterMs: 5,
+      retries: 20,
+      retryDelayMs: 10,
+    });
+    let state: string | undefined;
+    const runExclusive = vi.fn(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 25));
+      state = 'computed-once';
+      return state;
+    });
+
+    const [first, second] = await Promise.all([
+      mutex.withDoubleCheckedLock('state:1', () => state, runExclusive),
+      mutex.withDoubleCheckedLock('state:1', () => state, runExclusive),
+    ]);
+
+    expect(first).toBe('computed-once');
+    expect(second).toBe('computed-once');
+    expect(runExclusive).toHaveBeenCalledTimes(1);
+  });
 });
 
-describe('getOrSetWithLock', () => {
+describe('KvMutex.getOrSet', () => {
   it('returns cached values on the fast path without acquiring a lock', async () => {
     const kv = new InMemoryKeyValueService();
     await kv.set('item:1', { value: 'cached' }, 60);
@@ -43,7 +67,7 @@ describe('getOrSetWithLock', () => {
     const acquireSpy = vi.spyOn(mutex, 'acquire');
     const compute = vi.fn(async () => ({ value: 'fresh' }));
 
-    const result = await getOrSetWithLock(kv, 'item:1', compute, { mutex });
+    const result = await mutex.getOrSet('item:1', compute);
 
     expect(result).toEqual({ value: 'cached' });
     expect(compute).not.toHaveBeenCalled();
@@ -64,8 +88,8 @@ describe('getOrSetWithLock', () => {
     });
 
     const [first, second] = await Promise.all([
-      getOrSetWithLock(kv, 'token:bucket', compute, { mutex, ttlSeconds: 60 }),
-      getOrSetWithLock(kv, 'token:bucket', compute, { mutex, ttlSeconds: 60 }),
+      mutex.getOrSet('token:bucket', compute, { ttlSeconds: 60 }),
+      mutex.getOrSet('token:bucket', compute, { ttlSeconds: 60 }),
     ]);
 
     expect(first).toEqual({ token: 'minted-1' });
@@ -95,14 +119,13 @@ describe('getOrSetWithLock', () => {
     const options = {
       isFresh: (entry: { expiresAt: number; token: string }) =>
         entry.expiresAt - 60_000 > now,
-      mutex,
       ttlSeconds: (entry: { expiresAt: number; token: string }) =>
         Math.max(1, Math.floor((entry.expiresAt - now) / 1000)),
     };
 
     const [first, second] = await Promise.all([
-      getOrSetWithLock(kv, 'token:bucket', compute, options),
-      getOrSetWithLock(kv, 'token:bucket', compute, options),
+      mutex.getOrSet('token:bucket', compute, options),
+      mutex.getOrSet('token:bucket', compute, options),
     ]);
 
     expect(first.token).toBe('refreshed');
@@ -121,22 +144,19 @@ describe('getOrSetWithLock', () => {
     await kv.set('item:2', 'old', 60);
 
     await expect(
-      getOrSetWithLock(
-        kv,
+      mutex.getOrSet(
         'item:2',
         async () => {
           throw new Error('compute failed');
         },
-        { bypassCache: true, mutex }
+        { bypassCache: true }
       )
     ).rejects.toThrow('compute failed');
 
-    const refreshed = await getOrSetWithLock(
-      kv,
-      'item:2',
-      async () => 'updated',
-      { bypassCache: true, mutex, ttlSeconds: 60 }
-    );
+    const refreshed = await mutex.getOrSet('item:2', async () => 'updated', {
+      bypassCache: true,
+      ttlSeconds: 60,
+    });
 
     expect(refreshed).toBe('updated');
     expect(await kv.get<string>('item:2')).toBe('updated');
