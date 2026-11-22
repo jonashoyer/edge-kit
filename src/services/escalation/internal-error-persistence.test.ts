@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { InMemoryKeyValueService } from '../key-value/in-memory-key-value';
 import {
   getInternalErrorHash,
+  getInternalErrorPagePath,
   getPublicInternalErrorMessage,
   INTERNAL_ERROR_TTL_SECONDS,
   InternalErrorPersistenceService,
@@ -53,7 +54,11 @@ const createInternalError = () => {
   const error = new Error('boom');
   error.name = 'SyntheticFailure';
   error.stack = 'RAW_STACK_CONTEXT';
-  return Object.assign(error, { code: 'INTERNAL_SERVER_ERROR' });
+  return Object.assign(error, {
+    apiKey: 'secret-token',
+    code: 'INTERNAL_SERVER_ERROR',
+    requestId: 'req-123',
+  });
 };
 
 afterEach(() => {
@@ -61,7 +66,7 @@ afterEach(() => {
 });
 
 describe('InternalErrorPersistenceService', () => {
-  it('persists aggregate and per-actor records with sliding TTLs', async () => {
+  it('persists aggregate redacted diagnostics and per-actor records with sliding TTLs', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-08-14T12:00:00.000Z'));
     const kv = new SortedSetKeyValueService();
@@ -69,6 +74,7 @@ describe('InternalErrorPersistenceService', () => {
     const input = {
       actor: { impersonatedBy: 'admin-2', userId: 'user-1' },
       error: createInternalError(),
+      pagePath: '/assignments/123',
       path: 'report.build',
     };
 
@@ -87,18 +93,27 @@ describe('InternalErrorPersistenceService', () => {
     expect(firstResult).toEqual(secondResult);
     expect(record).toMatchObject({
       count: 2,
+      diagnostics: {
+        apiKey: '[redacted]',
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'boom',
+        name: 'SyntheticFailure',
+        requestId: 'req-123',
+      },
       errorMessage: 'boom',
       errorName: 'SyntheticFailure',
       hash,
       path: 'report.build',
       stack: 'RAW_STACK_CONTEXT',
     });
+    expect(JSON.stringify(record?.diagnostics)).not.toContain('secret-token');
     expect(record?.firstSeenAt).toBe('2026-08-14T12:00:00.000Z');
     expect(record?.lastSeenAt).toBe('2026-08-14T12:00:01.000Z');
     expect(actor).toMatchObject({
       count: 2,
       hash,
       impersonatedBy: 'admin-2',
+      pagePath: '/assignments/123',
       userId: 'user-1',
     });
     expect(await kv.zrange(`internal-error:${hash}:actor-index`, 0, 9)).toEqual(
@@ -114,6 +129,41 @@ describe('InternalErrorPersistenceService', () => {
     expect(kv.ttls.get(`internal-error:${hash}:actor-index`)).toBe(
       INTERNAL_ERROR_TTL_SECONDS
     );
+  });
+
+  it('keeps each actor’s latest pagePath and clears stale context when null', async () => {
+    const kv = new SortedSetKeyValueService();
+    const service = new InternalErrorPersistenceService(kv);
+    const error = createInternalError();
+    const hash = getInternalErrorHash(error.message);
+    const actorKey = `internal-error:${hash}:actor:user-1`;
+
+    await service.persist({
+      actor: { userId: 'user-1' },
+      error,
+      pagePath: '/assignments/first',
+    });
+    expect(
+      await kv.get<StoredInternalErrorActorRecord>(actorKey)
+    ).toMatchObject({ pagePath: '/assignments/first' });
+
+    await service.persist({
+      actor: { userId: 'user-1' },
+      error,
+      pagePath: '/assignments/second',
+    });
+    expect(
+      await kv.get<StoredInternalErrorActorRecord>(actorKey)
+    ).toMatchObject({ pagePath: '/assignments/second' });
+
+    await service.persist({
+      actor: { userId: 'user-1' },
+      error,
+      pagePath: null,
+    });
+    expect(
+      await kv.get<StoredInternalErrorActorRecord>(actorKey)
+    ).toMatchObject({ pagePath: null });
   });
 
   it('supports custom namespaces and TTLs without actor persistence', async () => {
@@ -144,11 +194,22 @@ describe('InternalErrorPersistenceService', () => {
     );
   });
 
-  it('creates the same public support identifier as Lexsee', () => {
+  it('extracts pathname from HTTP(S) referer URLs without query strings or fragments', () => {
+    expect(
+      getInternalErrorPagePath(
+        'https://app.example.com/assignments/42?token=secret#section'
+      )
+    ).toBe('/assignments/42');
+    expect(getInternalErrorPagePath('javascript:alert(1)')).toBeNull();
+    expect(getInternalErrorPagePath('not-a-url')).toBeNull();
+    expect(getInternalErrorPagePath(null)).toBeNull();
+  });
+
+  it('creates the same public support identifier and 7-day retention default as Lexsee', () => {
     expect(getInternalErrorHash('boom')).toBe('cd2fd39bc6b0130a');
     expect(getPublicInternalErrorMessage('boom')).toBe(
       'Internal server error #cd2fd39bc6b0130a'
     );
-    expect(INTERNAL_ERROR_TTL_SECONDS).toBe(86_400);
+    expect(INTERNAL_ERROR_TTL_SECONDS).toBe(604_800);
   });
 });

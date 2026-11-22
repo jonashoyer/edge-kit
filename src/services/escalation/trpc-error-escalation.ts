@@ -1,5 +1,6 @@
 import { fnv1a64 } from '../../utils/crypto-utils';
 import type { CaptureConfig, EscalationRule } from './error-escalation-service';
+import { getInternalErrorHash } from './internal-error-persistence';
 
 export type TrpcErrorLike = Error & {
   code: string;
@@ -23,6 +24,7 @@ export type TrpcErrorEscalationOptions<TContext> = {
   ) => ErrorEscalationCapture | undefined;
   enabled?: boolean;
   environment?: string;
+  errorLookupBaseUrl?: string;
   clientErrorRules?: EscalationRule[];
   serverErrorRules?: EscalationRule[];
 };
@@ -93,6 +95,26 @@ export const getTrpcErrorFingerprint = ({
   return fnv1a64(canonicalError).toString(16);
 };
 
+const buildTrpcErrorMessage = ({
+  errorLookupBaseUrl,
+  internalErrorHash,
+  path,
+  status,
+  type,
+}: {
+  errorLookupBaseUrl?: string;
+  internalErrorHash?: string;
+  path?: string;
+  status: number;
+  type?: string;
+}) => {
+  const summary = `HTTP ${status}, procedure: ${path ?? 'unknown'}, type: ${type ?? 'unknown'}`;
+  if (!(internalErrorHash && errorLookupBaseUrl)) {
+    return summary;
+  }
+  return `${summary}\nFull diagnostics: ${errorLookupBaseUrl}/admin/errors?hash=${internalErrorHash}`;
+};
+
 /**
  * Creates a callback compatible with tRPC's `onError` parameters.
  * Alerts immediately for 5xx errors and after three matching 4xx errors in one hour.
@@ -102,6 +124,7 @@ export const createTrpcErrorEscalationHandler =
     getEscalation,
     enabled = true,
     environment = 'unknown',
+    errorLookupBaseUrl,
     clientErrorRules = DEFAULT_CLIENT_ERROR_RULES,
     serverErrorRules = DEFAULT_SERVER_ERROR_RULES,
   }: TrpcErrorEscalationOptions<TContext>) =>
@@ -121,10 +144,20 @@ export const createTrpcErrorEscalationHandler =
     }
 
     const fingerprint = getTrpcErrorFingerprint(params);
+    const internalErrorHash =
+      params.error.code === 'INTERNAL_SERVER_ERROR'
+        ? getInternalErrorHash(params.error.message)
+        : undefined;
 
     await escalation.capture(params.error, {
       groupId: fingerprint,
-      message: `HTTP ${status}, procedure: ${params.path ?? 'unknown'}, type: ${params.type ?? 'unknown'}`,
+      message: buildTrpcErrorMessage({
+        errorLookupBaseUrl,
+        internalErrorHash,
+        path: params.path,
+        status,
+        type: params.type,
+      }),
       name: `tRPC ${status >= 500 ? 'server' : 'client'} error`,
       rules: status >= 500 ? serverErrorRules : clientErrorRules,
       severity: 'error',
@@ -133,6 +166,7 @@ export const createTrpcErrorEscalationHandler =
         path: params.path ?? 'unknown',
         status: String(status),
         trpcCode: params.error.code,
+        ...(internalErrorHash ? { internalErrorHash } : {}),
       },
     });
   };

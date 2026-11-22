@@ -84,6 +84,7 @@ export class KvMutex<
       // biome-ignore lint/performance/noAwaitInLoops: Each lock attempt must observe the previous attempt and retry delay.
       const count = await this.kv.increment(countKey, 1);
 
+      // Increment and expiry are separate requests: a crash between them can strand the lock.
       if (count === 1) {
         await this.kv.set(ownerKey, token, opts.ttlSeconds);
         await this.kv.expire(countKey, opts.ttlSeconds);
